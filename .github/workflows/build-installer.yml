@@ -23,17 +23,24 @@ jobs:
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
             -DDISTRIBUTOR="Better Wii Menu DE" `
-            -DENABLE_AUTOUPDATE=OFF
+            -DENABLE_AUTOUPDATE=OFF `
+            -DDISABLE_NLS=ON
 
       - name: Build
         run: cmake --build build --config Release --parallel
 
       - name: Prepare installer files
         run: |
-          $buildOut = "build/Binaries/Release"
+          $buildOut = "Binary/x64"
           $installerBin = "Binary/x64"
+          if (!(Test-Path $buildOut)) {
+            Write-Host "Binary/x64 not found, checking build/Binaries/Release..."
+            $buildOut = "build/Binaries/Release"
+          }
           New-Item -ItemType Directory -Force -Path $installerBin
-          Copy-Item -Recurse -Force "$buildOut/*" "$installerBin/"
+          if ($buildOut -ne $installerBin) {
+            Copy-Item -Recurse -Force "$buildOut/*" "$installerBin/"
+          }
 
       - name: Build NSIS installer
         run: |
@@ -49,4 +56,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BetterWiiMenuDE-x64-portable
-          path: build/Binaries/Release/
+          path: Binary/x64/
