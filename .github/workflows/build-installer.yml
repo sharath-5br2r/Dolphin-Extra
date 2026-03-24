@@ -31,16 +31,18 @@ jobs:
 
       - name: Prepare installer files
         run: |
-          $buildOut = "Binary/x64"
-          $installerBin = "Binary/x64"
-          if (!(Test-Path $buildOut)) {
-            Write-Host "Binary/x64 not found, checking build/Binaries/Release..."
-            $buildOut = "build/Binaries/Release"
+          # Visual Studio multi-config puts output in Binary/x64/Release/
+          # Move contents up to Binary/x64/ where the installer expects them
+          if (Test-Path "Binary/x64/Release") {
+            Write-Host "Moving files from Binary/x64/Release/ to Binary/x64/"
+            Copy-Item -Recurse -Force "Binary/x64/Release/*" "Binary/x64/"
+            Remove-Item -Recurse -Force "Binary/x64/Release"
+          } elseif (!(Test-Path "Binary/x64")) {
+            Write-Error "Build output not found in Binary/x64/ or Binary/x64/Release/"
+            exit 1
           }
-          New-Item -ItemType Directory -Force -Path $installerBin
-          if ($buildOut -ne $installerBin) {
-            Copy-Item -Recurse -Force "$buildOut/*" "$installerBin/"
-          }
+          Write-Host "Installer files ready in Binary/x64/"
+          Get-ChildItem "Binary/x64/" | Select-Object -First 20
 
       - name: Build NSIS installer
         run: |

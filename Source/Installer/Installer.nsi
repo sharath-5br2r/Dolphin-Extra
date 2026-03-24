@@ -19,7 +19,7 @@
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\BetterWiiMenuDE.exe"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 
-!define BINARY_SOURCE_DIR "..\Binary\${DOLPHIN_ARCH}"
+!define BINARY_SOURCE_DIR "..\..\Binary\${DOLPHIN_ARCH}"
 
 Name "${PRODUCT_NAME}"
 OutFile "BetterWiiMenuDE-${DOLPHIN_ARCH}-${PRODUCT_VERSION}.exe"
@@ -46,7 +46,7 @@ ShowUnInstDetails show
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
 
 ; License page
-!insertmacro MUI_PAGE_LICENSE "..\Data\license.txt"
+!insertmacro MUI_PAGE_LICENSE "..\..\COPYING"
 ; All/Current user selection page
 !insertmacro MULTIUSER_PAGE_INSTALLMODE
 ; Directory page
