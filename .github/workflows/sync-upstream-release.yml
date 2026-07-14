@@ -142,7 +142,7 @@ jobs:
             -Pstorepass="${{ secrets.KEYSTORE_PASS }}" \
             -Pkeyalias="${{ secrets.KEYSTORE_ALIAS }}" \
             -Pkeypass="${{ secrets.KEYSTORE_PASS }}"
-          mv app/build/outputs/apk/release/app-release.apk ../../dolphincs-gfp-vpr-${{ needs.check.outputs.pr_number }}-all.apk
+          mv app/build/outputs/apk/release/app-release.apk ../../dolphin-cs-gfp-vpr${{ needs.check.outputs.pr_number }}-all.apk
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
 
