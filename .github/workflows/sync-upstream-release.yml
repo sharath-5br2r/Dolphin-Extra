@@ -188,8 +188,7 @@ jobs:
             custom user data storage location feature (Scoped Storage / Internal Storage / SD Card).
 
             This is an unofficial community build, not affiliated with the Dolphin team.
-        env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Tag sync marker
         if: steps.merge.outputs.conflict == 'false'
