@@ -318,7 +318,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt install libcurl4-openssl-dev build-essential git cmake ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libevdev-dev libudev-dev libxrandr-dev libxi-dev libpulse-dev libx11-dev libgl1-mesa-dev libasound2-dev libpng-dev libusb-1.0-0-dev libbluetooth-dev liblz4-dev qt6-base-dev qt6-base-private-dev qt6-tools-dev qt6-tools-dev-tools qt6-wayland libclang-dev libvulkan-dev libopenal-dev ninja-build pkg-config zlib1g-dev libzstd-dev libssl-dev libfmt-dev libpugixml-dev -y
+          sudo apt install pkg-config libgl1-mesa-dev libx11-dev libxrandr-dev libxi-dev libegl1-mesa-dev libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev libudev-dev libevdev-dev libsdl3-dev libfmt-dev glslang-dev glslang-tools libpugixml-dev libenet-dev libxxhash-dev libbz2-dev liblzma-dev libzstd-dev zlib1g-dev libminizip-ng-dev liblzo2-dev liblz4-dev libspng-dev libcubeb-dev libusb-1.0-0-dev libsfml-dev libminiupnpc-dev libcurl4-openssl-dev libhidapi-dev libsystemd-dev libgtest-dev libasound2-dev libpulse-dev llvm-dev libbluetooth-dev qt6-base-dev qt6-base-private-dev qt6-svg-dev gettext
           sudo apt install libudev-dev libsystemd-dev -y || sudo apt install libeudev-dev -y
 
       - name: Setup ccache
