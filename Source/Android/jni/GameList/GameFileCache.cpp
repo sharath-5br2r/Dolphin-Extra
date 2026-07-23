@@ -12,6 +12,7 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/WiiForwarder.h"
 #include "DiscIO/Enums.h"
+#include "UICommon/GameFile.h"
 #include "UICommon/GameFileCache.h"
 #include "jni/AndroidCommon/AndroidCommon.h"
 #include "jni/AndroidCommon/IDCache.h"
