@@ -1,252 +1,426 @@
-plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.androidx.baselineprofile)
-}
+Name: Sync And Build
+permissions: write-all
 
-@Suppress("UnstableApiUsage")
-android {
-    compileSdk = 37
-    ndkVersion = "30.0.15729638"
+on:
+  schedule:
+    - cron: '0 1/2 * * *'
+  workflow_dispatch:
 
-    buildFeatures {
-        compose = true
-        viewBinding = true
-        buildConfig = true
-        resValues = true
-    }
+concurrency:
+  group: sync-upstream-release
+  cancel-in-progress: false
 
-    compileOptions {
-        // Flag to enable support for the new language APIs
-        isCoreLibraryDesugaringEnabled = true
+jobs:
+  # ==========================================
+  # 1. CHECK JOB (Determines PR number)
+  # ==========================================
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.latest.outputs.pr_number }}
+      should_run: ${{ steps.check.outputs.should_run }}
 
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+    steps:
+      - name: Determine latest upstream merged PR
+        id: latest
+        run: |
+          LATEST_PR=$(curl -s "https://api.github.com/repos/dolphin-emu/dolphin/pulls?state=closed&per_page=50" \
+            | jq -r '[.[] | select(.merged_at != null)] | sort_by(.merged_at) | last | .number')
+          
+          if [ -z "$LATEST_PR" ] || [ "$LATEST_PR" = "null" ]; then
+            echo "No recently merged PRs found in the fetched batch"
+            exit 1
+          fi
+          echo "pr_number=$LATEST_PR" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream merged PR number: $LATEST_PR"
 
-    lint {
-        // This is important as it will run lint but not abort on error
-        // Lint has some overly obnoxious "errors" that should really be warnings
-        abortOnError = false
+      - name: Check if already synced
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="pr-${{ steps.latest.outputs.pr_number }}"
 
-        //Uncomment disable lines for test builds...
-        //disable "MissingTranslation"
-        //disable "ExtraTranslation"
-    }
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Triggered via workflow_dispatch; forcing run for $TAG"
+            exit 0
+          fi
 
-    defaultConfig {
-        minSdk = 24
-        targetSdk = 37
+          if git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" \
+              "refs/tags/sync/$TAG" >/dev/null 2>&1; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG already synced, nothing to do"
+            exit 0
+          fi
 
-        versionCode = getBuildVersionCode()
-        versionName = getGitVersion()
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "$TAG is new, running full sync!"
 
-        buildConfigField("String", "GIT_HASH", "\"${getGitHash()}\"")
-        buildConfigField("String", "BRANCH", "\"${getBranch()}\"")
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
+  # ==========================================
+  # 2. SYNC JOB (Fetches & merges upstream PR)
+  # ==========================================
+  sync:
+    needs: check
+    if: ${{ github.event_name == 'schedule' && needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          submodules: recursive
 
-    // Define flavor dimensions
-    flavorDimensions += "variant"
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    productFlavors {
-        create("stock") {
-            dimension = "variant"
-            applicationId = "org.dolphinemu.dolphinemu"
-            resValue("string", "app_name_suffixed", "Dolphin Emulator")
-        }
-        create("gfp") {
-            dimension = "variant"
-            applicationId = "com.tencent.tmgp.pubgmhd"
-            resValue("string", "app_name_suffixed", "Dolphin Emulator")
-        }
-    }
+      - name: Fetch upstream PR branch
+        run: |
+          git remote add upstream https://github.com/dolphin-emu/dolphin.git
+          git fetch upstream "pull/${{ needs.check.outputs.pr_number }}/head:upstream-pr-${{ needs.check.outputs.pr_number }}" --quiet
 
-    signingConfigs {
-        create("release") {
-            if (project.hasProperty("keystore")) {
-                storeFile = file(project.property("keystore")!!)
-                storePassword = project.property("storepass").toString()
-                keyAlias = project.property("keyalias").toString()
-                keyPassword = project.property("keypass").toString()
-                storeType = "PKCS12"
-            }
-        }
-    }
+      - name: Create release-sync branch from latest feature work
+        run: git checkout -B release-sync master
 
-    // Define build types, which are orthogonal to product flavors.
-    buildTypes {
-        // Signed by release key, allowing for upload to Play Store.
-        release {
-            if (project.hasProperty("keystore")) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+      - name: Merge upstream PR branch
+        id: merge
+        run: |
+          set +e
+          git merge "upstream-pr-${{ needs.check.outputs.pr_number }}" --no-edit -m "Merge upstream PR #${{ needs.check.outputs.pr_number }}"
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            git merge --abort || true
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          fi
 
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
+      - name: Report merge conflict
+        if: steps.merge.outputs.conflict == 'true'
+        run: |
+          echo "Automatic merge of upstream PR '#${{ needs.check.outputs.pr_number }}' produced conflicts"
+          exit 1
 
-        // Signed by debug key disallowing distribution on Play Store.
-        // Attaches "debug" suffix to version name, allowing side-by-side installation.
-        debug {
-            versionNameSuffix = "-debug"
-            isJniDebuggable = true
-        }
-    }
+      - name: Update submodules
+        run: git submodule update --init --recursive
 
-    externalNativeBuild {
-        cmake {
-            path = file("../../../CMakeLists.txt")
-            version = "3.22.1+"
-        }
-    }
-    namespace = "org.dolphinemu.dolphinemu"
+      - name: Push release-sync branch
+        run: git push origin release-sync --force
 
-    defaultConfig {
-        externalNativeBuild {
-            cmake {
-                arguments(
-                    "-DANDROID_STL=c++_static",
-                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
-                    "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
-                    // , "-DENABLE_GENERIC=ON"
-                )
-                abiFilters("arm64-v8a", "x86_64") //, "armeabi-v7a", "x86"
+      - name: Tag sync marker
+        continue-on-error: true
+        run: |
+          git tag "sync/pr-${{ needs.check.outputs.pr_number }}"
+          git push origin "sync/pr-${{ needs.check.outputs.pr_number }}"
 
-                // Uncomment the line below if you don't want to build the C++ unit tests
-                //targets("main", "hook_impl", "main_hook", "gsl_alloc_hook", "file_redirect_hook")
-            }
-        }
-    }
 
-    packaging {
-        jniLibs.useLegacyPackaging = true
-    }
-}
+  # ==========================================
+  # 3A. BUILD JOB - ANDROID (Flavors Matrix)
+  # ==========================================
+  android:
+    needs: [check, sync]
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.sync.result == 'success')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: stock
+            task: ":app:assembleStockRelease"
+          - flavor: gfp
+            task: ":app:assembleGfpRelease"
+    env:
+      CMAKE_C_COMPILER_LAUNCHER: "ccache"
+      CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
+    steps:
+      - name: Checkout target branch (master for workflow_dispatch, release-sync for schedule)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'master' || 'release-sync' }}
+          submodules: recursive
 
-dependencies {
-    baselineProfile(project(":benchmark"))
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ccache-android-${{ matrix.flavor }}-${{ runner.os }}
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.cardview)
-    implementation(libs.androidx.recyclerview)
-    implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.fragment.ktx)
-    implementation(libs.androidx.slidingpanelayout)
-    implementation(libs.material)
-    implementation(libs.androidx.core.splashscreen)
-    implementation(libs.androidx.preference.ktx)
-    implementation(libs.androidx.profileinstaller)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-    // Kotlin extensions for lifecycle components
-    implementation(libs.androidx.lifecycle.livedata.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-    // Android TV UI libraries.
-    implementation(libs.androidx.leanback)
-    implementation(libs.androidx.tvprovider)
-    implementation(libs.androidx.swiperefreshlayout)
+      - name: Install NDK
+        run: sdkmanager "ndk;30.0.15729638"
 
-    // For loading game covers from disk and GameTDB
-    implementation(libs.coil)
-    implementation(libs.coil.compose)
+      - name: Cache CMake build output
+        uses: actions/cache@v4
+        with:
+          path: Source/Android/.cxx
+          key: cxx-${{ matrix.flavor }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'Source/Core/**/*.cpp', 'Source/Core/**/*.h') }}
+          restore-keys: cxx-${{ matrix.flavor }}-${{ runner.os }}-
 
-    // For loading custom GPU drivers
-    implementation(libs.kotlinx.serialization.json)
+      - name: Decode release keystore
+        run: echo "${{ secrets.KEYSTORE_P12 }}" | base64 -d > "$RUNNER_TEMP/dolphincs-release.p12"
 
-    implementation(libs.kotlinx.coroutines.android)
+      - name: Build release APK (${{ matrix.flavor }})
+        working-directory: Source/Android
+        run: |
+          PR_NUM="${{ needs.check.outputs.pr_number }}"
+          if [ -n "$PR_NUM" ]; then
+            SUFFIX="-vpr$PR_NUM"
+          else
+            SUFFIX="-manual"
+          fi
 
-    implementation(libs.filepicker)
+          chmod +x gradlew
 
-    // Jetpack Compose
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.compose.material.icons)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material3.adaptive)
-    implementation(libs.androidx.compose.runtime.livedata)
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.tooling)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-}
+          echo "Executing Gradle task: ${{ matrix.task }}"
 
-fun getGitVersion(): String {
-    try {
-        return ProcessBuilder("git", "describe", "--always", "--long")
-            .directory(project.rootDir)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start().inputStream.bufferedReader().use { it.readText() }
-            .trim()
-            .replace(Regex("(-0)?-[^-]+$"), "")
-    } catch (e: Exception) {
-        logger.error("Cannot find git, defaulting to dummy version number")
-    }
+          ./gradlew ${{ matrix.task }} --no-daemon \
+            -Pkeystore="$RUNNER_TEMP/dolphincs-release.p12" \
+            -Pstorepass="${{ secrets.KEYSTORE_PASS }}" \
+            -Pkeyalias="${{ secrets.KEYSTORE_ALIAS }}" \
+            -Pkeypass="${{ secrets.KEYSTORE_PASS }}"
 
-    return "0.0"
-}
+          mkdir -p ../../artifact
 
-fun getBuildVersionCode(): Int {
-    try {
-        val commitCount = Integer.valueOf(
-            ProcessBuilder("git", "rev-list", "--first-parent", "--count", "HEAD")
-                .directory(project.rootDir)
-                .redirectOutput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
-                .start().inputStream.bufferedReader().use { it.readText() }
-                .trim()
-        )
+          FOUND_APK=$(find app/build/outputs/apk/${{ matrix.flavor }}/release -type f -name "*.apk" ! -name "*unaligned*" | head -n 1)
 
-        val isRelease = ProcessBuilder("git", "describe", "--exact-match", "HEAD")
-            .directory(project.rootDir)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
-            .waitFor() == 0
+          if [ -z "$FOUND_APK" ]; then
+            FOUND_APK=$(find app/build/outputs/apk -type f -name "*.apk" ! -name "*unaligned*" | grep -i "${{ matrix.flavor }}" | head -n 1)
+          fi
 
-        return commitCount * 2 + (if (isRelease) 0 else 1)
-    } catch (e: Exception) {
-        logger.error("Cannot find git, defaulting to dummy version code")
-    }
+          if [ -n "$FOUND_APK" ]; then
+            echo "Found APK at: $FOUND_APK"
+            mv "$FOUND_APK" "../../artifact/Dolphin-Extra-${{ matrix.flavor }}${SUFFIX}-android-all.apk"
+          else
+            echo "Failed to locate APK for flavor '${{ matrix.flavor }}'!"
+            exit 1
+          fi
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/30.0.15729638
 
-    return 1
-}
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/dolphincs-release.p12"
 
-fun getGitHash(): String {
-    try {
-        return ProcessBuilder("git", "rev-parse", "HEAD")
-            .directory(project.rootDir)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start().inputStream.bufferedReader().use { it.readText() }
-            .trim()
-    } catch (e: Exception) {
-        logger.error("Cannot find git, defaulting to dummy git hash")
-    }
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ matrix.flavor }}-build
+          path: ./artifact/*.apk
+          retention-days: 1
 
-    return "0"
-}
 
-fun getBranch(): String {
-    try {
-        return ProcessBuilder("git", "rev-parse", "--abbrev-ref", "HEAD")
-            .directory(project.rootDir)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start().inputStream.bufferedReader().use { it.readText() }
-            .trim()
-    } catch (e: Exception) {
-        logger.error("Cannot find git, defaulting to dummy git hash")
-    }
+  # ==========================================
+  # 3B. BUILD JOB - WINDOWS
+  # ==========================================
+  windows:
+    needs: [check, sync]
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.sync.result == 'success')
+    runs-on: windows-2022
+    env:
+      CMAKE_C_COMPILER_LAUNCHER: "ccache"
+      CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
+    steps:
+      - name: Checkout target branch (master for workflow_dispatch, release-sync for schedule)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'master' || 'release-sync' }}
+          submodules: recursive
 
-    return "master"
-}
+      - name: Install Dependencies
+        run: choco install pkgconfiglite curl ninja nasm -y
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ccache-windows-${{ runner.os }}
+
+      - uses: egor-tensin/vs-shell@v2
+      - uses: libsdl-org/setup-sdl@main
+        id: sdl
+        with:
+          version: 2-latest
+          version-sdl-image: 2-latest
+
+      - name: "Build Windows Dolphin"
+        shell: cmd
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir build
+          cd build
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE="Release" ..
+          cmake --build . --target dolphin-emu
+
+      - name: "Prepare Windows Artifact Structure"
+        working-directory: ${{ github.workspace }}
+        run: |
+          Xcopy /Y /E /I .\Data\Sys .\Binary\x64\Sys
+          cd .\Binary\x64\
+          fsutil file createnew FIX-VCRUNTIME140-ERROR.txt 0
+          echo "Download and install this: https://aka.ms/vs/17/release/vc_redist.x64.exe" > .\FIX-VCRUNTIME140-ERROR.txt
+
+      - name: "Package Windows Dolphin"
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          PR_NUM="${{ needs.check.outputs.pr_number }}"
+          if [ -n "$PR_NUM" ]; then
+            SUFFIX="-vpr$PR_NUM"
+          else
+            SUFFIX="-manual"
+          fi
+          FILE_NAME="Dolphin-Extra${SUFFIX}-x86_64-Windows.zip"
+          
+          mkdir -p artifact
+          cd .\Binary\x64\
+          attrib +r Sys\*.* /s || true
+          fsutil file createnew portable.txt 0
+          7z a "$FILE_NAME" .\*
+          mv "$FILE_NAME" ../../artifact/
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: "./artifact/*.zip"
+          retention-days: 1
+
+
+  # ==========================================
+  # 3C. BUILD JOB - LINUX
+  # ==========================================
+  linux:
+    needs: [check, sync]
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.sync.result == 'success')
+    runs-on: ubuntu-latest
+    env:
+      CMAKE_C_COMPILER_LAUNCHER: "ccache"
+      CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
+    steps:
+      - name: Checkout target branch (master for workflow_dispatch, release-sync for schedule)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'master' || 'release-sync' }}
+          submodules: recursive
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt install libcurl4-openssl-dev build-essential git cmake ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libevdev-dev libudev-dev libxrandr-dev libxi-dev libpulse-dev libqt6svg6-dev libasound2-dev libgudev-1.0-dev liblzma-dev libxi-dev libxrandr-dev libxinerama-dev libxcursor-dev libsoundtouch-dev libminiupnpc-dev libmbedtls-dev libao-dev libbluetooth-dev libreadline-dev libusb-1.0-0-dev qt6-base-dev qt6-base-private-dev qt6-tools-dev-tools libzstd-dev libzstd1 ninja-build ccache p7zip-full libarchive-dev libc6-i386 gcc-multilib g++-multilib -y
+          sudo apt install libudev-dev libsystemd-dev -y || sudo apt install libeudev-dev -y
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ccache-linux-${{ runner.os }}
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DLINUX_LOCAL_DEV=true -DCMAKE_PREFIX_PATH=./Externals/Qt/Qt6.5.1/x64/lib/cmake/ ..
+
+      - name: Build
+        run: |
+          cd build
+          ninja dolphin-emu
+          cp -r ../Data/Sys/ Binaries/
+          touch Binaries/portable.txt
+
+      - name: "Package Linux Dolphin"
+        working-directory: ${{ github.workspace }}
+        run: |
+          PR_NUM="${{ needs.check.outputs.pr_number }}"
+          if [ -n "$PR_NUM" ]; then
+            SUFFIX="-vpr$PR_NUM"
+          else
+            SUFFIX="-manual"
+          fi
+          FILE_NAME="Dolphin-Extra${SUFFIX}-x86_64-Linux.zip"
+
+          mkdir -p artifact
+          cd build/Binaries
+          zip -r "../../artifact/${FILE_NAME}" ./*
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: "./artifact/*.zip"
+          retention-days: 1
+
+
+  # ==========================================
+  # 4. RELEASE JOB (Publishes to GitHub Releases)
+  # ==========================================
+  release:
+    needs: [check, android, windows, linux]
+    if: always() && (needs.android.result == 'success' || needs.windows.result == 'success' || needs.linux.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release-files
+          pattern: "*-build"
+          merge-multiple: true
+
+      - name: Get Next Version Code
+        id: version
+        run: |
+          set -euo pipefail
+          YEAR=$(date -u +"%y")
+          TAG=$( { gh release list -R sharath-5br2r/my-patched-apks --exclude-drafts -L 100 2>/devnull || true; } | awk -F '\t' -v year="$YEAR" '$3 ~ "^" year "[0-9][0-9][0-9][0-9]$" {print $3}' | sort -r | head -n 1 )
+          if [ -n "$TAG" ]; then
+              BUILD_COUNT=${TAG:2:4}
+              BUILD_COUNT=$((10#$BUILD_COUNT + 1))
+          else
+              BUILD_COUNT=1
+          fi
+
+          NEXT_VER_CODE=$(printf "%s%04d" "$YEAR" "$BUILD_COUNT")
+          echo "NEXT_VER_CODE=$NEXT_VER_CODE" >> "$GITHUB_OUTPUT"
+        env: 
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Upload to release (Archive)
+        uses: softprops/action-gh-release@v3
+        with:
+          files: ./release-files/*
+          tag_name: beta
+          overwrite_files: true
+          prerelease: true
+          repository: sharath-5br2r/my-patched-apks
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.NEXT_VER_CODE }}
+          name: Build No. ${{ steps.version.outputs.NEXT_VER_CODE }} (Dolphin Extra)
+          prerelease: true
+          repository: sharath-5br2r/my-patched-apks
+          overwrite_files: true
+          make_latest: true
+          files: ./release-files/*
+          body: |
+            Built from custom release-sync branch, merged with the
+            custom user data storage location feature (Scoped Storage / Internal Storage / SD Card) and Games on Wii Menu Patch
+
+            This is an unofficial community build, not affiliated with the Dolphin team.
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
