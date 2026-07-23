@@ -71,5 +71,5 @@ Switching between games has never been easier!
 
 1. Install the APK
 2. Open Dolphin
-3. 3. Load up the Wii Menu or head straight into a game and enjoy easier game switching!
+3. Load up the Wii Menu or head straight into a game and enjoy easier game switching!
 
