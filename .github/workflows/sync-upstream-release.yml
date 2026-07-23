@@ -63,7 +63,7 @@ jobs:
   # ==========================================
   sync:
     needs: check
-    if: ${{ github.event_name == 'schedule' && needs.check.outputs.should_run == 'true' }}
+    if: ${{ needs.check.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout feature branch
@@ -78,12 +78,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Clean existing release-sync branch
+        run: |
+          git branch -D release-sync 2>/dev/null || true
+          git push origin --delete release-sync 2>/dev/null || true
+
       - name: Fetch upstream PR branch
         run: |
           git remote add upstream https://github.com/dolphin-emu/dolphin.git
           git fetch upstream "pull/${{ needs.check.outputs.pr_number }}/head:upstream-pr-${{ needs.check.outputs.pr_number }}" --quiet
 
-      - name: Create release-sync branch from latest feature work
+      - name: Create fresh release-sync branch from latest feature work
         run: git checkout -B release-sync master
 
       - name: Merge upstream PR branch
@@ -124,7 +129,7 @@ jobs:
   # ==========================================
   android:
     needs: [check, sync]
-    if: always() && (github.event_name == 'workflow_dispatch' || needs.sync.result == 'success')
+    if: always() && needs.sync.result == 'success'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -138,10 +143,10 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: "ccache"
       CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
     steps:
-      - name: Checkout target branch (master for workflow_dispatch, release-sync for schedule)
+      - name: Checkout release-sync branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'master' || 'release-sync' }}
+          ref: release-sync
           submodules: recursive
 
       - name: Setup ccache
@@ -227,16 +232,16 @@ jobs:
   # ==========================================
   windows:
     needs: [check, sync]
-    if: always() && (github.event_name == 'workflow_dispatch' || needs.sync.result == 'success')
+    if: always() && needs.sync.result == 'success'
     runs-on: windows-2022
     env:
       CMAKE_C_COMPILER_LAUNCHER: "ccache"
       CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
     steps:
-      - name: Checkout target branch (master for workflow_dispatch, release-sync for schedule)
+      - name: Checkout release-sync branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'master' || 'release-sync' }}
+          ref: release-sync
           submodules: recursive
 
       - name: Install Dependencies
@@ -272,23 +277,23 @@ jobs:
           echo "Download and install this: https://aka.ms/vs/17/release/vc_redist.x64.exe" > .\FIX-VCRUNTIME140-ERROR.txt
 
       - name: "Package Windows Dolphin"
-        shell: bash
+        shell: powershell
         working-directory: ${{ github.workspace }}
         run: |
-          PR_NUM="${{ needs.check.outputs.pr_number }}"
-          if [ -n "$PR_NUM" ]; then
-            SUFFIX="-vpr$PR_NUM"
-          else
-            SUFFIX="-manual"
-          fi
-          FILE_NAME="Dolphin-Extra${SUFFIX}-x86_64-Windows.zip"
+          $PR_NUM = "${{ needs.check.outputs.pr_number }}"
+          if ($PR_NUM) {
+            $SUFFIX = "-vpr$PR_NUM"
+          } else {
+            $SUFFIX = "-manual"
+          }
+          $FILE_NAME = "Dolphin-Extra${SUFFIX}-x86_64-Windows.zip"
           
-          mkdir -p artifact
-          cd .\Binary\x64\
-          attrib +r Sys\*.* /s || true
+          New-Item -ItemType Directory -Force -Path "artifact" | Out-Null
+          Set-Location -Path ".\Binary\x64\"
+          attrib +r Sys\*.* /s 2>$null
           fsutil file createnew portable.txt 0
           7z a "$FILE_NAME" .\*
-          mv "$FILE_NAME" ../../artifact/
+          Move-Item -Path "$FILE_NAME" -Destination "..\..\artifact\" -Force
 
       - name: "Upload Artifact"
         uses: actions/upload-artifact@v4
@@ -303,16 +308,16 @@ jobs:
   # ==========================================
   linux:
     needs: [check, sync]
-    if: always() && (github.event_name == 'workflow_dispatch' || needs.sync.result == 'success')
+    if: always() && needs.sync.result == 'success'
     runs-on: ubuntu-latest
     env:
       CMAKE_C_COMPILER_LAUNCHER: "ccache"
       CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
     steps:
-      - name: Checkout target branch (master for workflow_dispatch, release-sync for schedule)
+      - name: Checkout release-sync branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'master' || 'release-sync' }}
+          ref: release-sync
           submodules: recursive
 
       - name: Install Dependencies
