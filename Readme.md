@@ -55,11 +55,21 @@ Switching between games has never been easier!
 
 - Switching between games is now possible with only the Wii Remote
 
-- Right-click any game in the Dolphin menu to manually add/remove games from the Wii Menu
+- Right-click or Hold(Android) any game in the Dolphin menu to manually add/remove games from the Wii Menu
 
 - Visually replicates the same experiences as if game files are .wad in Wii Menu
 
 ### How to use
+
+#### Desktop
+
 1. Extract the zip
 2. Run `BetterWiiMenuDE.exe`
 3. Load up the Wii Menu or head straight into a game and enjoy easier game switching!
+
+#### Android
+
+1. Install the APK
+2. Open Dolphin
+3. 3. Load up the Wii Menu or head straight into a game and enjoy easier game switching!
+
