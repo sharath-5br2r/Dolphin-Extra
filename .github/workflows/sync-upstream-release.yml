@@ -1,4 +1,4 @@
-Name: Sync And Build
+name: Sync And Build
 permissions: write-all
 
 on:
