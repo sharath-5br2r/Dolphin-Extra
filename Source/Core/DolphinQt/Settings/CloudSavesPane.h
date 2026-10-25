@@ -6,8 +6,8 @@
 #include <QString>
 #include <QWidget>
 
-class ConfigBool;
-class ConfigText;
+class QCheckBox;
+class QLineEdit;
 class QLabel;
 
 class CloudSavesPane final : public QWidget
@@ -21,9 +21,9 @@ private:
   void RunCheck();
   void MigrateRemoteFolder(const QString& old_folder, const QString& new_folder);
 
-  ConfigBool* m_enable_checkbox;
+  QCheckBox* m_enable_checkbox;
   QLabel* m_status_label;
-  ConfigText* m_remote_folder_edit;
-  ConfigText* m_remote_edit;
+  QLineEdit* m_remote_folder_edit;
+  QLineEdit* m_remote_edit;
   QString m_previous_remote_folder;
 };

@@ -3,6 +3,7 @@
 
 #include "DolphinQt/Settings/CloudSavesPane.h"
 
+#include <QCheckBox>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -13,8 +14,7 @@
 #include <QVBoxLayout>
 
 #include "Core/Config/MainSettings.h"
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigText.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 
 #ifndef _WIN32
 #include "Core/HW/GCMemcard/RcloneUtils.h"
@@ -30,7 +30,8 @@ CloudSavesPane::CloudSavesPane()
   auto* const main_layout = new QVBoxLayout{this};
 
   // Enable/disable toggle
-  m_enable_checkbox = new ConfigBool(tr("Enable cloud save sync"), Config::MAIN_CLOUDSYNC_ENABLED);
+  m_enable_checkbox = new QCheckBox(tr("Enable cloud save sync"));
+  ConfigWidget::Bind(m_enable_checkbox, Config::MAIN_CLOUDSYNC_ENABLED);
   main_layout->addWidget(m_enable_checkbox);
 
   // Remote config group
@@ -47,11 +48,11 @@ CloudSavesPane::CloudSavesPane()
   folder_description->setWordWrap(true);
   remote_layout->addWidget(folder_description);
 
-  m_remote_folder_edit = new ConfigText(Config::MAIN_CLOUDSYNC_REMOTE_FOLDER);
+  m_remote_folder_edit = new QLineEdit;
+  ConfigWidget::Bind(m_remote_folder_edit, Config::MAIN_CLOUDSYNC_REMOTE_FOLDER);
   remote_layout->addWidget(m_remote_folder_edit);
 
-  // ConfigText already saves the new value to Config on editingFinished (connected in its own
-  // constructor, before this connection), so the old value has to be tracked separately here
+  // ConfigWidget::Bind already updates Config, so the old value has to be tracked separately here
   // rather than read back from Config.
   m_previous_remote_folder = m_remote_folder_edit->text();
   connect(m_remote_folder_edit, &QLineEdit::editingFinished, this, [this] {
@@ -82,7 +83,8 @@ CloudSavesPane::CloudSavesPane()
   remote_label->setWordWrap(true);
   remote_layout->addWidget(remote_label);
 
-  m_remote_edit = new ConfigText(Config::MAIN_CLOUDSYNC_REMOTE);
+  m_remote_edit = new QLineEdit;
+  ConfigWidget::Bind(m_remote_edit, Config::MAIN_CLOUDSYNC_REMOTE);
   remote_layout->addWidget(m_remote_edit);
 
   // Status group
