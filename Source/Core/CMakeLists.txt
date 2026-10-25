@@ -102,6 +102,23 @@ endif()
 # if(TARGET) is global while add_custom_command(TARGET) is directory-scoped, so the guard
 # passes and the command then hard-errors.
 if(WIN32)
+  # When SDL3 is built as a shared library on Windows, copy SDL3.dll alongside frontend binaries.
+  if(TARGET SDL3-shared)
+    if(TARGET dolphin-emu OR TARGET dolphin-nogui)
+      add_custom_target(sdl3-dll ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:SDL3-shared>" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+        COMMENT "Copying SDL3.dll to the runtime output directory")
+      foreach(frontend dolphin-emu dolphin-nogui)
+        if(TARGET ${frontend})
+          add_dependencies(${frontend} sdl3-dll)
+        endif()
+      endforeach()
+    endif()
+    install(FILES "$<TARGET_FILE:SDL3-shared>" DESTINATION ${CMAKE_INSTALL_BINDIR})
+  endif()
+
   set(LIBRASHADER_DLL "${CMAKE_SOURCE_DIR}/Externals/librashader/lib/windows-x64/librashader.dll")
   if(EXISTS "${LIBRASHADER_DLL}")
     if(TARGET dolphin-emu OR TARGET dolphin-nogui)

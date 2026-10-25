@@ -430,6 +430,12 @@ jobs:
             Copy-Item -Force "librclone.dll" "$BIN_PATH\librclone.dll"
           }
 
+          # Ensure SDL3.dll is copied into binary directory if generated during build
+          $SDL3_DLL = Get-ChildItem -Path "${{ github.workspace }}\build" -Filter "SDL3.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($SDL3_DLL -and -not (Test-Path "$BIN_PATH\SDL3.dll")) {
+            Copy-Item -Force $SDL3_DLL.FullName "$BIN_PATH\SDL3.dll"
+          }
+
           # Create FIX-VCRUNTIME140-ERROR.txt
           $FIX_FILE = "$BIN_PATH\FIX-VCRUNTIME140-ERROR.txt"
           "Download and install this: https://aka.ms/vs/17/release/vc_redist.${{ matrix.vc_redist_arch }}.exe" | Out-File -Encoding ascii $FIX_FILE
