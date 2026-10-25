@@ -293,10 +293,11 @@ namespace
 {
 constexpr int SETTINGS_CATEGORY_ICON_SIZE = 32;
 
-constexpr std::array<std::string_view, 13> SETTINGS_CATEGORY_ICON_NAMES = {
+constexpr std::array<std::string_view, 14> SETTINGS_CATEGORY_ICON_NAMES = {
     "Settings_General",
     "Settings_Graphics",
     "Settings_Controllers",
+    "cloud",
     "Settings_Interface",
     "Settings_OnScreenDisplay",
     "Settings_OnScreenDisplay",
@@ -334,7 +335,9 @@ QIcon GetSettingsCategoryIcon(SettingsWindowPaneIndex index, const QPalette& pal
   if (icon_index < 0 || icon_index >= static_cast<int>(SETTINGS_CATEGORY_ICON_NAMES.size()))
     return {};
 
-  const QIcon source = Resources::GetResourceIcon(SETTINGS_CATEGORY_ICON_NAMES[icon_index]);
+  const QIcon source = index == SettingsWindowPaneIndex::CloudSaves ?
+                           Resources::GetThemeIcon("cloud") :
+                           Resources::GetResourceIcon(SETTINGS_CATEGORY_ICON_NAMES[icon_index]);
   QIcon icon;
   AddTintedIconMode(&icon, source, palette.color(QPalette::Active, QPalette::Text), QIcon::Normal);
   AddTintedIconMode(&icon, source, palette.color(QPalette::Active, QPalette::Text), QIcon::Active);
