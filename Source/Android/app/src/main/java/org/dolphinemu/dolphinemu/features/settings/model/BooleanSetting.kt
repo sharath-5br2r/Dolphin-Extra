@@ -171,6 +171,12 @@ enum class BooleanSetting(
         "PermissionAsked",
         false
     ),
+    MAIN_CLOUDSYNC_ENABLED(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_CLOUDSYNC,
+        "Enabled",
+        true
+    ),
     MAIN_RECURSIVE_ISO_PATHS(
         Settings.FILE_DOLPHIN,
         Settings.SECTION_INI_GENERAL,

@@ -299,6 +299,7 @@ class SettingsFragmentPresenter(
                 MenuTag.CONFIG_AUDIO -> addAudioSettings(sl)
                 MenuTag.CONFIG_PATHS -> addPathsSettings(sl)
                 MenuTag.CONFIG_GAME_CUBE -> addGameCubeSettings(sl)
+                MenuTag.CONFIG_CLOUDSYNC -> addCloudSyncSettings(sl)
                 MenuTag.CONFIG_WII -> addWiiSettings(sl)
                 MenuTag.CONFIG_ACHIEVEMENTS -> addAchievementSettings(sl)
                 MenuTag.CONFIG_ADVANCED -> addAdvancedSettings(sl)
@@ -368,6 +369,7 @@ class SettingsFragmentPresenter(
         sl.add(SubmenuSetting(context, R.string.audio_submenu, MenuTag.CONFIG_AUDIO))
         sl.add(SubmenuSetting(context, R.string.paths_submenu, MenuTag.CONFIG_PATHS))
         sl.add(SubmenuSetting(context, R.string.gamecube_submenu, MenuTag.CONFIG_GAME_CUBE))
+        sl.add(SubmenuSetting(context, R.string.cloud_saves_submenu, MenuTag.CONFIG_CLOUDSYNC))
         sl.add(SubmenuSetting(context, R.string.wii_submenu, MenuTag.CONFIG_WII))
         sl.add(SubmenuSetting(context, R.string.achievements_submenu, MenuTag.CONFIG_ACHIEVEMENTS))
         sl.add(SubmenuSetting(context, R.string.advanced_submenu, MenuTag.CONFIG_ADVANCED))
@@ -953,6 +955,33 @@ class SettingsFragmentPresenter(
                 0,
                 fragmentView.activityResultLaunchers.requestDirectory,
                 "/GBA/Saves/"
+            )
+        )
+    }
+
+    private fun addCloudSyncSettings(sl: ArrayList<SettingsItem>) {
+        sl.add(
+            SwitchSetting(
+                context,
+                BooleanSetting.MAIN_CLOUDSYNC_ENABLED,
+                R.string.enable_cloud_sync,
+                R.string.enable_cloud_sync_description
+            )
+        )
+        sl.add(
+            InputStringSetting(
+                context,
+                StringSetting.MAIN_CLOUDSYNC_REMOTE,
+                R.string.cloud_sync_remote,
+                R.string.cloud_sync_remote_description
+            )
+        )
+        sl.add(
+            InputStringSetting(
+                context,
+                StringSetting.MAIN_CLOUDSYNC_REMOTE_FOLDER,
+                R.string.cloud_sync_remote_folder,
+                R.string.cloud_sync_remote_folder_description
             )
         )
     }

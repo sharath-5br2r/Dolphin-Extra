@@ -78,6 +78,18 @@ enum class StringSetting(
         "TriforceIPRedirections",
         "0.0.0.0/0=127.0.0.1"
     ),
+    MAIN_CLOUDSYNC_REMOTE(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_CLOUDSYNC,
+        "Remote",
+        "Dropbox"
+    ),
+    MAIN_CLOUDSYNC_REMOTE_FOLDER(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_CLOUDSYNC,
+        "RemoteFolder",
+        "Dolphin Cloud Saves"
+    ),
     GFX_ENHANCE_POST_SHADER(
         Settings.FILE_GFX,
         Settings.SECTION_GFX_ENHANCEMENTS,

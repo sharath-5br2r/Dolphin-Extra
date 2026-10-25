@@ -125,5 +125,6 @@ class Settings : Closeable {
         const val SECTION_STEREOSCOPY = "Stereoscopy"
         const val SECTION_ANALYTICS = "Analytics"
         const val SECTION_ACHIEVEMENTS = "Achievements"
+        const val SECTION_CLOUDSYNC = "CloudSync"
     }
 }

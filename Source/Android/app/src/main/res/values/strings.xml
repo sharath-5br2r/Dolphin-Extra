@@ -106,6 +106,13 @@
     <string name="speed_limit">Speed Limit (0% = Unlimited)</string>
     <string name="overclock_warning">WARNING: Changing this from the default (100%) WILL break games and cause glitches. Please do not report bugs that occur with a non-default clock.</string>
     <string name="achievements_submenu">RetroAchievements</string>
+    <string name="cloud_saves_submenu">Cloud Saves</string>
+    <string name="enable_cloud_sync">Enable Cloud Save Sync</string>
+    <string name="enable_cloud_sync_description">Automatically syncs GameCube saves to and from the cloud via rclone.</string>
+    <string name="cloud_sync_remote">rclone Remote</string>
+    <string name="cloud_sync_remote_description">Name of the configured rclone remote (e.g. Dropbox, GoogleDrive). Run \"rclone listremotes\" to see available names.</string>
+    <string name="cloud_sync_remote_folder">Remote Folder Name</string>
+    <string name="cloud_sync_remote_folder_description">Folder name on the cloud remote where saves are stored.</string>
     <string name="gamecube_submenu">GameCube</string>
     <string name="ipl_settings">IPL Settings</string>
     <string name="skip_main_menu">Skip Main Menu</string>
