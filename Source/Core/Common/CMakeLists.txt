@@ -194,6 +194,7 @@ PUBLIC
   MbedTLS::mbedtls
   MINIZIP::minizip-ng
   sfml-network
+  ZLIB::ZLIB
 
 PRIVATE
   CURL::libcurl
