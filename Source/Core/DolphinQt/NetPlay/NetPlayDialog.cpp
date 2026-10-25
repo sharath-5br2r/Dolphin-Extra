@@ -750,17 +750,24 @@ void NetPlayDialog::OnPlayerDisconnect(const std::string& player)
   DisplayMessage(tr("%1 has left").arg(QString::fromStdString(player)), "darkcyan");
 }
 
-void NetPlayDialog::OnPadBufferChanged(u32 buffer)
+void NetPlayDialog::OnMinimumPadBufferChanged(u32 buffer)
 {
   QueueOnObject(this, [this, buffer] {
     const QSignalBlocker blocker(m_ui->bufferSizeSpinBox);
     m_ui->bufferSizeSpinBox->setValue(buffer);
   });
   DisplayMessage(m_host_input_authority ? tr("Max buffer size changed to %1").arg(buffer) :
-                                          tr("Buffer size changed to %1").arg(buffer),
+                                          tr("Minimum buffer size changed to %1").arg(buffer),
                  "darkcyan");
 
   m_buffer_size = static_cast<int>(buffer);
+}
+
+void NetPlayDialog::OnPlayerPadBufferChanged(u32 buffer)
+{
+  DisplayMessage(m_host_input_authority ? tr("Max buffer size changed to %1").arg(buffer) :
+                                          tr("Player buffer size changed to %1").arg(buffer),
+                 "darkcyan");
 }
 
 void NetPlayDialog::OnHostInputAuthorityChanged(bool enabled)
@@ -883,6 +890,11 @@ bool NetPlayDialog::IsRecording()
       RunOnObject(m_ui->actionRecordInputs, &QAction::isChecked);
   if (is_recording)
     return *is_recording;
+  return false;
+}
+
+bool NetPlayDialog::IsSpectator()
+{
   return false;
 }
 
