@@ -6,9 +6,11 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <ctime>
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -29,9 +31,9 @@
 
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/SessionSettings.h"
-#include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
+#include "Core/HW/GCMemcard/CloudSync.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
 #include "Core/HW/GCMemcard/GCMemcardUtils.h"
 #include "Core/HW/Sram.h"
@@ -183,6 +185,9 @@ GCMemcardDirectory::GCMemcardDirectory(std::string directory, ExpansionInterface
       m_hdr(header_data), m_bat1(header_data.m_size_mb), m_saves(0),
       m_save_directory(std::move(directory)), m_exiting(false)
 {
+  // Pull any newer saves from cloud before loading files from disk.
+  Memcard::PullSaveFromCloud(m_game_id, m_save_directory);
+
   // Use existing header data if available
   {
     File::IOFile((m_save_directory + MC_HDR), "rb").ReadBytes(&m_hdr, Memcard::BLOCK_SIZE);
@@ -672,6 +677,9 @@ void GCMemcardDirectory::FlushToFile()
           if (gci.IsGood())
           {
             Core::DisplayMessage("Wrote save contents to GCI Folder", 4000);
+
+            // Push updated .gci to cloud in the background.
+            Memcard::PushSaveToCloud(m_game_id, save.m_filename);
           }
           else
           {

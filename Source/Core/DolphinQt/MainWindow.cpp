@@ -721,6 +721,7 @@ void MainWindow::ConnectToolBar()
   #ifdef SHOW_UPDATER
   connect(m_tool_bar, &ToolBar::InstallUpdateManuallyPressed, this, &MainWindow::ShowUpdateDialog);
 #endif  // SHOW_UPDATER
+  connect(m_tool_bar, &ToolBar::CloudSavesPressed, this, &MainWindow::ShowCloudSavesWindow);
 
   connect(m_tool_bar, &ToolBar::StepPressed, m_code_widget, &CodeWidget::Step);
   connect(m_tool_bar, &ToolBar::StepOverPressed, m_code_widget, &CodeWidget::StepOver);
@@ -1375,6 +1376,12 @@ void MainWindow::ShowControllersWindow()
 {
   ShowSettingsWindow();
   m_settings_window->SelectPane(SettingsWindowPaneIndex::Controllers);
+}
+
+void MainWindow::ShowCloudSavesWindow()
+{
+  ShowSettingsWindow();
+  m_settings_window->SelectPane(SettingsWindowPaneIndex::CloudSaves);
 }
 
 void MainWindow::ShowTriforceWindow()

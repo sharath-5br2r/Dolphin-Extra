@@ -1,7 +1,7 @@
 ## Dolphin Extra
-Dolphin Extra incorporates aspects of [DolphinCS](https://github.com/JoeysRetroHandhelds/DolphinCS), [Better Wii Menu DE](https://github.com/Gavin-S-Dev/Better-Wii-Menu-DE), and **Project+ Dolphin**, but instead syncs to pull requests. All branding is removed and the apk is optionally spoofed to Game for Peace `com.tencent.tmgp.pubgmhd` for performance.
+Dolphin Extra incorporates aspects of [DolphinCS](https://github.com/JoeysRetroHandhelds/DolphinCS), [Better Wii Menu DE](https://github.com/Gavin-S-Dev/Better-Wii-Menu-DE), [Dolphin CloudSync](https://github.com/gdiazbanuelos/dolphin-cloudsync), and **Project+ Dolphin**, but instead syncs to pull requests. All branding is removed and the apk is optionally spoofed to Game for Peace `com.tencent.tmgp.pubgmhd` for performance.
 Additionally Linux, macOS, and Windows builds of Dolphin Extra are also available.
-Better Wii Menu DE is also ported to Android using AI to replicate the behaviour in Qt UI.
+Better Wii Menu DE and Cloud Sync are also ported to Android.
 
 ## Releases
 
@@ -11,39 +11,31 @@ tracks upstream Dolphin's PR in form of virtual tags, not commits or release tag
 with more clarity and Obtainium Instructions for Android.
 
 ## Note
-The entire Merging of these three patches and CI Enhancements is done by AI.
+The entire Merging of these patches and CI Enhancements is done by AI.
 
 ## Attribution & Original Readmes
 
 <details>
+<summary>Dolphin CloudSync</summary>
+
+# Dolphin CloudSync - GameCube and Wii Cloud Saves
+
+This fork adds automatic cloud save syncing via [rclone](https://rclone.org/). Saves are automatically pushed to the cloud after each in-game save and pulled down before each game launch.
+
+| Cloud Saves Menu Icon | Cloud Saves settings pane |
+|:---:|:---:|
+| ![](docs/cloudsaves.png) | ![](docs/cloudsavessettings.png) |
+
+### How it works
+
+- **On game launch** — Dolphin checks your configured cloud remote for any save newer than your local copy and downloads it before the game loads
+- **On in-game save** — Dolphin silently pushes the updated save file to the cloud in the background
+- Saves are organized as: `{Remote}/Dolphin Cloud Saves/{Game Title} ({Game ID})/`
+
+</details>
+
+<details>
 <summary>Project+ Dolphin Fork</summary>
-
-# Project+ Dolphin Fork
-
-![Untitled-1](https://github.com/user-attachments/assets/3bfb148a-85d1-489d-96ae-1b7892acdc11)
-
-This fork is a heavily modified version of the Dolphin Emulator designed for usage with Project+. It includes the following features:
-
-  * Branding, theming and iconography updates to match the Project+ aesthetic
-  * Netplay button on the toolbar
-  * Update button on the toolbar
-  * Specific aspect ratios (19:15 and 69:40 for regular and widescreen, respectively)
-  * Discord Rich Presence support for Project+
-  * Gamecube Adapter polling rate listed in controller settings
-  * Pre-configured hotkeys for volume up/down and opening netplay chat
-  * Automatic copying of netplay lobby code on netplay window startup
-  * 2 buffer as default netplay setting (equivalent to 4 in FPM)
-  * Separate Minimum and Player buffers in netplay window
-  * Client side music toggle in netplay window
-  * Spectator button in netplay window
-  * Automatic export of Brawl vault data at the end of netplay sessions
-  * Alternative implementation for automatic updates that fetch the latest GitHub release
-
-This project would not be possible without the work done by the [Faster Melee](https://github.com/FasterMelee/Ishiiruka), [Faster PM](https://github.com/jlambert360/Ishiiruka), [Slippi](https://github.com/project-slippi/dolphin), and [Mario Party Netplay](https://github.com/MarioPartyNetplay/Dolphin-MPN) teams.
-
-# Dolphin - A GameCube and Wii Emulator
-
-[Homepage](https://dolphin-emu.org/) | [Project Site](https://github.com/dolphin-emu/dolphin) | [Buildbot](https://dolphin.ci/) | [Forums](https://forums.dolphin-emu.org/) | [Wiki](https://wiki.dolphin-emu.org/) | [GitHub Wiki](https://github.com/dolphin-emu/dolphin/wiki) | [Issue Tracker](https://bugs.dolphin-emu.org/projects/emulator/issues) | [Coding Style](https://github.com/dolphin-emu/dolphin/blob/master/Contributing.md) | [Transifex Page](https://app.transifex.com/dolphinemu/dolphin-emu/dashboard/) | [Analytics](https://mon.dolphin-emu.org/)
 
 Dolphin is an emulator for running GameCube and Wii games on Windows,
 Linux, macOS, and recent Android devices. It's licensed under the terms
