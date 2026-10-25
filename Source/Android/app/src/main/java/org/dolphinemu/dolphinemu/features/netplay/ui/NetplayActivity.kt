@@ -82,6 +82,9 @@ class NetplayActivity : AppCompatActivity(), ThemeProvider {
                     controllerMapping = viewModel.controllerMapping.collectAsState().value,
                     onGamecubePortChanged = viewModel::setGamecubePort,
                     onWiiRemoteChanged = viewModel::setWiiRemote,
+                    onComputeGameDigest = viewModel::computeGameDigest,
+                    onComputeSDCardDigest = viewModel::computeSDCardDigest,
+                    onAbortGameDigest = viewModel::abortGameDigest,
                 )
             }
         }
