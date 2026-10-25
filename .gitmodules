@@ -134,3 +134,6 @@
 	path = Externals/wil
 	url = https://github.com/microsoft/wil.git
 	shallow = true
+[submodule "Externals/rclone/rclone"]
+	path = Externals/rclone/rclone
+	url = https://github.com/rclone/rclone.git
