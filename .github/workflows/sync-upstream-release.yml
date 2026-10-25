@@ -374,6 +374,21 @@ jobs:
           ${{ matrix.configure_cmd }}
           ${{ matrix.build_cmd }}
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: Build librclone for Windows
+        shell: powershell
+        run: |
+          if (Test-Path "Externals\rclone\rclone") {
+            Push-Location "Externals\rclone\rclone"
+            go build -trimpath -ldflags="-s -w" -o ..\..\..\librclone.dll github.com/rclone/rclone/librclone
+            Pop-Location
+          }
+
       - name: "Prepare Windows Artifact Structure"
         shell: powershell
         working-directory: ${{ github.workspace }}
@@ -409,6 +424,10 @@ jobs:
           # Ensure Sys directory is copied into the binary directory if not already present
           if (-not (Test-Path "$BIN_PATH\Sys")) {
             Copy-Item -Recurse -Force "Data\Sys" "$BIN_PATH\Sys"
+          }
+
+          if (Test-Path "librclone.dll") {
+            Copy-Item -Force "librclone.dll" "$BIN_PATH\librclone.dll"
           }
 
           # Create FIX-VCRUNTIME140-ERROR.txt
@@ -530,6 +549,21 @@ jobs:
           cd build
           ninja dolphin-emu
           touch Binaries/portable.txt
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: Build librclone for Linux
+        run: |
+          if [ -d "Externals/rclone/rclone" ]; then
+            cd Externals/rclone/rclone
+            go build -trimpath -ldflags="-s -w" -o ../../../build/Binaries/librclone.so github.com/rclone/rclone/librclone || \
+            go build -trimpath -ldflags="-s -w" -o ../../../build/Binaries/librclone .
+            cd ../../..
+          fi
 
       - name: "Package Linux Dolphin (${{ matrix.arch }})"
         working-directory: ${{ github.workspace }}
@@ -677,6 +711,29 @@ jobs:
           ninja dolphin-emu
           ccache -s
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: Build librclone for macOS
+        run: |
+          if [ -d "Externals/rclone/rclone" ]; then
+            cd Externals/rclone/rclone
+            mkdir -p ../../../librclone-macos
+            CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o ../../../librclone-macos/librclone-x86_64 github.com/rclone/rclone/librclone || \
+            CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o ../../../librclone-macos/librclone-x86_64 .
+            CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ../../../librclone-macos/librclone-arm64 github.com/rclone/rclone/librclone || \
+            CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ../../../librclone-macos/librclone-arm64 .
+            cd ../../..
+            lipo -create librclone-macos/librclone-x86_64 librclone-macos/librclone-arm64 -o librclone-universal
+            mkdir -p build/Binaries/DolphinQt.app/Contents/MacOS
+            cp librclone-universal build/Binaries/DolphinQt.app/Contents/MacOS/librclone
+            mkdir -p build/Binaries/DolphinQt.app/Contents/Frameworks
+            cp librclone-universal build/Binaries/DolphinQt.app/Contents/Frameworks/librclone.dylib
+          fi
+
       - name: Prepare Build Artifacts
         id: create-artifact
         run: |
@@ -776,6 +833,21 @@ jobs:
             -DENABLE_NOGUI=OFF
           ninja
           ninja install
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: Build librclone for AppImage
+        run: |
+          if [ -d "Externals/rclone/rclone" ]; then
+            cd Externals/rclone/rclone
+            go build -trimpath -ldflags="-s -w" -o ../../../build/install/usr/bin/librclone github.com/rclone/rclone/librclone || \
+            go build -trimpath -ldflags="-s -w" -o ../../../build/install/usr/bin/librclone .
+            cd ../../..
+          fi
 
       - name: Package Dolphin-AppImage
         run: |

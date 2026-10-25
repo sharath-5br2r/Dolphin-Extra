@@ -118,8 +118,9 @@ static bool WaitForChildWithTimeout(pid_t pid, int* exit_code, std::chrono::mill
 static bool RunRcloneSync(const std::vector<std::string>& args,
                           std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
 {
+  const std::string rclone_path = FindRclonePath();
 #ifdef _WIN32
-  std::vector<std::string> full_args{"rclone"};
+  std::vector<std::string> full_args{rclone_path.empty() ? "rclone" : rclone_path};
   full_args.insert(full_args.end(), args.begin(), args.end());
   const std::wstring wcmd = UTF8ToWString(BuildWindowsCommandLine(full_args));
   STARTUPINFOW si{};
@@ -148,7 +149,6 @@ static bool RunRcloneSync(const std::vector<std::string>& args,
   CloseHandle(pi.hThread);
   return succeeded;
 #else
-  const std::string rclone_path = FindRclonePath();
   if (rclone_path.empty())
     return false;
 
@@ -174,9 +174,10 @@ static std::optional<std::string> RunRcloneList(const std::vector<std::string>& 
                                                 std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
 {
   std::string listing;
+  const std::string rclone_path = FindRclonePath();
 #ifdef _WIN32
   {
-    std::vector<std::string> full_args{"rclone"};
+    std::vector<std::string> full_args{rclone_path.empty() ? "rclone" : rclone_path};
     full_args.insert(full_args.end(), args.begin(), args.end());
     const std::wstring wcmd = UTF8ToWString(BuildWindowsCommandLine(full_args));
     HANDLE read_pipe, write_pipe;

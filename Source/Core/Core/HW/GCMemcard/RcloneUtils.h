@@ -5,12 +5,9 @@
 
 #include <string>
 
-#ifndef _WIN32
 namespace Memcard
 {
-// Searches a list of common install locations for the rclone binary, since it may not be on
-// PATH depending on how Dolphin was launched. Returns an empty string if rclone could not be
-// found.
+// Searches a list of common install and bundled locations for the rclone/librclone binary,
+// across Windows, macOS, Linux, and Android. Returns an empty string if not found.
 std::string FindRclonePath();
 }  // namespace Memcard
-#endif
