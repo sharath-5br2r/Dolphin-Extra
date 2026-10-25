@@ -656,6 +656,16 @@ void MenuBar::AddOptionsMenu()
   m_change_font = options_menu->addAction(tr("&Font..."), this, &MenuBar::ChangeDebugFont);
 }
 
+void MenuBar::InstallUpdateManually()
+{
+  const std::string autoupdate_track = Config::Get(Config::MAIN_AUTOUPDATE_UPDATE_TRACK);
+  const std::string manual_track = autoupdate_track.empty() ? "dev" : autoupdate_track;
+  auto* const updater = new Updater(m_menu_bar->parentWidget(), manual_track,
+                                    Config::Get(Config::MAIN_AUTOUPDATE_HASH_OVERRIDE));
+
+  updater->CheckForUpdate();
+}
+
 void MenuBar::AddHelpMenu()
 {
   QMenu* const help_menu = m_ui.menuHelp;
