@@ -246,6 +246,25 @@ jobs:
           key: cxx-android-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'Source/Core/**/*.cpp', 'Source/Core/**/*.h') }}
           restore-keys: cxx-android-${{ runner.os }}-
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: Build rclone binary for Android
+        run: |
+          mkdir -p Source/Android/app/src/main/jniLibs/arm64-v8a
+          mkdir -p Source/Android/app/src/main/jniLibs/armeabi-v7a
+          mkdir -p Source/Android/app/src/main/jniLibs/x86_64
+          if [ -d "Externals/rclone/rclone" ]; then
+            cd Externals/rclone/rclone
+            GOOS=android GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ../../../Source/Android/app/src/main/jniLibs/arm64-v8a/librclone.so .
+            GOOS=android GOARCH=arm GOARM=7 go build -trimpath -ldflags="-s -w" -o ../../../Source/Android/app/src/main/jniLibs/armeabi-v7a/librclone.so .
+            GOOS=android GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o ../../../Source/Android/app/src/main/jniLibs/x86_64/librclone.so .
+            cd ../../..
+          fi
+
       - name: Decode release keystore
         run: echo "${{ secrets.KEYSTORE_P12_BASE64 }}" | base64 -d > "$RUNNER_TEMP/dolphincs-release.p12"
 

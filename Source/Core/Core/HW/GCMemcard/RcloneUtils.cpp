@@ -25,7 +25,13 @@ std::string FindRclonePath()
     candidates.push_back(std::string(home) + "/bin/rclone");
 
 #ifdef ANDROID
-  // On Android, check in User directory, Termux, and app native/internal dirs
+  // On Android, check in APK native lib dir, user directory, Termux, and app internal dirs
+  const std::string native_lib_dir = File::GetGpuDriverDirectory(D_GPU_DRIVER_DIR);
+  if (!native_lib_dir.empty())
+  {
+    candidates.push_back(native_lib_dir + "/librclone.so");
+    candidates.push_back(native_lib_dir + "/rclone");
+  }
   candidates.push_back(File::GetUserPath(D_USER_IDX) + "rclone");
   candidates.push_back("/data/data/com.termux/files/usr/bin/rclone");
   candidates.push_back("/data/local/tmp/rclone");
