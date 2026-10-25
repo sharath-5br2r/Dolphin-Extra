@@ -39,6 +39,7 @@
 #include "Core/Config/NetplaySettings.h"
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/Config/SessionSettings.h"
+#include "Core/Config/WiimoteSettings.h"
 #include "Core/ConfigLoaders/GameConfigLoader.h"
 #include "Core/ConfigManager.h"
 #include "Core/GeckoCode.h"
@@ -53,6 +54,7 @@
 #include "Core/HW/Sram.h"
 #include "Core/HW/WiiSave.h"
 #include "Core/HW/WiiSaveStructs.h"
+#include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/DesiredWiimoteState.h"
 #include "Core/IOS/ES/ES.h"
 #include "Core/IOS/FS/FileSystem.h"
@@ -2336,12 +2338,12 @@ void NetPlayServer::AssignNewUserAPad(const Client& player)
       break;
     }
   }
-  for (PlayerId& mapping : m_wiimote_map)
+  for (size_t i = 0; i < m_wiimote_map.size(); ++i)
   {
-    // 0 means unmapped
-    if (mapping == 0)
+    if (m_wiimote_map[i] == 0 &&
+        Config::Get(Config::GetInfoForWiimoteSource(static_cast<int>(i))) != WiimoteSource::None)
     {
-      mapping = player.pid;
+      m_wiimote_map[i] = player.pid;
       break;
     }
   }

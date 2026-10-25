@@ -221,7 +221,11 @@ void InitializeWiiRoot(bool use_temporary)
     MoveToBackupIfExists(s_temp_redirect_root);
 
     File::SetUserPath(D_SESSION_WIIROOT_IDX, s_temp_wii_root);
-	File::Copy(File::GetSysDirectory() + NETPLAY_SAVE_DIR, s_temp_wii_root);
+    const std::string netplay_save_dir = File::GetSysDirectory() + NETPLAY_SAVE_DIR;
+    if (!File::IsDirectory(netplay_save_dir))
+      ERROR_LOG_FMT(IOS_FS, "NetPlay save directory {} is missing", netplay_save_dir);
+    else if (!File::Copy(netplay_save_dir, s_temp_wii_root))
+      ERROR_LOG_FMT(IOS_FS, "Failed to copy NetPlay save from {}", netplay_save_dir);
   }
   else
   {

@@ -782,6 +782,8 @@ static std::string CreateSysDirectoryPath()
   const std::string local_sys_directory = GetExeDirectory() + DIR_SEP SYS_FOLDER_NAME DIR_SEP;
   if (IsDirectory(local_sys_directory))
     sys_directory = local_sys_directory;
+  else if (!IsDirectory(SYSDATA_DIR) && IsDirectory(DATA_DIR "sys"))
+    sys_directory = DATA_DIR "sys" DIR_SEP;  // Installs packaged before the Sys rename
   else
     sys_directory = SYSDATA_DIR DIR_SEP;
 
