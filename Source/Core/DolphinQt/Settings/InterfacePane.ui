@@ -78,13 +78,6 @@
        </widget>
       </item>
       <item>
-       <widget class="QCheckBox" name="useClassicDolphinUiCheckBox">
-        <property name="text">
-         <string>Use Classic Dolphin UI</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QCheckBox" name="useCoversCheckBox">
         <property name="text">
          <string>Download Game Covers from GameTDB.com for Use in Grid Mode</string>
@@ -223,7 +216,6 @@
   <tabstop>themeComboBox</tabstop>
   <tabstop>styleComboBox</tabstop>
   <tabstop>useBuiltinTitleDatabaseCheckBox</tabstop>
-  <tabstop>useClassicDolphinUiCheckBox</tabstop>
   <tabstop>useCoversCheckBox</tabstop>
   <tabstop>showDebuggingUiCheckBox</tabstop>
   <tabstop>focusedHotkeysCheckBox</tabstop>

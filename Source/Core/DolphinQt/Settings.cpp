@@ -422,11 +422,8 @@ void Settings::SetLauncherPath(QString path)
 
 bool Settings::GetPreferredView() const
 {
-  const bool default_view = Config::Get(Config::MAIN_USE_CLASSIC_DOLPHIN_UI) ?
-                                true :
-                                DEFAULT_PREFERRED_VIEW_IS_LIST;
   return GetQSettings()
-      .value(QStringLiteral("PreferredView"), default_view)
+      .value(QStringLiteral("PreferredView"), DEFAULT_PREFERRED_VIEW_IS_LIST)
       .toBool();
 }
 

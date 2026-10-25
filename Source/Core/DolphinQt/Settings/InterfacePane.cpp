@@ -78,7 +78,6 @@ void InterfacePane::BindSettings()
 
   ConfigWidget::Bind(m_ui->useBuiltinTitleDatabaseCheckBox,
                      Config::MAIN_USE_BUILT_IN_TITLE_DATABASE);
-  ConfigWidget::Bind(m_ui->useClassicDolphinUiCheckBox, Config::MAIN_USE_CLASSIC_DOLPHIN_UI);
   ConfigWidget::Bind(m_ui->useCoversCheckBox, Config::MAIN_USE_GAME_COVERS);
   ConfigWidget::Bind(m_ui->focusedHotkeysCheckBox, Config::MAIN_FOCUSED_HOTKEYS);
   ConfigWidget::Bind(m_ui->disableScreensaverCheckBox, Config::MAIN_DISABLE_SCREENSAVER);
@@ -225,9 +224,6 @@ void InterfacePane::AddDescriptions()
   static constexpr char TR_TITLE_DATABASE_DESCRIPTION[] = QT_TR_NOOP(
       "Uses Dolphin's database of properly formatted names in the game list's Title column."
       "<br><br><dolphin_emphasis>If unsure, leave this checked.</dolphin_emphasis>");
-  static constexpr char TR_CLASSIC_DOLPHIN_UI_DESCRIPTION[] = QT_TR_NOOP(
-      "Restores classic Dolphin UI layout and behaviors (e.g. default List View, standard layout)."
-      "<br><br><dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>");
   static constexpr char TR_THEME_DESCRIPTION[] =
       QT_TR_NOOP("Changes the appearance and color of Dolphin's buttons."
                  "<br><br><dolphin_emphasis>If unsure, select Clean.</dolphin_emphasis>");
@@ -290,8 +286,6 @@ void InterfacePane::AddDescriptions()
 
   ConfigWidget::SetDescription(m_ui->useBuiltinTitleDatabaseCheckBox, QString{},
                                tr(TR_TITLE_DATABASE_DESCRIPTION));
-  ConfigWidget::SetDescription(m_ui->useClassicDolphinUiCheckBox, QString{},
-                               tr(TR_CLASSIC_DOLPHIN_UI_DESCRIPTION));
   ConfigWidget::SetDescription(m_ui->themeComboBox, tr("Theme"), tr(TR_THEME_DESCRIPTION));
   ConfigWidget::SetDescription(m_ui->keepWindowOnTopCheckBox, QString{},
                                tr(TR_TOP_WINDOW_DESCRIPTION));
