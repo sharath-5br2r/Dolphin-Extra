@@ -1202,7 +1202,7 @@ void MenuBar::InstallWAD()
 void MenuBar::InstallDiscImageToWiiMenu()
 {
   QString disc_file = DolphinFileDialog::getOpenFileName(
-      this, tr("Select Wii Disc Image to Add to Wii Menu"), QString(),
+      m_menu_bar, tr("Select Wii Disc Image to Add to Wii Menu"), QString(),
       tr("Wii Disc Images (*.rvz *.iso *.wbfs *.gcz *.ciso *.wia);;All Files (*)"));
 
   if (disc_file.isEmpty())
@@ -1212,13 +1212,13 @@ void MenuBar::InstallDiscImageToWiiMenu()
   {
     Settings::Instance().NANDRefresh();
     ModalMessageBox::information(
-        this, tr("Success"),
+        m_menu_bar, tr("Success"),
         tr("Successfully added this game to the Wii Menu.\n"
            "It will appear as a channel when you boot the Wii System Menu."));
   }
   else
   {
-    ModalMessageBox::critical(this, tr("Failure"),
+    ModalMessageBox::critical(m_menu_bar, tr("Failure"),
                               tr("Failed to add this game to the Wii Menu."));
   }
 }

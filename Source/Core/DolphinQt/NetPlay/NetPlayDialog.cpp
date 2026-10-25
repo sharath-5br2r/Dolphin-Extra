@@ -195,9 +195,9 @@ void NetPlayDialog::ConnectWidgets()
     const auto client = Settings::Instance().GetNetPlayClient();
     const auto server = Settings::Instance().GetNetPlayServer();
     if (server && !m_host_input_authority)
-      server->AdjustPadBufferSize(value);
+      server->AdjustMinimumPadBufferSize(value);
     else
-      client->AdjustPadBufferSize(value);
+      client->AdjustMinimumPadBufferSize(value);
   });
 
   const auto hia_function = [this](bool enable) {
@@ -971,7 +971,7 @@ std::string NetPlayDialog::FindGBARomPath(const std::array<u8, 20>& hash, std::s
 
 void NetPlayDialog::LoadSettings()
 {
-  const int buffer_size = Config::Get(Config::NETPLAY_BUFFER_SIZE);
+  const int buffer_size = Config::Get(Config::NETPLAY_MINIMUM_BUFFER_SIZE);
   const bool savedata_load = Config::Get(Config::NETPLAY_SAVEDATA_LOAD);
   const bool savedata_write = Config::Get(Config::NETPLAY_SAVEDATA_WRITE);
   const bool sync_all_wii_saves = Config::Get(Config::NETPLAY_SAVEDATA_SYNC_ALL_WII);
@@ -1025,7 +1025,7 @@ void NetPlayDialog::SaveSettings()
   if (m_host_input_authority)
     Config::SetBase(Config::NETPLAY_CLIENT_BUFFER_SIZE, m_ui->bufferSizeSpinBox->value());
   else
-    Config::SetBase(Config::NETPLAY_BUFFER_SIZE, m_ui->bufferSizeSpinBox->value());
+    Config::SetBase(Config::NETPLAY_MINIMUM_BUFFER_SIZE, m_ui->bufferSizeSpinBox->value());
 
   const bool write_savedata = m_ui->actionSavedataLoadWrite->isChecked();
   const bool load_savedata = write_savedata || m_ui->actionSavedataLoadOnly->isChecked();

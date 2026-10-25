@@ -2810,14 +2810,14 @@ void MainWindow::OnActivateChat()
 
 void MainWindow::OnCollapseChat()
 {
-  if (g_netplay_chat_ui)
-    g_netplay_chat_ui->Collapse();
+  if (const auto chat = g_netplay_chat_ui.load())
+    chat->Collapse();
 }
 
 void MainWindow::OnExpandChat()
 {
-  if (g_netplay_chat_ui)
-    g_netplay_chat_ui->Expand();
+  if (const auto chat = g_netplay_chat_ui.load())
+    chat->Expand();
 }
 
 void MainWindow::OnRequestGolfControl()
