@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FreeLookRotation</class>
+ <widget class="QWidget" name="FreeLookRotation">
+  <layout class="QGridLayout" name="mainLayout">
+   <item row="0" column="0">
+    <layout class="QHBoxLayout" name="alternateInputLayout" stretch="1,0">
+     <item>
+      <widget class="QLabel" name="noteLabel">
+       <property name="text">
+        <string>Note: motion input may require configuring alternate input sources before use.</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="alternateInputSourcesButton">
+       <property name="text">
+        <string>Alternate Input Sources</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

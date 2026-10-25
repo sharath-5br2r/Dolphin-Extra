@@ -3,14 +3,8 @@
 
 #include "DolphinQt/TAS/GBATASInputWindow.h"
 
-#include <QCheckBox>
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QSpacerItem>
-#include <QSpinBox>
 #include <QStyle>
-#include <QVBoxLayout>
+#include <QWidget>
 
 #include "Core/HW/GBAPad.h"
 #include "Core/HW/GBAPadEmu.h"
@@ -20,10 +14,16 @@
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
 #include "InputCommon/InputConfig.h"
 
+#include "ui_GBATASInputWindow.h"
+
 GBATASInputWindow::GBATASInputWindow(QWidget* parent, int controller_id)
     : TASInputWindow(parent), m_controller_id(controller_id)
 {
   setWindowTitle(tr("GBA TAS Input %1").arg(controller_id + 1));
+
+  auto* const content = new QWidget(m_scroll_widget);
+  Ui::GBATASInputWindow ui;
+  ui.setupUi(content);
 
   m_b_button =
       CreateButton(QStringLiteral("&B"), GBAPad::BUTTONS_GROUP, GBAPad::B_BUTTON, &m_overrider);
@@ -46,31 +46,20 @@ GBATASInputWindow::GBATASInputWindow(QWidget* parent, int controller_id)
   m_right_button =
       CreateButton(QStringLiteral("R&ight"), GBAPad::DPAD_GROUP, DIRECTION_RIGHT, &m_overrider);
 
-  auto* buttons_layout = new QGridLayout;
+  ui.buttonsLayout->addWidget(m_left_button, 0, 0);
+  ui.buttonsLayout->addWidget(m_up_button, 0, 1);
+  ui.buttonsLayout->addWidget(m_down_button, 0, 2);
+  ui.buttonsLayout->addWidget(m_right_button, 0, 3);
 
-  buttons_layout->addWidget(m_left_button, 0, 0);
-  buttons_layout->addWidget(m_up_button, 0, 1);
-  buttons_layout->addWidget(m_down_button, 0, 2);
-  buttons_layout->addWidget(m_right_button, 0, 3);
+  ui.buttonsLayout->addWidget(m_l_button, 1, 0);
+  ui.buttonsLayout->addWidget(m_r_button, 1, 1);
+  ui.buttonsLayout->addWidget(m_b_button, 1, 2);
+  ui.buttonsLayout->addWidget(m_a_button, 1, 3);
 
-  buttons_layout->addWidget(m_l_button, 1, 0);
-  buttons_layout->addWidget(m_r_button, 1, 1);
-  buttons_layout->addWidget(m_b_button, 1, 2);
-  buttons_layout->addWidget(m_a_button, 1, 3);
+  ui.buttonsLayout->addWidget(m_select_button, 2, 0, 1, 2);
+  ui.buttonsLayout->addWidget(m_start_button, 2, 2, 1, 2);
 
-  buttons_layout->addWidget(m_select_button, 2, 0, 1, 2);
-  buttons_layout->addWidget(m_start_button, 2, 2, 1, 2);
-
-  buttons_layout->addItem(new QSpacerItem(1, 1, QSizePolicy::Expanding), 0, 4);
-
-  QGroupBox* buttons_box = new QGroupBox(tr("Buttons"));
-  buttons_box->setLayout(buttons_layout);
-
-  auto* layout = new QVBoxLayout;
-  layout->addWidget(buttons_box);
-  layout->addWidget(m_settings_box);
-
-  SetupScrollArea(layout);
+  AddContentWidget(content);
   const QSize hint = m_scroll_widget->sizeHint();
   const int scrollbar_buffer = style()->pixelMetric(QStyle::PM_ScrollBarExtent) + 10;
   resize(hint.width() + scrollbar_buffer, hint.height() + scrollbar_buffer);

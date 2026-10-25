@@ -90,6 +90,18 @@ static bool ShouldEnableDebugUtils(bool enable_validation_layers)
 
 bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
 {
+  m_ui_only = false;
+  return InitializeInternal(wsi);
+}
+
+bool VideoBackend::InitializeUI(const WindowSystemInfo& wsi)
+{
+  m_ui_only = true;
+  return InitializeInternal(wsi);
+}
+
+bool VideoBackend::InitializeInternal(const WindowSystemInfo& wsi)
+{
   if (!LoadVulkanLibrary())
   {
     PanicAlertFmt("Failed to load Vulkan library.");
@@ -229,6 +241,8 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
 
   auto gfx = std::make_unique<VKGfx>(std::move(swap_chain), wsi.render_surface_scale);
   auto vertex_manager = std::make_unique<VertexManager>();
+  if (m_ui_only)
+    return InitializeUIShared(std::move(gfx), std::move(vertex_manager));
   auto perf_query = std::make_unique<PerfQuery>();
   auto bounding_box = std::make_unique<VKBoundingBox>();
 

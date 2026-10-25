@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>UiStringFixture</class>
+ <widget class="QWidget" name="UiStringFixture">
+  <layout class="QVBoxLayout" name="layout">
+   <item>
+    <widget class="QLabel" name="class_name">
+     <property name="text">
+      <string extracomment="A label whose text equals the form class name">UiStringFixture</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="plain">
+     <property name="text">
+      <string>Enable Progressive Scan</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="disambiguated">
+     <property name="text">
+      <string comment="Refers to the speed limiter">Limit</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="annotated">
+     <property name="text">
+      <string extracomment="A hexadecimal address, not a street address">Address:</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="nonascii">
+     <property name="text">
+      <string extracomment="Button to open a file browser">Browse…</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="notr">
+     <property name="text">
+      <string notr="true" extracomment="Why this is not translated">0x80000000</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="whitespace">
+     <property name="text">
+      <string extracomment="A placeholder filled in at runtime">   </string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="escape">
+     <property name="text">
+      <string extracomment="The two characters backslash and n, not a line break">Use \n for a line break</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="multiline">
+     <property name="text">
+      <string extracomment="A label spanning two lines">First line
+Second line</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="numeric_cr">
+     <property name="text">
+      <string extracomment="A carriage return written as a numeric reference">Carriage&#13;return</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="shared_first_gc">
+     <property name="text">
+      <string extracomment="The GameCube variant of a two-line label">Enable this feature
+for GameCube</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="shared_first_wii">
+     <property name="text">
+      <string extracomment="The Wii variant of a two-line label">Enable this feature
+for Wii</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="continuation_substring">
+     <property name="text">
+      <string extracomment="A short label whose whole text is another label's second line">for GameCube</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -20,6 +20,7 @@
 #include "Core/BootManager.h"
 #include "Core/Core.h"
 #include "Core/DolphinAnalytics.h"
+#include "Core/HW/GCMemcard/MemcardSync.h"
 #include "Core/Host.h"
 #include "Core/System.h"
 
@@ -276,6 +277,11 @@ int main(const int argc, char* argv[])
     UICommon::ShutdownControllers();
     UICommon::Shutdown();
   });
+
+  // Memory card sync starts in the background from the settings (the boot below waits for it). At
+  // exit, after Core::Shutdown closed the cards, it gives their uploads a few seconds.
+  MemcardSync::Initialize();
+  Common::ScopeGuard memcard_sync_guard([] { MemcardSync::Shutdown(); });
 
   if (save_state_path && !game_specified)
   {

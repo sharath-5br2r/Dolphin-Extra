@@ -20,9 +20,9 @@ class QDialog;
 class QEvent;
 class QGridLayout;
 class QGroupBox;
-class QLayout;
 class QSpinBox;
 class QString;
+class QVBoxLayout;
 class QWidget;
 class TASCheckBox;
 class TASSpinBox;
@@ -71,12 +71,12 @@ protected:
                                     const QKeySequence& shortcut_key_sequence,
                                     Qt::Orientation orientation, QWidget* shortcut_widget);
 
-  void SetupScrollArea(QLayout* layout);
+  void AddContentWidget(QWidget* widget);
+  void ActivateContentLayout();
 
   void changeEvent(QEvent* event) override;
 
   QWidget* m_scroll_widget;
-  QGroupBox* m_settings_box;
   QCheckBox* m_use_controller;
   QSpinBox* m_turbo_press_frames;
   QSpinBox* m_turbo_release_frames;
@@ -87,4 +87,7 @@ private:
                                          ControlState controller_state);
   std::optional<ControlState> GetSpinBox(TASSpinBox* spin, int zero, ControlState controller_state,
                                          ControlState scale);
+
+  QWidget* m_content_widget = nullptr;
+  QVBoxLayout* m_content_layout;
 };

@@ -3,10 +3,14 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QDialog>
 
-class QComboBox;
-class QRadioButton;
+namespace Ui
+{
+class GCMemcardCreateNewDialog;
+}
 
 class GCMemcardCreateNewDialog : public QDialog
 {
@@ -20,8 +24,6 @@ public:
 private:
   bool CreateCard();
 
-  QComboBox* m_combobox_size;
-  QRadioButton* m_radio_western;
-  QRadioButton* m_radio_shiftjis;
+  std::unique_ptr<Ui::GCMemcardCreateNewDialog> m_ui;
   std::string m_card_path;
 };

@@ -14,7 +14,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
@@ -25,10 +24,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -38,6 +37,7 @@ import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.features.settings.model.view.SettingsItem
 import org.dolphinemu.dolphinemu.features.settings.ui.viewholder.SettingViewHolder
 import org.dolphinemu.dolphinemu.utils.GpuDriverInstallResult
+import org.dolphinemu.dolphinemu.utils.InstalledGpuDriver
 import org.dolphinemu.dolphinemu.utils.Log
 import org.dolphinemu.dolphinemu.utils.SerializableHelper.serializable
 import java.util.EnumMap
@@ -140,6 +140,17 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
         val activity = requireActivity() as SettingsActivityView
         presenter.invalidateSearchIndex()
         presenter.onViewCreated(menuTag, activity.settings)
+
+        if (menuTag == MenuTag.CONFIG_MEMCARD_SYNC) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    while (true) {
+                        presenter.refreshMemcardSyncStatus()
+                        delay(1000)
+                    }
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
@@ -241,11 +252,6 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
     }
 
     override fun loadSubMenu(menuKey: MenuTag) {
-        if (menuKey == MenuTag.GPU_DRIVERS) {
-            showGpuDriverDialog()
-            return
-        }
-
         activityView!!.showSettingsFragment(
             menuKey, null, true, requireArguments().getString(ARGUMENT_GAME_ID)!!
         )
@@ -335,52 +341,30 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
         }
     }
 
-    override fun showGpuDriverDialog() {
-        if (presenter.gpuDriver == null) {
-            return
-        }
-        val msg = "${presenter.gpuDriver!!.name} ${presenter.gpuDriver!!.driverVersion}"
-
-        MaterialAlertDialogBuilder(requireContext()).setTitle(getString(R.string.gpu_driver_dialog_title))
-            .setMessage(msg).setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.gpu_driver_dialog_system) { _: DialogInterface?, _: Int ->
-                presenter.useSystemDriver()
-            }.setPositiveButton(R.string.gpu_driver_dialog_install) { _: DialogInterface?, _: Int ->
-                askForDriverFile()
-            }.show()
+    override fun showDriverActionDialog(driver: InstalledGpuDriver) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(driver.metadata.name)
+            .setMessage(driver.metadata.description)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.gpu_driver_delete) { _: DialogInterface?, _: Int ->
+                presenter.deleteDriver(driver)
+            }
+            .setPositiveButton(R.string.gpu_driver_use) { _: DialogInterface?, _: Int ->
+                presenter.selectDriver(driver)
+            }
+            .show()
     }
 
     override fun getFragmentLifecycle(): Lifecycle {
         return lifecycle
     }
 
-    private fun askForDriverFile() {
+    override fun askForDriverFile() {
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             type = "application/zip"
         }
         requestGpuDriver.launch(intent)
-    }
-
-    override fun onDriverInstallDone(result: GpuDriverInstallResult) {
-        val view = binding?.root ?: return
-        Snackbar.make(view, resolveInstallResultString(result), Snackbar.LENGTH_LONG).show()
-    }
-
-    override fun onDriverUninstallDone() {
-        Toast.makeText(
-            requireContext(), R.string.gpu_driver_dialog_uninstall_done, Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    private fun resolveInstallResultString(result: GpuDriverInstallResult) = when (result) {
-        GpuDriverInstallResult.Success -> getString(R.string.gpu_driver_install_success)
-        GpuDriverInstallResult.InvalidArchive -> getString(R.string.gpu_driver_install_invalid_archive)
-        GpuDriverInstallResult.MissingMetadata -> getString(R.string.gpu_driver_install_missing_metadata)
-        GpuDriverInstallResult.InvalidMetadata -> getString(R.string.gpu_driver_install_invalid_metadata)
-        GpuDriverInstallResult.UnsupportedAndroidVersion -> getString(R.string.gpu_driver_install_unsupported_android_version)
-        GpuDriverInstallResult.AlreadyInstalled -> getString(R.string.gpu_driver_install_already_installed)
-        GpuDriverInstallResult.FileNotFound -> getString(R.string.gpu_driver_install_file_not_found)
     }
 
     companion object {
@@ -401,6 +385,7 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
             titles[MenuTag.CONFIG_SERIALPORT1] = R.string.serialport1_submenu
             titles[MenuTag.CONFIG_WII] = R.string.wii_submenu
             titles[MenuTag.CONFIG_ACHIEVEMENTS] = R.string.achievements_submenu
+            titles[MenuTag.CONFIG_MEMCARD_SYNC] = R.string.memcard_sync_submenu
             titles[MenuTag.CONFIG_ADVANCED] = R.string.advanced_submenu
             titles[MenuTag.DEBUG] = R.string.debug_submenu
             titles[MenuTag.GRAPHICS] = R.string.graphics_settings
@@ -410,6 +395,7 @@ class SettingsFragment : Fragment(), SettingsFragmentView {
             titles[MenuTag.HACKS] = R.string.hacks_submenu
             titles[MenuTag.STATISTICS] = R.string.statistics_submenu
             titles[MenuTag.ADVANCED_GRAPHICS] = R.string.advanced_graphics_submenu
+            titles[MenuTag.GPU_DRIVERS] = R.string.gpu_driver_submenu
             titles[MenuTag.CONFIG_LOG] = R.string.log_submenu
             titles[MenuTag.GCPAD_TYPE] = R.string.gcpad_settings
             titles[MenuTag.WIIMOTE] = R.string.wiimote_settings

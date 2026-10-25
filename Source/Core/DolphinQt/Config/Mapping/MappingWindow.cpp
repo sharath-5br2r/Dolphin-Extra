@@ -3,20 +3,19 @@
 
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
 
+#include <memory>
+
 #include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDialogButtonBox>
-#include <QGroupBox>
-#include <QHBoxLayout>
 #include <QPushButton>
 #include <QScreen>
 #include <QTabWidget>
 #include <QTimer>
 #include <QToolButton>
 #include <QUrl>
-#include <QVBoxLayout>
 
 #include "Core/HotkeyManager.h"
 
@@ -29,6 +28,7 @@
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_DeviceAMBaseboard.h"
 
+#include "DolphinQt/Config/Mapping/BigPictureMapping.h"
 #include "DolphinQt/Config/Mapping/FreeLookGeneral.h"
 #include "DolphinQt/Config/Mapping/FreeLookRotation.h"
 #include "DolphinQt/Config/Mapping/GBAPadEmu.h"
@@ -54,7 +54,6 @@
 #include "DolphinQt/Config/Mapping/WiimoteEmuMotionControl.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuMotionControlIMU.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
-#include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/QtUtils/QtUtils.h"
 #include "DolphinQt/QtUtils/WindowActivationEventFilter.h"
 #include "DolphinQt/QtUtils/WrapInScrollArea.h"
@@ -65,15 +64,14 @@
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 #include "InputCommon/InputConfig.h"
 
+#include "ui_MappingWindow.h"
+
 MappingWindow::MappingWindow(QWidget* parent, Type type, int port_num)
-    : QDialog(parent), m_port(port_num)
+    : QDialog(parent), m_ui(std::make_unique<Ui::MappingWindow>()), m_port(port_num)
 {
   setWindowTitle(tr("Port %1").arg(port_num + 1));
 
-  CreateDevicesLayout();
-  CreateProfilesLayout();
-  CreateResetLayout();
-  CreateMainLayout();
+  CreateWidgets();
   ConnectWidgets();
   SetMappingType(type);
 
@@ -104,110 +102,48 @@ MappingWindow::MappingWindow(QWidget* parent, Type type, int port_num)
   QtUtils::AdjustSizeWithinScreen(this);
 }
 
-void MappingWindow::CreateDevicesLayout()
+MappingWindow::~MappingWindow() = default;
+
+void MappingWindow::CreateWidgets()
 {
-  m_devices_layout = new QHBoxLayout();
-  m_devices_box = new QGroupBox(tr("Device"));
-  m_devices_combo = new QComboBox();
+  m_ui->setupUi(this);
+  m_button_box = m_ui->buttonBox;
+  m_devices_combo = m_ui->devicesComboBox;
+  m_profiles_combo = m_ui->profilesComboBox;
+  m_profiles_load = m_ui->profilesLoadButton;
+  m_profiles_save = m_ui->profilesSaveButton;
+  m_profile_other_actions = m_ui->profileOtherActionsButton;
+  m_reset_default = m_ui->resetDefaultButton;
+  m_reset_clear = m_ui->resetClearButton;
+  m_tab_widget = m_ui->tabWidget;
 
-  auto* const options = new QToolButton();
   // Make it more apparent that this is a menu with more options.
-  options->setPopupMode(QToolButton::ToolButtonPopupMode::MenuButtonPopup);
-
-  const auto refresh_action = new QAction(tr("Refresh"), options);
+  const auto refresh_action = new QAction(tr("Refresh"), m_ui->deviceOptionsButton);
   connect(refresh_action, &QAction::triggered, this, &MappingWindow::RefreshDevices);
 
-  m_other_device_mappings = new QAction(tr("Create Mappings for Other Devices"), options);
+  m_other_device_mappings =
+      new QAction(tr("Create Mappings for Other Devices"), m_ui->deviceOptionsButton);
   m_other_device_mappings->setCheckable(true);
 
-  m_wait_for_alternate_mappings = new QAction(tr("Wait for Alternate Input Mappings"), options);
+  m_wait_for_alternate_mappings =
+      new QAction(tr("Wait for Alternate Input Mappings"), m_ui->deviceOptionsButton);
   m_wait_for_alternate_mappings->setCheckable(true);
 
-  m_iterative_mapping = new QAction(tr("Enable Iterative Input Mapping"), options);
+  m_iterative_mapping =
+      new QAction(tr("Enable Iterative Input Mapping"), m_ui->deviceOptionsButton);
   m_iterative_mapping->setCheckable(true);
 
-  options->addAction(refresh_action);
-  options->addAction(m_other_device_mappings);
-  options->addAction(m_wait_for_alternate_mappings);
-  options->addAction(m_iterative_mapping);
-  options->setDefaultAction(refresh_action);
-
-  m_devices_combo->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-  options->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-  m_devices_layout->addWidget(m_devices_combo);
-  m_devices_layout->addWidget(options);
-
-  m_devices_box->setLayout(m_devices_layout);
-}
-
-void MappingWindow::CreateProfilesLayout()
-{
-  m_profiles_layout = new QHBoxLayout();
-  m_profiles_box = new QGroupBox(tr("Profile"));
-  m_profiles_combo = new QComboBox();
-  m_profiles_load = new NonDefaultQPushButton(tr("Load"));
-  m_profiles_save = new NonDefaultQPushButton(tr("Save"));
+  m_ui->deviceOptionsButton->addAction(refresh_action);
+  m_ui->deviceOptionsButton->addAction(m_other_device_mappings);
+  m_ui->deviceOptionsButton->addAction(m_wait_for_alternate_mappings);
+  m_ui->deviceOptionsButton->addAction(m_iterative_mapping);
+  m_ui->deviceOptionsButton->setDefaultAction(refresh_action);
 
   // Other actions
-  m_profile_other_actions = new QToolButton();
-  m_profile_other_actions->setPopupMode(QToolButton::InstantPopup);
-  m_profile_other_actions->setArrowType(Qt::DownArrow);
-  m_profile_other_actions->setStyleSheet(
-      QStringLiteral("QToolButton::menu-indicator { image: none; }"));  // remove other arrow
   m_profiles_delete = new QAction(tr("Delete"), this);
   m_profiles_open_folder = new QAction(tr("Open Folder"), this);
   m_profile_other_actions->addAction(m_profiles_delete);
   m_profile_other_actions->addAction(m_profiles_open_folder);
-
-  auto* button_layout = new QHBoxLayout();
-
-  m_profiles_combo->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-  m_profiles_combo->setMinimumWidth(100);
-  m_profiles_combo->setEditable(true);
-
-  m_profiles_layout->addWidget(m_profiles_combo);
-  button_layout->addWidget(m_profiles_load);
-  button_layout->addWidget(m_profiles_save);
-  button_layout->addWidget(m_profile_other_actions);
-  m_profiles_layout->addLayout(button_layout);
-
-  m_profiles_box->setLayout(m_profiles_layout);
-}
-
-void MappingWindow::CreateResetLayout()
-{
-  m_reset_layout = new QHBoxLayout();
-  m_reset_box = new QGroupBox(tr("Reset"));
-  m_reset_clear = new NonDefaultQPushButton(tr("Clear"));
-  m_reset_default = new NonDefaultQPushButton(tr("Default"));
-
-  m_reset_box->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-  m_reset_layout->addWidget(m_reset_default);
-  m_reset_layout->addWidget(m_reset_clear);
-
-  m_reset_box->setLayout(m_reset_layout);
-}
-
-void MappingWindow::CreateMainLayout()
-{
-  m_main_layout = new QVBoxLayout();
-  m_config_layout = new QHBoxLayout();
-  m_tab_widget = new QTabWidget();
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Close);
-
-  m_tab_widget->setTabBarAutoHide(true);
-
-  m_config_layout->addWidget(m_devices_box);
-  m_config_layout->addWidget(m_reset_box);
-  m_config_layout->addWidget(m_profiles_box);
-
-  m_main_layout->addLayout(m_config_layout);
-  m_main_layout->addWidget(m_tab_widget);
-  m_main_layout->addWidget(m_button_box);
-
-  setLayout(m_main_layout);
 }
 
 void MappingWindow::ConnectWidgets()
@@ -489,6 +425,11 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
     ShowExtensionMotionTabs(false);
     break;
   }
+  case Type::MAPPING_BIG_PICTURE:
+    widget = new BigPictureMapping(this);
+    AddWidget(tr("Navigation"), widget);
+    setWindowTitle(tr("Big Picture Input %1").arg(GetPort() + 1));
+    break;
   case Type::MAPPING_HOTKEYS:
   {
     widget = new HotkeyGeneral(this);

@@ -69,6 +69,9 @@ struct PresentInfo
 
 struct VideoEvents
 {
+  // Runs on the graphics owner immediately before ImGui::Render, including paused UI frames.
+  // Consumers may draw UI, but must queue emulator/frontend operations rather than execute them.
+  Common::HookableEvent<> host_ui_frame_event;
   // Called when certain video config setting are changed
   Common::HookableEvent<u32> config_changed_event;
 

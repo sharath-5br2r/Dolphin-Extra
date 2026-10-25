@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/Core.h"
+#include "Common/BigPicture/PresentationState.h"
 
 #include <algorithm>
 #include <atomic>
@@ -54,6 +55,7 @@
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/GBAPad.h"
 #include "Core/HW/GCKeyboard.h"
+#include "Core/HW/GCMemcard/MemcardSync.h"
 #include "Core/HW/GCPad.h"
 #include "Core/HW/HW.h"
 #include "Core/HW/SystemTimers.h"
@@ -577,6 +579,10 @@ static void EmuThread(Core::System& system, std::unique_ptr<BootParameters> boot
   AudioCommon::InitSoundStream(system);
   Common::ScopeGuard audio_guard([&system] { AudioCommon::ShutdownSoundStream(system); });
 
+  // Memory card sync: newer saves from other devices are written into the cards before HW::Init
+  // opens them, and the cards are left alone until the session ends below.
+  MemcardSync::OnEmulationStarting(system);
+
   HW::Init(system,
            NetPlay::IsNetPlayRunning() ? &(boot_session_data.GetNetplaySettings()->sram) : nullptr);
 
@@ -584,6 +590,9 @@ static void EmuThread(Core::System& system, std::unique_ptr<BootParameters> boot
     INFO_LOG_FMT(CONSOLE, "{}", StopMessage(false, "Shutting down HW"));
     HW::Shutdown(system);
     INFO_LOG_FMT(CONSOLE, "{}", StopMessage(false, "HW shutdown"));
+
+    // The cards are closed: upload them, and apply what waited for the game to end.
+    MemcardSync::OnEmulationStopped();
 
     // The config must be restored only after the whole HW has shut down,
     // not when it is still running.
@@ -811,6 +820,7 @@ static void RestoreStateAndUnlock(Core::System& system, const bool unpause_on_un
     return;
 
   system.GetDSP().GetDSPEmulator()->UnpauseAndUnlock();
+  system.GetFifo().RestoreState(false);
   ResetRumble();
 
   // CPU is unlocked last because CPU::RestoreStateAndUnlock contains the synchronization mechanism
@@ -1027,14 +1037,15 @@ void DoFrameStep(Core::System& system)
 
 void UpdateInputGate(bool require_focus, bool require_full_focus)
 {
-  // If the user accepts background input, controls should pass even if an on screen interface is on
+  // Background input may bypass focus checks. Explicit modal capture remains unconditional.
   const bool focus_passes =
       !require_focus ||
       ((Host_RendererHasFocus() || Host_TASInputHasFocus()) && !Host_UIBlocksControllerState());
   // Ignore full focus if we don't require basic focus
   const bool full_focus_passes =
       !require_focus || !require_full_focus || (focus_passes && Host_RendererHasFullFocus());
-  ControlReference::SetInputGate(focus_passes && full_focus_passes);
+  ControlReference::SetInputGate(focus_passes && full_focus_passes &&
+                                 !BigPicture::GetPresentationState().IsModal());
 }
 
 CPUThreadGuard::CPUThreadGuard(Core::System& system)

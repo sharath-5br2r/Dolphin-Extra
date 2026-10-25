@@ -6,8 +6,10 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <utility>
 
 #include "AudioCommon/AudioCommon.h"
+#include "Common/BigPicture/PresentationState.h"
 #include "Common/Event.h"
 #include "Common/Thread.h"
 #include "Common/Timer.h"
@@ -20,6 +22,7 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
 #include "Core/TimePlayed.h"
+#include "VideoCommon/BigPicture/Runtime.h"
 #include "VideoCommon/Fifo.h"
 
 namespace CPU
@@ -57,7 +60,7 @@ void CPUManager::FlushStepSyncEventLocked()
 
 void CPUManager::ExecutePendingJobs(std::unique_lock<std::mutex>& state_lock)
 {
-  while (!m_pending_jobs.empty())
+  while (!m_pending_jobs.empty() && !m_state_paused_and_locked)
   {
     auto callback = std::move(m_pending_jobs.front());
     m_pending_jobs.pop();
@@ -154,8 +157,22 @@ void CPUManager::Run()
       break;
 
     case State::Stepping:
+    {
+      // Single-core's paused CPU is still the graphics owner. Mark UI callbacks active too,
+      // so PauseAndLock/Stop cannot mistake the unlocked callback for an idle CPU thread.
+      if (!m_system.IsDualCoreMode() && !m_state_paused_and_locked)
+      {
+        m_state_cpu_thread_active = true;
+        state_lock.unlock();
+        VideoCommon::BigPicture::PresentPaused();
+        state_lock.lock();
+        m_state_cpu_thread_active = false;
+        m_state_cpu_idle_cvar.notify_all();
+      }
       // Wait for step command.
-      m_state_cpu_cvar.wait(state_lock, [this, &state_lock, &gdb_step_sync_event] {
+      const auto step_requested = [this, &state_lock, &gdb_step_sync_event] {
+        if (m_state_paused_and_locked)
+          return true;
         ExecutePendingJobs(state_lock);
         CPUThreadConfigCallback::CheckForConfigChanges();
         state_lock.unlock();
@@ -179,8 +196,18 @@ void CPUManager::Run()
           }
         }
         state_lock.lock();
-        return m_state_cpu_step_instruction || !IsStepping();
-      });
+        return m_state_cpu_step_instruction || !IsStepping() || m_ui_wakeup;
+      };
+      const int timeout = m_system.IsDualCoreMode() ?
+                              0 :
+                              BigPicture::GetPresentationState().GetWaitMilliseconds(
+                                  BigPicture::PresentationState::Clock::now(), 0);
+      if (timeout)
+        m_state_cpu_cvar.wait_for(state_lock, std::chrono::milliseconds(timeout), step_requested);
+      else
+        m_state_cpu_cvar.wait(state_lock, step_requested);
+      if (std::exchange(m_ui_wakeup, false))
+        continue;
       if (!IsStepping())
       {
         // Signal event if the mode changes.
@@ -188,6 +215,9 @@ void CPUManager::Run()
         continue;
       }
       if (m_state_paused_and_locked)
+        continue;
+      // A presentation timeout only services the UI; it must never become a guest step.
+      if (!m_state_cpu_step_instruction)
         continue;
 
       // Do step
@@ -204,6 +234,7 @@ void CPUManager::Run()
       FlushStepSyncEventLocked();
       Host_UpdateDisasmDialog();
       break;
+    }
 
     case State::PowerDown:
       break;
@@ -269,6 +300,7 @@ void CPUManager::Reset()
 
 void CPUManager::StepOpcode(Common::Event* event)
 {
+  InvalidatePauseOwnership();
   std::lock_guard state_lock(m_state_change_lock);
   // If we're not stepping then this is pointless
   if (!IsStepping())
@@ -300,6 +332,7 @@ bool CPUManager::SetStateLocked(State s)
 
 void CPUManager::SetStepping(bool stepping)
 {
+  InvalidatePauseOwnership();
   std::lock_guard stepping_lock(m_stepping_lock);
   std::unique_lock state_lock(m_state_change_lock);
 
@@ -326,6 +359,7 @@ void CPUManager::SetStepping(bool stepping)
 
 void CPUManager::Break()
 {
+  InvalidatePauseOwnership();
   std::lock_guard state_lock(m_state_change_lock);
 
   // If another thread is trying to PauseAndLock then we need to remember this
@@ -407,6 +441,13 @@ void CPUManager::AddCPUThreadJob(Common::MoveOnlyFunction<void()> function)
 {
   std::unique_lock state_lock(m_state_change_lock);
   m_pending_jobs.push(std::move(function));
+}
+
+void CPUManager::WakeupForUI()
+{
+  std::lock_guard lock(m_state_change_lock);
+  m_ui_wakeup = true;
+  m_state_cpu_cvar.notify_one();
 }
 
 }  // namespace CPU

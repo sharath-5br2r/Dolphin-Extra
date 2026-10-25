@@ -6,6 +6,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <utility>
 
 #include "Common/Event.h"
 #include "Common/Flag.h"
@@ -125,6 +126,14 @@ public:
   template <class F>
   void Run(F payload, int64_t timeout = 0)
   {
+    RunWithTimeout(std::move(payload), [timeout] { return timeout; });
+  }
+
+  // Compute the timeout on the owner after each payload. A UI may need paced redraws while
+  // visible and no periodic wakeups while hidden; Wakeup still interrupts either wait.
+  template <class F, class Timeout>
+  void RunWithTimeout(F payload, Timeout get_timeout)
+  {
     // Asserts that Prepare is called at least once before we enter the loop.
     // But a good implementation should call this before already.
     Prepare();
@@ -176,6 +185,8 @@ public:
         [[fallthrough]];
 
       case STATE_SLEEPING:
+      {
+        const auto timeout = get_timeout();
         // Just relax
         if (timeout > 0)
         {
@@ -186,6 +197,7 @@ public:
           m_new_work_event.Wait();
         }
         break;
+      }
       }
     }
 

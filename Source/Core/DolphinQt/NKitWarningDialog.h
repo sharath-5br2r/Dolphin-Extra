@@ -3,8 +3,15 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QDialog>
 #include <QWidget>
+
+namespace Ui
+{
+class NKitWarningDialog;
+}
 
 class NKitWarningDialog final : public QDialog
 {
@@ -15,4 +22,7 @@ public:
 
 private:
   explicit NKitWarningDialog(QWidget* parent = nullptr);
+  ~NKitWarningDialog() override;
+
+  std::unique_ptr<Ui::NKitWarningDialog> m_ui;
 };

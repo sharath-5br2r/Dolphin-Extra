@@ -37,6 +37,7 @@ public:
   std::unique_ptr<AbstractPipeline> CreatePipeline(const AbstractPipelineConfig& config,
                                                    const void* cache_data = nullptr,
                                                    size_t cache_data_length = 0) override;
+  std::unique_ptr<VideoCommon::LibrashaderRuntime> CreateLibrashaderRuntime() override;
   std::unique_ptr<AbstractFramebuffer>
   CreateFramebuffer(AbstractTexture* color_attachment, AbstractTexture* depth_attachment,
                     std::vector<AbstractTexture*> additional_color_attachments) override;
@@ -82,6 +83,12 @@ public:
   // Invalidates a cached texture binding. Required for texel buffers when they borrow the units.
   void InvalidateTextureBinding(u32 index) { m_bound_textures[index] = nullptr; }
 
+  // Forgets every piece of GL state this backend caches to skip redundant calls, so that the next
+  // setter for each of them issues its GL call unconditionally. For code that drives the shared GL
+  // context without going through OGLGfx -- currently only OGLLibrashaderRuntime, whose filter
+  // chain binds its own program, VAO, textures, samplers and enable flags.
+  void InvalidateCachedState();
+
   // The shared framebuffer exists for copying textures when extensions are not available. It is
   // slower, but the only way to do these things otherwise.
   u32 GetSharedReadFramebuffer() const { return m_shared_read_framebuffer; }
@@ -120,5 +127,11 @@ inline OGLGfx* GetOGLGfx()
 {
   return static_cast<OGLGfx*>(g_gfx.get());
 }
+
+// glActiveTexture(GL_MUTABLE_TEXTURE_INDEX) plus the cache invalidation that has to go with it.
+// Always use this instead of the bare glActiveTexture: the scratch unit is a real sampler slot, so
+// binding into it makes OGLGfx::SetTexture's cached binding for that slot a lie, and SetTexture
+// early-returns on a cache hit and would then leave the scratch texture bound for the draw.
+void ActivateMutableTextureUnit();
 
 }  // namespace OGL

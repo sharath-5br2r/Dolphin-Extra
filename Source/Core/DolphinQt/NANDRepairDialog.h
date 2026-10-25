@@ -3,9 +3,16 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QDialog>
 
 class QWidget;
+
+namespace Ui
+{
+class NANDRepairDialog;
+}
 
 namespace WiiUtils
 {
@@ -18,4 +25,8 @@ class NANDRepairDialog final : public QDialog
 
 public:
   explicit NANDRepairDialog(const WiiUtils::NANDCheckResult& result, QWidget* parent = nullptr);
+  ~NANDRepairDialog() override;
+
+private:
+  std::unique_ptr<Ui::NANDRepairDialog> m_ui;
 };

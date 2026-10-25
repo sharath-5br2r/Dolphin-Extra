@@ -44,6 +44,11 @@ public:
   }
   std::string GetName() const override { return m_name; }
   bool IsDetectable() const override { return false; }
+  bool IsPressedForCapture() const override
+  {
+    return (m_inputs.first && m_inputs.first->IsPressedForCapture()) ||
+           (m_inputs.second && m_inputs.second->IsPressedForCapture());
+  }
   bool IsChild(const Input* input) const override
   {
     return m_inputs.first == input || m_inputs.second == input;
@@ -148,6 +153,7 @@ public:
   }
 
   bool IsDetectable() const override { return m_low.IsDetectable() && m_high.IsDetectable(); }
+  bool IsPressedForCapture() const override { return false; }
 
   bool IsHidden() const override { return m_low.IsHidden() && m_high.IsHidden(); }
 

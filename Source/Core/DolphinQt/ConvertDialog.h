@@ -13,6 +13,11 @@
 class QCheckBox;
 class QComboBox;
 
+namespace Ui
+{
+class ConvertDialog;
+}
+
 namespace DiscIO
 {
 enum class WIARVZCompressionType : u32;
@@ -30,6 +35,7 @@ class ConvertDialog final : public QDialog
 public:
   explicit ConvertDialog(QList<std::shared_ptr<const UICommon::GameFile>> files,
                          QWidget* parent = nullptr);
+  ~ConvertDialog() override;
 
 private slots:
   void OnFormatChanged();
@@ -43,6 +49,7 @@ private:
 
   bool ShowAreYouSureDialog(const QString& text);
 
+  std::unique_ptr<Ui::ConvertDialog> m_ui;
   QComboBox* m_format;
   QComboBox* m_block_size;
   QComboBox* m_compression;

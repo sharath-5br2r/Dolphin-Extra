@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
+#include "Common/BigPicture/PresentationState.h"
 
 #include <algorithm>
 
 #include "Common/Assert.h"
 #include "Common/Logging/Log.h"
+#include "Common/ScopeGuard.h"
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
 
 #ifdef CIFACE_USE_WIN32
@@ -44,6 +46,7 @@ ControllerInterface g_controller_interface;
 // threads as hotkeys are updated from a worker thread, but UI can read from the main thread. This
 // will never interfere with game threads.
 static thread_local ciface::InputChannel tls_input_channel = ciface::InputChannel::Host;
+static thread_local std::optional<ciface::InputChannel> tls_additional_input_channel;
 
 static thread_local bool tls_is_updating_devices = false;
 
@@ -320,12 +323,16 @@ void ControllerInterface::RemoveDevice(std::function<bool(const ciface::Core::De
 }
 
 // Update input for all devices.
-void ControllerInterface::UpdateInput()
+void ControllerInterface::UpdateInput(std::optional<ciface::InputChannel> additional_channel)
 {
   // This should never happen
   ASSERT(m_is_init);
   if (!m_is_init)
     return;
+
+  const auto previous_channel = tls_additional_input_channel;
+  tls_additional_input_channel = additional_channel;
+  Common::ScopeGuard restore_channel([&] { tls_additional_input_channel = previous_channel; });
 
   // We add the devices to remove while we still have the "m_devices_mutex" locked.
   // This guarantees that:
@@ -374,6 +381,11 @@ ciface::InputChannel ControllerInterface::GetCurrentInputChannel()
   return tls_input_channel;
 }
 
+std::optional<ciface::InputChannel> ControllerInterface::GetAdditionalInputChannel()
+{
+  return tls_additional_input_channel;
+}
+
 WindowSystemInfo ControllerInterface::GetWindowSystemInfo() const
 {
   return m_wsi;
@@ -417,5 +429,6 @@ ControllerInterface::RegisterDevicesChangedCallback(Common::HookableEvent<>::Cal
 // Invoke all callbacks that were registered
 void ControllerInterface::InvokeDevicesChangedCallbacks()
 {
+  BigPicture::GetPresentationState().ResetInput();
   m_devices_changed_event.Trigger();
 }

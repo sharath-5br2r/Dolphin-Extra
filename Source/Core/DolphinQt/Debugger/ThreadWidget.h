@@ -36,13 +36,6 @@ private:
   void CreateWidgets();
   void ConnectWidgets();
 
-  QLineEdit* CreateLineEdit() const;
-  QGroupBox* CreateContextGroup();
-  QGroupBox* CreateActiveThreadQueueGroup();
-  QGroupBox* CreateThreadGroup();
-  QGroupBox* CreateThreadContextGroup();
-  QGroupBox* CreateThreadCallstackGroup();
-
   void ShowContextMenu(QTableWidget* table);
 
   void Update();

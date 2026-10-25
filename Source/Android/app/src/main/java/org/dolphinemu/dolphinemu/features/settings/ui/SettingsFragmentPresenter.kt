@@ -3,7 +3,9 @@
 package org.dolphinemu.dolphinemu.features.settings.ui
 
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -25,6 +27,8 @@ import org.dolphinemu.dolphinemu.NativeLibrary
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.activities.UserDataActivity
 import org.dolphinemu.dolphinemu.features.input.model.ControlGroupEnabledSetting
+import org.dolphinemu.dolphinemu.features.memcardsync.MemcardSync
+import org.dolphinemu.dolphinemu.features.memcardsync.MemcardSyncSettings
 import org.dolphinemu.dolphinemu.features.input.model.InputMappingBooleanSetting
 import org.dolphinemu.dolphinemu.features.input.model.InputMappingDoubleSetting
 import org.dolphinemu.dolphinemu.features.input.model.InputMappingIntSetting
@@ -45,6 +49,7 @@ import org.dolphinemu.dolphinemu.features.settings.model.AdHocStringSetting
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.FloatSetting
 import org.dolphinemu.dolphinemu.features.settings.model.IntSetting
+import org.dolphinemu.dolphinemu.features.settings.model.NativeConfig
 import org.dolphinemu.dolphinemu.features.settings.model.PostProcessing
 import org.dolphinemu.dolphinemu.features.settings.model.ScaledIntSetting
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
@@ -68,7 +73,7 @@ import org.dolphinemu.dolphinemu.features.settings.model.view.SingleChoiceSettin
 import org.dolphinemu.dolphinemu.features.settings.model.view.StringSingleChoiceSetting
 import org.dolphinemu.dolphinemu.features.settings.model.view.SubmenuSetting
 import org.dolphinemu.dolphinemu.features.settings.model.view.SwitchSetting
-import org.dolphinemu.dolphinemu.model.GpuDriverMetadata
+import org.dolphinemu.dolphinemu.features.settings.ui.shaderparameters.ShaderParametersActivity
 import org.dolphinemu.dolphinemu.utils.BooleanSupplier
 import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import org.dolphinemu.dolphinemu.utils.EGLHelper
@@ -79,6 +84,8 @@ import org.dolphinemu.dolphinemu.utils.ThemeHelper
 import org.dolphinemu.dolphinemu.utils.ThreadUtil
 import org.dolphinemu.dolphinemu.utils.WiiUtils
 import java.util.Locale
+import org.dolphinemu.dolphinemu.utils.*
+import kotlin.collections.ArrayList
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -96,18 +103,10 @@ class SettingsFragmentPresenter(
     private var menuExtras = Bundle()
     private var shouldUpdateWarnings = true
 
-    var gpuDriver: GpuDriverMetadata? = null
-    private val libNameSetting: StringSetting = StringSetting.GFX_DRIVER_LIB_NAME
-
     fun onCreate(menuTag: MenuTag, gameId: String?, extras: Bundle) {
         this.gameId = gameId
         this.menuTag = menuTag
         menuExtras = Bundle(extras)
-
-        if (menuTag == MenuTag.GRAPHICS && this.gameId.isNullOrEmpty() && NativeLibrary.IsUninitialized() && GpuDriverHelper.supportsCustomDriverLoading()) {
-            this.gpuDriver = GpuDriverHelper.getInstalledDriverMetadata()
-                ?: GpuDriverHelper.getSystemDriverMetadata(context.applicationContext)
-        }
     }
 
     fun onViewCreated(menuTag: MenuTag, settings: Settings?) {
@@ -302,6 +301,7 @@ class SettingsFragmentPresenter(
                 MenuTag.CONFIG_CLOUDSYNC -> addCloudSyncSettings(sl)
                 MenuTag.CONFIG_WII -> addWiiSettings(sl)
                 MenuTag.CONFIG_ACHIEVEMENTS -> addAchievementSettings(sl)
+                MenuTag.CONFIG_MEMCARD_SYNC -> addMemcardSyncSettings(sl)
                 MenuTag.CONFIG_ADVANCED -> addAdvancedSettings(sl)
                 MenuTag.GRAPHICS -> addGraphicsSettings(sl)
                 MenuTag.CONFIG_SERIALPORT1 -> addSerialPortSubSettings(
@@ -316,6 +316,7 @@ class SettingsFragmentPresenter(
                 MenuTag.HACKS -> addHackSettings(sl)
                 MenuTag.STATISTICS -> addStatisticsSettings(sl)
                 MenuTag.ADVANCED_GRAPHICS -> addAdvancedGraphicsSettings(sl)
+                MenuTag.GPU_DRIVERS -> addGpuDriverSettings(sl)
                 MenuTag.CONFIG_LOG -> addLogConfigurationSettings(sl)
                 MenuTag.DEBUG -> addDebugSettings(sl)
                 MenuTag.GCPAD_1, MenuTag.GCPAD_2, MenuTag.GCPAD_3, MenuTag.GCPAD_4 -> addGcPadSubSettings(
@@ -363,6 +364,104 @@ class SettingsFragmentPresenter(
         sl.add(HeaderSetting(context, R.string.setting_clear_info, 0))
     }
 
+    /** The memory card sync status the list shows, to rebuild it when the status changes. */
+    private var memcardSyncStatus: String? = null
+
+    /**
+     * Rebuilds the memory card sync screen if its status changed: starting, syncing and errors
+     * happen in the background. The fragment calls it every second while the screen is visible.
+     */
+    fun refreshMemcardSyncStatus() {
+        if (menuTag != MenuTag.CONFIG_MEMCARD_SYNC || settingsList == null) return
+        if (MemcardSyncSettings.status(context) != memcardSyncStatus) loadSettingsList()
+    }
+
+    /**
+     * Memory card sync with emusync (features/memcardsync). The values are kept by emusync's
+     * SyncSettings, with the secrets in the Android Keystore, and every change applies at once.
+     */
+    private fun addMemcardSyncSettings(sl: ArrayList<SettingsItem>) {
+        if (!MemcardSync.controller.isAvailable) {
+            sl.add(HeaderSetting(context, R.string.memcard_sync_unavailable, 0))
+            return
+        }
+        val s = MemcardSync.settings
+        sl.add(HeaderSetting(context, R.string.memcard_sync_intro, 0))
+        sl.add(
+            SwitchSetting(
+                context,
+                MemcardSyncSettings.BooleanSetting({ s.load().enabled }, s::setEnabled),
+                R.string.memcard_sync_enabled,
+                R.string.memcard_sync_enabled_description
+            )
+        )
+        sl.add(
+            InputStringSetting(
+                context,
+                MemcardSyncSettings.StringSetting({ s.load().remoteUri }, s::setRemoteUri),
+                R.string.memcard_sync_storage,
+                R.string.memcard_sync_storage_description
+            )
+        )
+        sl.add(
+            InputStringSetting(
+                context,
+                MemcardSyncSettings.StringSetting({ s.load().accessKeyId }, s::setAccessKeyId),
+                R.string.memcard_sync_access_key_id,
+                R.string.memcard_sync_access_key_id_description
+            )
+        )
+        // Read back into the dialog, masked, for its show button: to check which key this device
+        // uses, or to set up another device with it. Emptying the field removes it.
+        sl.add(
+            InputStringSetting(
+                context,
+                MemcardSyncSettings.StringSetting({ s.secretAccessKey().orEmpty() }, s::setSecretAccessKey),
+                R.string.memcard_sync_secret,
+                R.string.memcard_sync_secret_description
+            ) {
+                context.getString(
+                    if (s.load().hasSecret) R.string.memcard_sync_saved else R.string.memcard_sync_not_set
+                )
+            }
+        )
+        // Read back into the dialog, masked, for its show button: the user needs it again to set
+        // up their other devices, and losing it loses the saves. Emptying the field removes it.
+        sl.add(
+            InputStringSetting(
+                context,
+                MemcardSyncSettings.StringSetting({ s.passphrase().orEmpty() }, s::setPassphrase),
+                R.string.memcard_sync_passphrase,
+                R.string.memcard_sync_passphrase_description
+            ) {
+                context.getString(
+                    if (s.load().hasPassphrase) R.string.memcard_sync_saved else R.string.memcard_sync_no_passphrase
+                )
+            }
+        )
+        sl.add(
+            InputStringSetting(
+                context,
+                MemcardSyncSettings.StringSetting({ s.load().deviceName }, s::setDeviceName),
+                R.string.memcard_sync_device_name,
+                R.string.memcard_sync_device_name_description
+            )
+        )
+        val status = MemcardSyncSettings.status(context)
+        memcardSyncStatus = status
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.memcard_sync_now,
+                status,
+                0,
+                R.string.memcard_sync_now_started,
+                true
+            ) { MemcardSync.controller.syncNow() }
+        )
+        sl.add(HeaderSetting(context, R.string.memcard_sync_cards_help, 0))
+    }
+
     private fun addConfigSettings(sl: ArrayList<SettingsItem>) {
         sl.add(SubmenuSetting(context, R.string.general_submenu, MenuTag.CONFIG_GENERAL))
         sl.add(SubmenuSetting(context, R.string.interface_submenu, MenuTag.CONFIG_INTERFACE))
@@ -370,6 +469,7 @@ class SettingsFragmentPresenter(
         sl.add(SubmenuSetting(context, R.string.paths_submenu, MenuTag.CONFIG_PATHS))
         sl.add(SubmenuSetting(context, R.string.gamecube_submenu, MenuTag.CONFIG_GAME_CUBE))
         sl.add(SubmenuSetting(context, R.string.cloud_saves_submenu, MenuTag.CONFIG_CLOUDSYNC))
+        sl.add(SubmenuSetting(context, R.string.memcard_sync_submenu, MenuTag.CONFIG_MEMCARD_SYNC))
         sl.add(SubmenuSetting(context, R.string.wii_submenu, MenuTag.CONFIG_WII))
         sl.add(SubmenuSetting(context, R.string.achievements_submenu, MenuTag.CONFIG_ACHIEVEMENTS))
         sl.add(SubmenuSetting(context, R.string.advanced_submenu, MenuTag.CONFIG_ADVANCED))
@@ -1719,6 +1819,14 @@ class SettingsFragmentPresenter(
                 R.array.aspectRatioValues
             )
         )
+        sl.add(
+            SwitchSetting(
+                context,
+                BooleanSetting.GFX_INTEGER_SCALING,
+                R.string.integer_scaling,
+                R.string.integer_scaling_description
+            )
+        )
 
         sl.add(HeaderSetting(context, R.string.graphics_more_settings, 0))
         sl.add(
@@ -1742,7 +1850,7 @@ class SettingsFragmentPresenter(
             )
         )
 
-        if (this.gpuDriver != null && this.gameId.isNullOrEmpty() && NativeLibrary.IsUninitialized() && GpuDriverHelper.supportsCustomDriverLoading()) {
+        if (this.gameId.isNullOrEmpty() && NativeLibrary.IsUninitialized() && GpuDriverHelper.supportsCustomDriverLoading()) {
             sl.add(
                 SubmenuSetting(
                     context, R.string.gpu_driver_submenu, MenuTag.GPU_DRIVERS
@@ -1798,23 +1906,77 @@ class SettingsFragmentPresenter(
             )
         )
 
-        val stereoModeValue = IntSetting.GFX_STEREO_MODE.int
-        val anaglyphMode = 3
-        val shaderList =
-            if (stereoModeValue == anaglyphMode) PostProcessing.anaglyphShaderList else PostProcessing.shaderList
+        // Post-processing effect picker. A single row whose subtitle shows the current selection
+        // (the preset in use, or "Off"). Tapping it opens a two-step picker: choose a category,
+        // then a shader, with a single "Select" action that makes that shader the preset. Chains,
+        // and the "Add to Chain" action that built them, are gone. See openPostProcessingPicker.
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.post_processing_shader,
+                describePostShaderSelection(StringSetting.GFX_ENHANCE_POST_SHADER.string),
+                0,
+                0,
+                false
+            ) { openPostProcessingPicker() }
+        )
 
-        val shaderListEntries = arrayOf(context.getString(R.string.off), *shaderList)
-        val shaderListValues = arrayOf("", *shaderList)
+        // Shader parameters for the selected effect. Works during emulation: edits apply to the
+        // running game on its next frame. When the editor cannot be offered, the subtitle says why
+        // and tapping repeats it, rather than hiding a row the user may be looking for.
+        val parameterAvailability = PostProcessing.getParameterEditingAvailability(
+            StringSetting.MAIN_GFX_BACKEND.string,
+            StringSetting.GFX_ENHANCE_POST_SHADER.string
+        )
+        val parameterDescription = context.getString(
+            when (parameterAvailability) {
+                PostProcessing.PARAMETERS_AVAILABLE -> R.string.shader_parameters_description
+                PostProcessing.PARAMETERS_NO_PRESET -> R.string.shader_parameters_unavailable_no_preset
+                PostProcessing.PARAMETERS_LIBRARY_UNAVAILABLE ->
+                    R.string.shader_parameters_unavailable_library
+                else -> R.string.shader_parameters_unavailable_backend
+            }
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.shader_parameters,
+                parameterDescription,
+                0,
+                0,
+                true
+            ) { openShaderParameters(parameterAvailability, parameterDescription) }
+        )
 
         sl.add(
-            StringSingleChoiceSetting(
+            RunRunnable(
                 context,
-                StringSetting.GFX_ENHANCE_POST_SHADER,
-                R.string.post_processing_shader,
+                R.string.post_processing_download_libretro,
+                R.string.post_processing_download_libretro_description,
+                R.string.post_processing_download_libretro_confirmation,
                 0,
-                shaderListEntries,
-                shaderListValues
-            )
+                false
+            ) { downloadShaderPack("libretro", "") }
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.post_processing_download_satpixie,
+                R.string.post_processing_download_satpixie_description,
+                R.string.post_processing_download_satpixie_confirmation,
+                0,
+                false
+            ) { downloadShaderPack("satpixie", "") }
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.post_processing_download_retrocrisis,
+                R.string.post_processing_download_retrocrisis_description,
+                0,
+                0,
+                false
+            ) { promptRetroCrisisProfile() }
         )
 
         sl.add(
@@ -2990,6 +3152,136 @@ class SettingsFragmentPresenter(
         fragmentView.adapter!!.notifyAllSettingsChanged()
     }
 
+    private fun promptRetroCrisisProfile() {
+        val profiles = context.resources.getStringArray(R.array.post_processing_retrocrisis_profiles)
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.post_processing_download_retrocrisis_profile_title)
+            .setItems(profiles) { _, which ->
+                downloadShaderPack("retrocrisis", profiles[which])
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun downloadShaderPack(packId: String, profile: String) {
+        ThreadUtil.runOnThreadAndShowResult(
+            fragmentView.fragmentActivity,
+            R.string.post_processing_downloading,
+            0,
+            {
+                val count = PostProcessing.downloadShaderPack(packId, profile)
+                if (count >= 0) {
+                    context.resources.getString(R.string.post_processing_download_success, count)
+                } else {
+                    context.resources.getString(R.string.post_processing_download_failure)
+                }
+            },
+            // Reload the settings list so the newly-downloaded presets populate the shader picker.
+            DialogInterface.OnDismissListener {
+                loadSettingsList()
+            }
+        )
+    }
+
+    // Kotlin mirror of VideoCommon::ResolveConfiguredPreset (PostProcessingConfig.cpp): only the
+    // first entry of the stored value is ever loaded, and a GFX.ini written before chains were
+    // removed can still hold several joined with ';'. Every place this screen reads the setting has
+    // to agree with what runs -- the row's subtitle and the radio button the picker pre-selects.
+    // Kotlin's trim() drops more than the C++ side's " \t", which only helps: a hand-edited INI can
+    // leave a stray \r behind.
+    private fun resolveConfiguredPreset(spec: String): String = spec.substringBefore(';').trim()
+
+    // Builds the subtitle for the post-processing effect row: "Off" when nothing is configured,
+    // otherwise the preset in use. A legacy chain shows only the entry that loads; the arrow-joined
+    // rendering this used to do ("a → b") advertised passes that no backend runs any more.
+    private fun describePostShaderSelection(spec: String): CharSequence {
+        val preset = resolveConfiguredPreset(spec)
+        if (preset.isEmpty()) return context.getString(R.string.off)
+        return preset
+    }
+
+    // Two-step post-processing picker. Step 1 lists the shader categories (top-level folders of
+    // the buildbot pack) plus "All"; step 2 lists the shaders in the chosen category with "Select"
+    // (replace with this one shader) action.
+    private fun openPostProcessingPicker() {
+        val shaderList = PostProcessing.shaderList
+        if (shaderList.isEmpty()) {
+            fragmentView.showToastMessage(context.getString(R.string.post_processing_chain_empty))
+            return
+        }
+
+        val allCategory = context.getString(R.string.post_processing_category_all)
+        val categories = shaderList
+            .mapNotNull { it.substringBefore('/', "").ifEmpty { null } }
+            .distinct()
+            .sorted()
+        val categoryEntries = arrayOf(allCategory, *categories.toTypedArray())
+
+        MaterialAlertDialogBuilder(fragmentView.fragmentActivity)
+            .setTitle(R.string.post_processing_shader)
+            .setItems(categoryEntries) { _: DialogInterface, which: Int ->
+                val category = categoryEntries[which]
+                val filtered = if (category == allCategory) {
+                    shaderList.toList()
+                } else {
+                    shaderList.filter { it.substringBefore('/', "") == category }
+                }
+                showPostShaderList(category, filtered)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    // Step 2 of the picker: the shaders in the chosen category, prefixed with "Off". Radio-style
+    // single selection; "Select" sets the highlighted shader as the configured preset.
+    private fun showPostShaderList(category: String, presets: List<String>) {
+        val settings = this.settings ?: return
+        if (presets.isEmpty()) {
+            fragmentView.showToastMessage(context.getString(R.string.post_processing_chain_empty))
+            return
+        }
+
+        val off = context.getString(R.string.off)
+        val entries = arrayOf(off, *presets.toTypedArray())
+        val values = arrayOf("", *presets.toTypedArray())
+
+        // Highlight whichever entry matches the preset in use. Resolved first, because `values`
+        // holds single preset ids: a stored "a;b" matched nothing, indexOf returned -1, and the
+        // fallback below turned that into 0 -- "Off" -- so one tap on Select silently disabled
+        // post-processing for a user who had only meant to look. The fallback still lands on "Off"
+        // when the configured preset is simply not in the category being browsed, which is honest:
+        // that list does not contain it, and "Off" is what the dialog is showing as checked.
+        val current = resolveConfiguredPreset(StringSetting.GFX_ENHANCE_POST_SHADER.string)
+        var checked = values.indexOf(current).let { if (it >= 0) it else 0 }
+
+        val builder = MaterialAlertDialogBuilder(fragmentView.fragmentActivity)
+            .setTitle(category)
+            .setSingleChoiceItems(entries, checked) { _: DialogInterface, which: Int ->
+                checked = which
+            }
+            // "Select": set the highlighted preset (empty selection = Off).
+            .setPositiveButton(R.string.post_processing_select) { _: DialogInterface, _: Int ->
+                StringSetting.GFX_ENHANCE_POST_SHADER.setString(settings, values[checked])
+                fragmentView.onSettingChanged()
+                loadSettingsList()
+            }
+            .setNeutralButton(R.string.cancel, null)
+
+        builder.show()
+    }
+
+    private fun openShaderParameters(availability: Int, unavailableReason: String) {
+        if (availability != PostProcessing.PARAMETERS_AVAILABLE) {
+            fragmentView.showToastMessage(unavailableReason)
+            return
+        }
+        ShaderParametersActivity.launch(
+            fragmentView.fragmentActivity,
+            StringSetting.GFX_ENHANCE_POST_SHADER.string,
+            settings?.writeLayer == NativeConfig.LAYER_LOCAL_GAME
+        )
+    }
+
     private fun convertOnThread(f: BooleanSupplier) {
         ThreadUtil.runOnThreadAndShowResult(
             fragmentView.fragmentActivity,
@@ -2998,43 +3290,230 @@ class SettingsFragmentPresenter(
             { context.resources.getString(if (f.get()) R.string.wii_convert_success else R.string.wii_convert_failure) })
     }
 
+    // ---- GPU driver manager (MenuTag.GPU_DRIVERS) ----
+
+    private fun addGpuDriverSettings(sl: ArrayList<SettingsItem>) {
+        val gpuInfo = GpuDriverHelper.getSystemGpuInfo()
+        val recommended = GpuInfo.recommend(gpuInfo?.deviceName, gpuInfo?.vendorId)
+
+        val gpuLine = if (gpuInfo != null && gpuInfo.deviceName.isNotEmpty()) {
+            context.getString(
+                R.string.gpu_driver_header_gpu,
+                gpuInfo.deviceName, gpuInfo.apiVersion, gpuInfo.driverVersion
+            )
+        } else {
+            context.getString(R.string.gpu_driver_header_gpu_unknown)
+        }
+        sl.add(HeaderSetting(gpuLine, ""))
+        sl.add(
+            HeaderSetting(
+                if (recommended != null) {
+                    context.getString(R.string.gpu_driver_recommended, recommended.label)
+                } else {
+                    context.getString(R.string.gpu_driver_recommended_system)
+                },
+                ""
+            )
+        )
+
+        sl.add(HeaderSetting(context, R.string.gpu_driver_installed_header, 0))
+        val activeSuffix = " " + context.getString(R.string.gpu_driver_active_suffix)
+        // List first: it may migrate a legacy single-slot install and record it as the active
+        // package, which the marker below has to see.
+        val installed = GpuDriverHelper.listInstalled(settings)
+        val activePackage = StringSetting.GFX_DRIVER_PACKAGE.string
+        val systemActive = StringSetting.GFX_DRIVER_LIB_NAME.string.isEmpty()
+        sl.add(
+            RunRunnable(
+                context.getString(R.string.system_driver) + if (systemActive) activeSuffix else "",
+                context.getString(R.string.system_driver_desc),
+                0,
+                0,
+                false
+            ) { selectDriver(null) }
+        )
+        for (driver in installed) {
+            val meta = driver.metadata
+            val isActive = !systemActive && driver.id == activePackage
+            val title = buildString {
+                append(meta.name.ifEmpty { driver.id })
+                if (meta.packageVersion.isNotEmpty()) append(" v").append(meta.packageVersion)
+                if (isActive) append(activeSuffix)
+            }
+            val subtitle = listOf(meta.author, meta.vendor, meta.driverVersion)
+                .filter { it.isNotEmpty() }
+                .joinToString(" · ")
+            sl.add(RunRunnable(title, subtitle, 0, 0, false) {
+                fragmentView.showDriverActionDialog(driver)
+            })
+        }
+
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.gpu_driver_install_from_file,
+                R.string.gpu_driver_install_from_file_description,
+                0,
+                0,
+                false
+            ) { fragmentView.askForDriverFile() }
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.gpu_driver_download,
+                R.string.gpu_driver_download_description,
+                0,
+                0,
+                false
+            ) { downloadDrivers(recommended) }
+        )
+    }
+
+    /** Makes [driver] the active custom driver; `null` switches back to the system driver. */
+    fun selectDriver(driver: InstalledGpuDriver?) {
+        val settings = this.settings ?: return
+        StringSetting.GFX_DRIVER_PACKAGE.setString(settings, driver?.id ?: "")
+        StringSetting.GFX_DRIVER_LIB_NAME.setString(settings, driver?.metadata?.libraryName ?: "")
+        fragmentView.onSettingChanged()
+        val name = driver?.metadata?.name ?: context.getString(R.string.system_driver)
+        fragmentView.showToastMessage(context.getString(R.string.gpu_driver_selected, name))
+        loadSettingsList()
+    }
+
+    fun deleteDriver(driver: InstalledGpuDriver) {
+        GpuDriverHelper.delete(driver.id)
+        val settings = this.settings
+        if (settings != null && StringSetting.GFX_DRIVER_PACKAGE.string == driver.id) {
+            StringSetting.GFX_DRIVER_PACKAGE.setString(settings, "")
+            StringSetting.GFX_DRIVER_LIB_NAME.setString(settings, "")
+            fragmentView.onSettingChanged()
+        }
+        fragmentView.showToastMessage(
+            context.getString(R.string.gpu_driver_deleted, driver.metadata.name)
+        )
+        loadSettingsList()
+    }
+
+    /** Installs a user-picked driver package into its own slot and selects it on success. */
     fun installDriver(uri: Uri) {
-        val context = this.context.applicationContext
-        CoroutineScope(Dispatchers.IO).launch {
-            val stream = context.contentResolver.openInputStream(uri)
-            if (stream == null) {
-                GpuDriverHelper.uninstallDriver()
-                withContext(Dispatchers.Main) {
-                    fragmentView.onDriverInstallDone(GpuDriverInstallResult.FileNotFound)
+        val fileName = ContentHandler.getDisplayName(uri) ?: "driver"
+        val id = GpuDriverId.makeId("local", "", fileName)
+        val appContext = context.applicationContext
+        var installed = false
+        ThreadUtil.runOnThreadAndShowResult(
+            fragmentView.fragmentActivity,
+            R.string.gpu_driver_install_inprogress,
+            0,
+            {
+                val stream = appContext.contentResolver.openInputStream(uri)
+                val result = if (stream == null) {
+                    GpuDriverInstallResult.FileNotFound
+                } else {
+                    stream.use { GpuDriverHelper.installFromStream(it, id) }
                 }
-                return@launch
-            }
-
-            val result = GpuDriverHelper.installDriver(stream)
-            withContext(Dispatchers.Main) {
-                with(this@SettingsFragmentPresenter) {
-                    this.gpuDriver = GpuDriverHelper.getInstalledDriverMetadata()
-                        ?: GpuDriverHelper.getSystemDriverMetadata(context) ?: return@withContext
-                    this.libNameSetting.setString(this.settings!!, this.gpuDriver!!.libraryName)
-                }
-                fragmentView.onDriverInstallDone(result)
-            }
-        }
+                installed = result == GpuDriverInstallResult.Success
+                installResultMessage(result)
+            },
+            DialogInterface.OnDismissListener { onDriverInstalled(if (installed) id else null) }
+        )
     }
 
-    fun useSystemDriver() {
-        CoroutineScope(Dispatchers.IO).launch {
-            GpuDriverHelper.uninstallDriver()
-            withContext(Dispatchers.Main) {
-                with(this@SettingsFragmentPresenter) {
-                    this.gpuDriver = GpuDriverHelper.getInstalledDriverMetadata()
-                        ?: GpuDriverHelper.getSystemDriverMetadata(context.applicationContext)
-                    this.libNameSetting.setString(this.settings!!, "")
+    private fun downloadDrivers(recommended: DriverSource?) {
+        val activity = fragmentView.fragmentActivity
+        val progressDialog = MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.gpu_driver_download_fetching)
+            .setView(R.layout.dialog_indeterminate_progress)
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+        Thread {
+            val drivers = GpuDriverCatalog.fetchAll()
+            activity.runOnUiThread {
+                progressDialog.dismiss()
+                if (activity.isFinishing || activity.isDestroyed) return@runOnUiThread
+                if (drivers.isEmpty()) {
+                    fragmentView.showToastMessage(context.getString(R.string.gpu_driver_download_failed))
+                } else {
+                    promptDriverSource(drivers, recommended)
                 }
-                fragmentView.onDriverUninstallDone()
             }
-        }
+        }.start()
     }
+
+    private fun promptDriverSource(drivers: List<RemoteGpuDriver>, recommended: DriverSource?) {
+        val available = GpuDriverCatalog.SOURCES.filter { source -> drivers.any { it.source == source } }
+        val sources = listOfNotNull(recommended?.takeIf { it in available }) +
+            available.filter { it != recommended }
+        val labels = sources.map { source ->
+            val count = drivers.count { it.source == source }
+            if (source == recommended) {
+                context.getString(R.string.gpu_driver_download_source_recommended, source.label, count)
+            } else {
+                context.getString(R.string.gpu_driver_download_source, source.label, count)
+            }
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.gpu_driver_download_pick_source)
+            .setItems(labels) { _, which ->
+                promptRemoteDriver(drivers.filter { it.source == sources[which] })
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun promptRemoteDriver(drivers: List<RemoteGpuDriver>) {
+        val labels = drivers.map {
+            "${it.releaseName} · ${it.assetName} (%.1f MB)".format(it.sizeBytes / (1024.0 * 1024.0))
+        }.toTypedArray()
+        var checked = 0
+        MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.gpu_driver_download_pick_asset)
+            .setSingleChoiceItems(labels, checked) { _, which -> checked = which }
+            .setPositiveButton(R.string.gpu_driver_download_action) { _, _ ->
+                downloadAndInstall(drivers[checked])
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun downloadAndInstall(remote: RemoteGpuDriver) {
+        var installed = false
+        ThreadUtil.runOnThreadAndShowResult(
+            fragmentView.fragmentActivity,
+            R.string.gpu_driver_downloading,
+            0,
+            {
+                val result = GpuDriverCatalog.download(remote)
+                installed = result == GpuDriverInstallResult.Success
+                if (result == null) {
+                    context.getString(R.string.gpu_driver_download_failed)
+                } else {
+                    installResultMessage(result)
+                }
+            },
+            DialogInterface.OnDismissListener { onDriverInstalled(if (installed) remote.id else null) }
+        )
+    }
+
+    /** Selects the freshly installed driver [id] (or just refreshes the list when it failed). */
+    private fun onDriverInstalled(id: String?) {
+        val driver = id?.let { GpuDriverHelper.listInstalled(settings).firstOrNull { d -> d.id == it } }
+        if (driver != null) selectDriver(driver) else loadSettingsList()
+    }
+
+    private fun installResultMessage(result: GpuDriverInstallResult): String = context.getString(
+        when (result) {
+            GpuDriverInstallResult.Success -> R.string.gpu_driver_install_success
+            GpuDriverInstallResult.InvalidArchive -> R.string.gpu_driver_install_invalid_archive
+            GpuDriverInstallResult.MissingMetadata -> R.string.gpu_driver_install_missing_metadata
+            GpuDriverInstallResult.InvalidMetadata -> R.string.gpu_driver_install_invalid_metadata
+            GpuDriverInstallResult.MissingLibrary -> R.string.gpu_driver_install_missing_library
+            GpuDriverInstallResult.UnsupportedAndroidVersion -> R.string.gpu_driver_install_unsupported_android_version
+            GpuDriverInstallResult.AlreadyInstalled -> R.string.gpu_driver_install_already_installed
+            GpuDriverInstallResult.FileNotFound -> R.string.gpu_driver_install_file_not_found
+        }
+    )
 
     companion object {
         const val ARG_CONTROLLER_TYPE = "controller_type"

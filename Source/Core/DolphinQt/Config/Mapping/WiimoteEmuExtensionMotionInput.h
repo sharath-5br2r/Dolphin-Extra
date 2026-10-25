@@ -5,9 +5,6 @@
 
 #include "DolphinQt/Config/Mapping/MappingWidget.h"
 
-class QGroupBox;
-class QHBoxLayout;
-
 class WiimoteEmuExtensionMotionInput final : public MappingWidget
 {
   Q_OBJECT
@@ -20,10 +17,5 @@ private:
   void LoadSettings() override;
   void SaveSettings() override;
 
-  void CreateNunchukLayout();
   void CreateMainLayout();
-
-  // Main
-  QHBoxLayout* m_main_layout;
-  QGroupBox* m_nunchuk_box;
 };

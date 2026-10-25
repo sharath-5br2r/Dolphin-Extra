@@ -83,8 +83,6 @@
 #define THEMES_DIR "Themes"
 #define STYLES_DIR "Styles"
 #define GBASAVES_DIR "Saves"
-#define ANAGLYPH_DIR "Anaglyph"
-#define PASSIVE_DIR "Passive"
 #define PIPES_DIR "Pipes"
 #define MEMORYWATCHER_DIR "MemoryWatcher"
 #define WFSROOT_DIR "WFS"
@@ -174,6 +172,7 @@
 // GPU drivers
 #define GPU_DRIVERS "GpuDrivers"
 #define GPU_DRIVERS_EXTRACTED "Extracted"
+#define GPU_DRIVERS_INSTALLED "Installed"
 #define GPU_DRIVERS_TMP "Tmp"
 #define GPU_DRIVERS_HOOK "Hook"
 #define GPU_DRIVERS_FILE_REDIRECT "FileRedirect"

@@ -129,7 +129,7 @@ OGLTexture::OGLTexture(const TextureConfig& tex_config, std::string_view name)
 
   const GLenum target = GetGLTarget();
   glGenTextures(1, &m_texId);
-  glActiveTexture(GL_MUTABLE_TEXTURE_INDEX);
+  ActivateMutableTextureUnit();
   glBindTexture(target, m_texId);
 
   if (!m_name.empty() && g_backend_info.bSupportsSettingObjectNames)
@@ -294,7 +294,7 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
   }
 
   const GLenum target = GetGLTarget();
-  glActiveTexture(GL_MUTABLE_TEXTURE_INDEX);
+  ActivateMutableTextureUnit();
   glBindTexture(target, m_texId);
 
   if (row_length != width)
@@ -397,6 +397,16 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
 
   if (row_length != width)
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+}
+
+void OGLTexture::GenerateMipmaps()
+{
+  if (GetLevels() <= 1)
+    return;
+  const GLenum target = GetGLTarget();
+  ActivateMutableTextureUnit();
+  glBindTexture(target, m_texId);
+  glGenerateMipmap(target);
 }
 
 GLenum OGLTexture::GetGLFormatForImageTexture() const
@@ -588,7 +598,7 @@ void OGLStagingTexture::CopyToTexture(const MathUtil::Rectangle<int>& src_rect,
 
   // Copy from the staging buffer to the texture object.
   const GLenum target = gltex->GetGLTarget();
-  glActiveTexture(GL_MUTABLE_TEXTURE_INDEX);
+  ActivateMutableTextureUnit();
   glBindTexture(target, gltex->GetGLTextureId());
   glTexSubImage3D(target, 0, dst_rect.left, dst_rect.top, dst_layer, dst_rect.GetWidth(),
                   dst_rect.GetHeight(), 1, GetGLFormatForTextureFormat(dst->GetFormat()),

@@ -3,27 +3,31 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QMap>
-#include <QPushButton>
 #include <QString>
 #include <QStringList>
 #include <QWidget>
 
 class QCompleter;
-class QMenu;
-class QTextEdit;
+
+namespace Ui
+{
+class GameConfigEdit;
+}
 
 class GameConfigEdit : public QWidget
 {
 public:
   explicit GameConfigEdit(QWidget* parent, QString path, bool read_only);
+  ~GameConfigEdit() override;
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;
   void focusInEvent(QFocusEvent* e) override;
 
 private:
-  void CreateWidgets();
   void ConnectWidgets();
 
   void LoadFile();
@@ -37,11 +41,9 @@ private:
 
   void AddDescription(const QString& keyword, const QString& description);
 
+  std::unique_ptr<Ui::GameConfigEdit> m_ui;
   QCompleter* m_completer;
   QStringList m_completions;
-  QPushButton* m_refresh_button;
-  QPushButton* m_external_editor_button;
-  QTextEdit* m_edit;
 
   const QString m_path;
 

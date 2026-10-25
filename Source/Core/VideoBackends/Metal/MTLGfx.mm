@@ -4,6 +4,7 @@
 #include "VideoBackends/Metal/MTLGfx.h"
 
 #include "VideoBackends/Metal/MTLBoundingBox.h"
+#include "VideoBackends/Metal/MTLLibrashaderRuntime.h"
 #include "VideoBackends/Metal/MTLObjectCache.h"
 #include "VideoBackends/Metal/MTLPipeline.h"
 #include "VideoBackends/Metal/MTLStateTracker.h"
@@ -265,6 +266,11 @@ std::unique_ptr<AbstractPipeline> Metal::Gfx::CreatePipeline(const AbstractPipel
                                                              size_t cache_data_length)
 {
   return g_object_cache->CreatePipeline(config);
+}
+
+std::unique_ptr<VideoCommon::LibrashaderRuntime> Metal::Gfx::CreateLibrashaderRuntime()
+{
+  return std::make_unique<MTLLibrashaderRuntime>();
 }
 
 void Metal::Gfx::Flush()

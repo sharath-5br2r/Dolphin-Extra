@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PathPane</class>
+ <widget class="QWidget" name="PathPane">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>650</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Paths</string>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="gameFoldersGroup">
+     <property name="title">
+      <string>Game Folders</string>
+     </property>
+     <layout class="QVBoxLayout" name="gameFoldersLayout">
+      <item>
+       <widget class="QListWidget" name="pathListWidget">
+        <property name="spacing">
+         <number>1</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="folderButtonsLayout">
+        <item>
+         <spacer name="folderButtonsSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="addPathButton">
+          <property name="text">
+           <string>Add...</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="removePathButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Remove</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="recursivePathsCheckBox">
+        <property name="text">
+         <string>Search Subfolders</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="autoRefreshCheckBox">
+        <property name="text">
+         <string>Check for Game List Changes in the Background</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="pathsLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="defaultIsoLabel">
+       <property name="text">
+        <string>Default ISO:</string>
+       </property>
+       <property name="buddy">
+        <cstring>defaultIsoLineEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLineEdit" name="defaultIsoLineEdit"/>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="defaultIsoBrowseButton">
+       <property name="text">
+        <string notr="true">...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="nandRootLabel">
+       <property name="text">
+        <string>Wii NAND Root:</string>
+       </property>
+       <property name="buddy">
+        <cstring>nandRootLineEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="nandRootLineEdit"/>
+     </item>
+     <item row="1" column="2">
+      <widget class="QPushButton" name="nandRootBrowseButton">
+       <property name="text">
+        <string notr="true">...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="dumpPathLabel">
+       <property name="text">
+        <string>Dump Path:</string>
+       </property>
+       <property name="buddy">
+        <cstring>dumpPathLineEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="dumpPathLineEdit"/>
+     </item>
+     <item row="2" column="2">
+      <widget class="QPushButton" name="dumpPathBrowseButton">
+       <property name="text">
+        <string notr="true">...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="loadPathLabel">
+       <property name="text">
+        <string>Load Path:</string>
+       </property>
+       <property name="buddy">
+        <cstring>loadPathLineEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="loadPathLineEdit"/>
+     </item>
+     <item row="3" column="2">
+      <widget class="QPushButton" name="loadPathBrowseButton">
+       <property name="text">
+        <string notr="true">...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="resourcePackPathLabel">
+       <property name="text">
+        <string>Resource Pack Path:</string>
+       </property>
+       <property name="buddy">
+        <cstring>resourcePackPathLineEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="resourcePackPathLineEdit"/>
+     </item>
+     <item row="4" column="2">
+      <widget class="QPushButton" name="resourcePackPathBrowseButton">
+       <property name="text">
+        <string notr="true">...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="wfsPathLabel">
+       <property name="text">
+        <string>WFS Path:</string>
+       </property>
+       <property name="buddy">
+        <cstring>wfsPathLineEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLineEdit" name="wfsPathLineEdit"/>
+     </item>
+     <item row="5" column="2">
+      <widget class="QPushButton" name="wfsPathBrowseButton">
+       <property name="text">
+        <string notr="true">...</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>pathListWidget</tabstop>
+  <tabstop>addPathButton</tabstop>
+  <tabstop>removePathButton</tabstop>
+  <tabstop>recursivePathsCheckBox</tabstop>
+  <tabstop>autoRefreshCheckBox</tabstop>
+  <tabstop>defaultIsoLineEdit</tabstop>
+  <tabstop>defaultIsoBrowseButton</tabstop>
+  <tabstop>nandRootLineEdit</tabstop>
+  <tabstop>nandRootBrowseButton</tabstop>
+  <tabstop>dumpPathLineEdit</tabstop>
+  <tabstop>dumpPathBrowseButton</tabstop>
+  <tabstop>loadPathLineEdit</tabstop>
+  <tabstop>loadPathBrowseButton</tabstop>
+  <tabstop>resourcePackPathLineEdit</tabstop>
+  <tabstop>resourcePackPathBrowseButton</tabstop>
+  <tabstop>wfsPathLineEdit</tabstop>
+  <tabstop>wfsPathBrowseButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

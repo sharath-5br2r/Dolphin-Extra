@@ -85,6 +85,7 @@ void VideoBackend::FillBackendInfo()
   g_backend_info.bSupportsComputeShaders = false;
   g_backend_info.bSupports3DVision = true;
   g_backend_info.bSupportsPostProcessing = true;
+  g_backend_info.bSupportsGPUMipGeneration = true;
   g_backend_info.bSupportsPaletteConversion = true;
   g_backend_info.bSupportsClipControl = true;
   g_backend_info.bSupportsDepthClamp = true;
@@ -141,6 +142,18 @@ void VideoBackend::FillBackendInfo()
 
 bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
 {
+  m_ui_only = false;
+  return InitializeInternal(wsi);
+}
+
+bool VideoBackend::InitializeUI(const WindowSystemInfo& wsi)
+{
+  m_ui_only = true;
+  return InitializeInternal(wsi);
+}
+
+bool VideoBackend::InitializeInternal(const WindowSystemInfo& wsi)
+{
   if (!D3D::Create(g_Config.iAdapter, g_Config.bEnableValidationLayer))
     return false;
 
@@ -158,6 +171,8 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
 
   auto gfx = std::make_unique<DX11::Gfx>(std::move(swap_chain), wsi.render_surface_scale);
   auto vertex_manager = std::make_unique<VertexManager>();
+  if (m_ui_only)
+    return InitializeUIShared(std::move(gfx), std::move(vertex_manager));
   auto perf_query = std::make_unique<PerfQuery>();
   auto bounding_box = std::make_unique<D3DBoundingBox>();
 

@@ -11,6 +11,8 @@
 #include <optional>
 #include <string>
 
+#include "Common/BigPicture/Contracts.h"
+
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "Common/Config/Config.h"
 #endif  // USE_RETRO_ACHIEVEMENTS
@@ -21,17 +23,19 @@
 class QMenu;
 class QStackedWidget;
 class QString;
+class QTimer;
 
 class AchievementsWindow;
 class AssemblerWidget;
 class BreakpointWidget;
+class BigPictureHost;
 struct BootParameters;
 class CheatsManager;
 class CodeWidget;
 class DiscordHandler;
 class DragEnterEvent;
+class EmulationStatusWidget;
 class FreeLookWindow;
-class GameCount;
 class GameList;
 class GBATASInputWindow;
 class GCTASInputWindow;
@@ -48,7 +52,6 @@ class NetPlaySetupDialog;
 class NetworkWidget;
 class RegisterWidget;
 class RenderWidget;
-class SearchBar;
 class SettingsWindow;
 class SkylanderPortalWindow;
 class ThreadWidget;
@@ -64,6 +67,11 @@ namespace Core
 class System;
 }
 
+namespace Ui
+{
+class MainWindow;
+}
+
 namespace DiscIO
 {
 enum class Region;
@@ -72,6 +80,11 @@ enum class Region;
 namespace UICommon
 {
 class GameFile;
+}
+
+namespace VideoCommon::BigPicture
+{
+class StandaloneSession;
 }
 
 namespace X11Utils
@@ -85,7 +98,7 @@ class MainWindow final : public QMainWindow
 
 public:
   explicit MainWindow(Core::System& system, std::unique_ptr<BootParameters> boot_parameters,
-                      const std::string& movie_path);
+                      const std::string& movie_path, bool start_big_picture = false);
   ~MainWindow() override;
 
   WindowSystemInfo GetWindowSystemInfo() const;
@@ -93,7 +106,10 @@ public:
   bool eventFilter(QObject* object, QEvent* event) override;
   QMenu* createPopupMenu() override;
 
+  void ShowControllersWindow();
   void ShowTriforceWindow();
+  BigPictureHost* GetBigPictureHost() const { return m_big_picture_host; }
+  void EnterBigPicture();
 
 signals:
   void ReadOnlyModeChanged(bool read_only);
@@ -108,6 +124,7 @@ private:
 
   // May ask for confirmation. Returns whether or not it actually stopped.
   bool RequestStop();
+  bool RequestStopWithConfirmation(bool confirmed);
   void ForceStop();
   void Reset();
   void FrameAdvance();
@@ -143,11 +160,27 @@ private:
   void ConnectRenderWidget();
   void ConnectStack();
   void ConnectToolBar();
+  void UpdateStatusBar();
 
   void InitControllers();
   void ShutdownControllers();
 
   void InitCoreCallbacks();
+  void RefreshBigPictureStateSlots();
+  bool LeaveBigPictureForDesktop(std::uint64_t generation);
+  enum class StandaloneStop
+  {
+    None,
+    Desktop,
+    Boot,
+    Restart,
+    Exit,
+    OpenGame,
+    Settings
+  };
+  void StopStandalone(StandaloneStop next);
+  void PollStandalone();
+  void CompleteStandaloneStop(StandaloneStop next, bool failed);
 
   enum class ScanForSecondDisc
   {
@@ -170,7 +203,6 @@ private:
   void ShowSettingsWindow();
   void ShowGeneralWindow();
   void ShowAudioWindow();
-  void ShowControllersWindow();
   void ShowGraphicsWindow();
   void ShowCloudSavesWindow();
   void ShowFreeLookWindow();
@@ -180,6 +212,7 @@ private:
   void CheckForUpdatesAuto();
 #endif  // SHOW_UPDATER
   void ShowHotkeyDialog();
+  void ShowBigPictureInputDialog(int controller);
   void ShowNetPlaySetupDialog();
   void ShowNetPlayBrowser();
   void ShowFIFOPlayer();
@@ -239,6 +272,20 @@ private:
   QSize sizeHint() const override;
 
   Core::System& m_system;
+  std::unique_ptr<Ui::MainWindow> m_ui;
+  BigPictureHost* m_big_picture_host = nullptr;
+  std::array<BigPicture::StateSlot, BigPicture::STATE_SLOT_COUNT> m_big_picture_state_slots;
+  bool m_big_picture_state_slots_ready = false;
+  bool m_big_picture_disc_game = false;
+  std::unique_ptr<VideoCommon::BigPicture::StandaloneSession> m_standalone;
+  QTimer* m_standalone_timer = nullptr;
+  StandaloneStop m_standalone_stop = StandaloneStop::None;
+  bool m_big_picture_requested = false;
+  bool m_standalone_ready = false;
+  bool m_standalone_restart_queued = false;
+  bool m_shutting_down = false;
+  std::uint64_t m_standalone_serial = 0;
+  std::unique_ptr<BootParameters> m_standalone_boot;
 
 #ifdef HAVE_XRANDR
   std::unique_ptr<X11Utils::XRRConfiguration> m_xrr_config;
@@ -247,11 +294,13 @@ private:
   QStackedWidget* m_stack;
   ToolBar* m_tool_bar;
   MenuBar* m_menu_bar;
-  SearchBar* m_search_bar;
-  GameList* m_game_list;
-  GameCount* m_game_count;
+  GameList* m_game_list = nullptr;
+  EmulationStatusWidget* m_emulation_status;
   RenderWidget* m_render_widget = nullptr;
+  int m_total_games = 0;
+  int m_visible_games = 0;
   bool m_rendering_to_main;
+  QTimer* m_graceful_shutdown_timer = nullptr;
   bool m_stop_confirm_showing = false;
   bool m_stop_requested = false;
   bool m_exit_requested = false;
@@ -269,6 +318,7 @@ private:
   WiiSpeakWindow* m_wii_speak_window = nullptr;
   LogitechMicWindow* m_logitech_mic_window = nullptr;
   MappingWindow* m_hotkey_window = nullptr;
+  std::array<MappingWindow*, 4> m_big_picture_input_windows{};
   FreeLookWindow* m_freelook_window = nullptr;
 
   HotkeyScheduler* m_hotkey_scheduler;

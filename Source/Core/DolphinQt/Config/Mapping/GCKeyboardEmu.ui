@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GCKeyboardEmu</class>
+ <widget class="QWidget" name="GCKeyboardEmu">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QWidget" name="warningWidget">
+     <layout class="QHBoxLayout" name="warningLayout" stretch="0,1">
+      <item>
+       <widget class="QLabel" name="warningIconLabel">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="warningLabel">
+        <property name="text">
+         <string>You are configuring a &quot;Keyboard Controller&quot;. This device is exclusively for &quot;Phantasy Star Online Episode I &amp; II&quot;. If you are unsure, turn back now and configure a &quot;Standard Controller&quot;.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="groupLayout"/>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

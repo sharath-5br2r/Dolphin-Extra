@@ -3,32 +3,38 @@
 
 #include "DolphinQt/Config/GameConfigEdit.h"
 
+#include <memory>
+#include <utility>
+
 #include <QAbstractItemView>
 #include <QCompleter>
 #include <QDesktopServices>
 #include <QFile>
-#include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QPushButton>
-#include <QRegularExpression>
 #include <QScrollBar>
 #include <QStringListModel>
 #include <QTextCursor>
 #include <QTextEdit>
-#include <QVBoxLayout>
 #include <QWhatsThis>
 
 #include "DolphinQt/Config/GameConfigHighlighter.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 
+#include "ui_GameConfigEdit.h"
+
 GameConfigEdit::GameConfigEdit(QWidget* parent, QString path, bool read_only)
-    : QWidget{parent}, m_path(std::move(path)), m_read_only(read_only)
+    : QWidget{parent}, m_ui{std::make_unique<Ui::GameConfigEdit>()}, m_path(std::move(path)),
+      m_read_only(read_only)
 {
-  CreateWidgets();
+  m_ui->setupUi(this);
+  m_ui->textEdit->setReadOnly(m_read_only);
+  m_ui->refreshButton->setVisible(!m_read_only);
+  m_ui->externalEditorButton->setVisible(!m_read_only);
 
   LoadFile();
 
-  new GameConfigHighlighter(m_edit->document());
+  new GameConfigHighlighter(m_ui->textEdit->document());
 
   AddDescription(QStringLiteral("Core"),
                  tr("Section that contains most CPU and Hardware related settings."));
@@ -61,7 +67,7 @@ GameConfigEdit::GameConfigEdit(QWidget* parent, QString path, bool read_only)
   AddDescription(QStringLiteral("Video_Settings"),
                  tr("Section that contains all graphics related settings."));
 
-  m_completer = new QCompleter(m_edit);
+  m_completer = new QCompleter(m_ui->textEdit);
 
   auto* completion_model = new QStringListModel(m_completer);
   completion_model->setStringList(m_completions);
@@ -69,36 +75,12 @@ GameConfigEdit::GameConfigEdit(QWidget* parent, QString path, bool read_only)
   m_completer->setModel(completion_model);
   m_completer->setModelSorting(QCompleter::UnsortedModel);
   m_completer->setCompletionMode(QCompleter::PopupCompletion);
-  m_completer->setWidget(m_edit);
+  m_completer->setWidget(m_ui->textEdit);
 
   ConnectWidgets();
 }
 
-void GameConfigEdit::CreateWidgets()
-{
-  m_edit = new QTextEdit;
-  m_edit->setReadOnly(m_read_only);
-  m_edit->setAcceptRichText(false);
-
-  m_refresh_button = new QPushButton(tr("Refresh"));
-  m_external_editor_button = new QPushButton(tr("Open in External Editor"));
-
-  if (m_read_only)
-  {
-    m_refresh_button->hide();
-    m_external_editor_button->hide();
-  }
-
-  auto* button_layout = new QHBoxLayout;
-  button_layout->addWidget(m_refresh_button);
-  button_layout->addWidget(m_external_editor_button);
-
-  auto* layout = new QVBoxLayout;
-  layout->addLayout(button_layout);
-  layout->addWidget(m_edit);
-
-  setLayout(layout);
-}
+GameConfigEdit::~GameConfigEdit() = default;
 
 void GameConfigEdit::AddDescription(const QString& keyword, const QString& description)
 {
@@ -112,7 +94,7 @@ void GameConfigEdit::LoadFile()
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     return;
 
-  m_edit->setPlainText(QString::fromStdString(file.readAll().toStdString()));
+  m_ui->textEdit->setPlainText(QString::fromUtf8(file.readAll()));
 }
 
 void GameConfigEdit::SaveFile()
@@ -128,7 +110,7 @@ void GameConfigEdit::SaveFile()
     return;
   }
 
-  const QByteArray contents = m_edit->toPlainText().toUtf8();
+  const QByteArray contents = m_ui->textEdit->toPlainText().toUtf8();
 
   if (file.write(contents) == -1)
     ModalMessageBox::warning(this, tr("Warning"), tr("Failed to write config file!"));
@@ -136,19 +118,19 @@ void GameConfigEdit::SaveFile()
 
 void GameConfigEdit::ConnectWidgets()
 {
-  connect(m_edit, &QTextEdit::textChanged, this, &GameConfigEdit::SaveFile);
-  connect(m_edit, &QTextEdit::selectionChanged, this, &GameConfigEdit::OnSelectionChanged);
+  connect(m_ui->textEdit, &QTextEdit::textChanged, this, &GameConfigEdit::SaveFile);
+  connect(m_ui->textEdit, &QTextEdit::selectionChanged, this, &GameConfigEdit::OnSelectionChanged);
   connect(m_completer, qOverload<const QString&>(&QCompleter::activated), this,
           &GameConfigEdit::OnAutoComplete);
 
-  connect(m_refresh_button, &QPushButton::clicked, this, &GameConfigEdit::LoadFile);
-  connect(m_external_editor_button, &QPushButton::clicked, this,
+  connect(m_ui->refreshButton, &QPushButton::clicked, this, &GameConfigEdit::LoadFile);
+  connect(m_ui->externalEditorButton, &QPushButton::clicked, this,
           &GameConfigEdit::OpenExternalEditor);
 }
 
 void GameConfigEdit::OnSelectionChanged()
 {
-  const QString& keyword = m_edit->textCursor().selectedText();
+  const QString& keyword = m_ui->textEdit->textCursor().selectedText();
 
   if (m_keyword_map.contains(keyword))
     QWhatsThis::showText(QCursor::pos(), m_keyword_map[keyword], this);
@@ -156,19 +138,19 @@ void GameConfigEdit::OnSelectionChanged()
 
 QString GameConfigEdit::GetTextUnderCursor()
 {
-  QTextCursor tc = m_edit->textCursor();
+  QTextCursor tc = m_ui->textEdit->textCursor();
   tc.select(QTextCursor::WordUnderCursor);
   return tc.selectedText();
 }
 
 void GameConfigEdit::OnAutoComplete(const QString& completion)
 {
-  QTextCursor cursor = m_edit->textCursor();
-  int extra = completion.length() - m_completer->completionPrefix().length();
+  QTextCursor cursor = m_ui->textEdit->textCursor();
+  const int extra = completion.length() - m_completer->completionPrefix().length();
   cursor.movePosition(QTextCursor::Left);
   cursor.movePosition(QTextCursor::EndOfWord);
   cursor.insertText(completion.right(extra));
-  m_edit->setTextCursor(cursor);
+  m_ui->textEdit->setTextCursor(cursor);
 }
 
 void GameConfigEdit::OpenExternalEditor()
@@ -221,7 +203,7 @@ void GameConfigEdit::keyPressEvent(QKeyEvent* e)
 
   const static QString end_of_word = QStringLiteral("~!@#$%^&*()_+{}|:\"<>?,./;'\\-=");
 
-  QString completion_prefix = GetTextUnderCursor();
+  const QString completion_prefix = GetTextUnderCursor();
 
   if (e->text().isEmpty() || completion_prefix.length() < 2 ||
       end_of_word.contains(e->text().right(1)))
@@ -235,7 +217,7 @@ void GameConfigEdit::keyPressEvent(QKeyEvent* e)
     m_completer->setCompletionPrefix(completion_prefix);
     m_completer->popup()->setCurrentIndex(m_completer->completionModel()->index(0, 0));
   }
-  QRect cr = m_edit->cursorRect();
+  QRect cr = m_ui->textEdit->cursorRect();
   cr.setWidth(m_completer->popup()->sizeHintForColumn(0) +
               m_completer->popup()->verticalScrollBar()->sizeHint().width());
   m_completer->complete(cr);  // popup it up!
@@ -243,6 +225,6 @@ void GameConfigEdit::keyPressEvent(QKeyEvent* e)
 
 void GameConfigEdit::focusInEvent(QFocusEvent* e)
 {
-  m_completer->setWidget(m_edit);
+  m_completer->setWidget(m_ui->textEdit);
   QWidget::focusInEvent(e);
 }

@@ -16,6 +16,7 @@
 #include "VideoBackends/D3D12/Common.h"
 #include "VideoBackends/D3D12/D3D12StreamBuffer.h"
 #include "VideoBackends/D3D12/DescriptorHeapManager.h"
+#include "VideoCommon/Constants.h"
 #include "VideoCommon/FramebufferManager.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -395,16 +396,21 @@ bool DXContext::CreateUtilityRootSignature()
 {
   // Utility:
   //  - 1 constant buffer (binding 0, visible in VS/PS).
-  //  - 8 textures (visible in PS).
-  //  - 8 samplers (visible in PS).
+  //  - VideoCommon::MAX_PIXEL_SHADER_SAMPLERS textures (visible in PS).
+  //  - VideoCommon::MAX_PIXEL_SHADER_SAMPLERS samplers (visible in PS).
+  // Utility draws include slang post-processing passes, whose sampler count the translator caps
+  // at MAX_PIXEL_SHADER_SAMPLERS (crt-royale's mask-apply pass declares 9). Keep this in step with
+  // CreateGXRootSignature or those pipelines fail to create.
 
   std::array<D3D12_ROOT_PARAMETER, NUM_ROOT_PARAMETERS> params;
   std::array<D3D12_DESCRIPTOR_RANGE, NUM_ROOT_PARAMETERS> ranges;
   SetRootParamCBV(&params[ROOT_PARAMETER_PS_CBV], 0, D3D12_SHADER_VISIBILITY_ALL);
   SetRootParamTable(&params[ROOT_PARAMETER_PS_SRV], &ranges[ROOT_PARAMETER_PS_SRV],
-                    D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 8, D3D12_SHADER_VISIBILITY_PIXEL);
+                    D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, VideoCommon::MAX_PIXEL_SHADER_SAMPLERS,
+                    D3D12_SHADER_VISIBILITY_PIXEL);
   SetRootParamTable(&params[ROOT_PARAMETER_PS_SAMPLERS], &ranges[ROOT_PARAMETER_PS_SAMPLERS],
-                    D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 0, 8, D3D12_SHADER_VISIBILITY_PIXEL);
+                    D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 0, VideoCommon::MAX_PIXEL_SHADER_SAMPLERS,
+                    D3D12_SHADER_VISIBILITY_PIXEL);
   return BuildRootSignature(m_device.Get(), &m_utility_root_signature, params.data(), 3);
 }
 

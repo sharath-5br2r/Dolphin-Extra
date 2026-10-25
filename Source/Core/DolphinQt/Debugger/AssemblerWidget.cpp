@@ -9,7 +9,6 @@
 #include <QComboBox>
 #include <QFont>
 #include <QFontDatabase>
-#include <QGridLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -41,6 +40,8 @@
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_AssemblerWidget.h"
 
 namespace
 {
@@ -346,15 +347,16 @@ AssemblerWidget::~AssemblerWidget()
 
 void AssemblerWidget::CreateWidgets()
 {
-  m_asm_tabs = new QTabWidget;
-  m_toolbar = new QToolBar;
-  m_output_type = new QComboBox;
-  m_output_box = new QPlainTextEdit;
-  m_error_box = new QTextEdit;
-  m_address_line = new QLineEdit;
-  m_copy_output_button = new QPushButton;
-
-  m_asm_tabs->setTabsClosable(true);
+  auto* widget = new QWidget;
+  Ui::AssemblerWidget ui;
+  ui.setupUi(widget);
+  m_asm_tabs = ui.assemblerTabs;
+  m_toolbar = ui.toolbar;
+  m_output_type = ui.outputTypeCombo;
+  m_output_box = ui.outputEdit;
+  m_error_box = ui.errorEdit;
+  m_address_line = ui.addressEdit;
+  m_copy_output_button = ui.copyOutputButton;
 
   // Initialize toolbar and actions
   // m_toolbar->setIconSize(QSize(32, 32));
@@ -396,74 +398,12 @@ void AssemblerWidget::CreateWidgets()
 
   m_output_box->setFont(mono_font);
   m_error_box->setFont(error_font);
-  m_output_box->setReadOnly(true);
-  m_error_box->setReadOnly(true);
 
   const int output_area_width = mono_metrics.horizontalAdvance(QLatin1Char('0')) * OUTPUT_BOX_WIDTH;
-  m_error_box->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
   m_error_box->setFixedHeight(err_metrics.height() * 3 + mono_metrics.height());
   m_output_box->setFixedWidth(output_area_width);
-  m_error_box->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
+  ui.outputExtraWidget->setFixedWidth(output_area_width);
 
-  // Initialize output format selection box
-  m_output_type->addItem(tr("Raw"));
-  m_output_type->addItem(tr("AR Code"));
-  m_output_type->addItem(tr("Gecko (04)"));
-  m_output_type->addItem(tr("Gecko (C0)"));
-  m_output_type->addItem(tr("Gecko (C2)"));
-
-  // Setup layouts
-  auto* addr_input_layout = new QHBoxLayout;
-  addr_input_layout->addWidget(new QLabel(tr("Base Address")));
-  addr_input_layout->addWidget(m_address_line);
-
-  auto* output_extra_layout = new QHBoxLayout;
-  output_extra_layout->addWidget(m_output_type);
-  output_extra_layout->addWidget(m_copy_output_button);
-
-  QWidget* address_input_box = new QWidget();
-  address_input_box->setLayout(addr_input_layout);
-  addr_input_layout->setContentsMargins(0, 0, 0, 0);
-
-  QWidget* output_extra_box = new QWidget();
-  output_extra_box->setFixedWidth(output_area_width);
-  output_extra_box->setLayout(output_extra_layout);
-  output_extra_layout->setContentsMargins(0, 0, 0, 0);
-
-  auto* assembler_layout = new QGridLayout;
-  assembler_layout->setSpacing(0);
-  assembler_layout->setContentsMargins(5, 0, 5, 5);
-  assembler_layout->addWidget(m_toolbar, 0, 0, 1, 2);
-  {
-    auto* input_group = new QGroupBox(tr("Input"));
-    auto* layout = new QVBoxLayout;
-    input_group->setLayout(layout);
-    layout->addWidget(m_asm_tabs);
-    layout->addWidget(address_input_box);
-    assembler_layout->addWidget(input_group, 1, 0, 1, 1);
-  }
-  {
-    auto* output_group = new QGroupBox(tr("Output"));
-    auto* layout = new QGridLayout;
-    output_group->setLayout(layout);
-    layout->addWidget(m_output_box, 0, 0);
-    layout->addWidget(output_extra_box, 1, 0);
-    assembler_layout->addWidget(output_group, 1, 1, 1, 1);
-    output_group->setSizePolicy(
-        QSizePolicy(QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Expanding));
-  }
-  {
-    auto* error_group = new QGroupBox(tr("Error Log"));
-    auto* layout = new QHBoxLayout;
-    error_group->setLayout(layout);
-    layout->addWidget(m_error_box);
-    assembler_layout->addWidget(error_group, 2, 0, 1, 2);
-    error_group->setSizePolicy(
-        QSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed));
-  }
-
-  QWidget* widget = new QWidget;
-  widget->setLayout(assembler_layout);
   setWidget(widget);
 }
 

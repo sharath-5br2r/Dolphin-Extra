@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.PorterDuff
 import android.os.Build
 import android.provider.DocumentsContract
+import android.text.InputType
 import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -26,6 +27,7 @@ import com.google.android.material.elevation.ElevationOverlayProvider
 import com.google.android.material.slider.Slider
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
+import com.google.android.material.textfield.TextInputLayout
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.databinding.DialogAdvancedMappingBinding
 import org.dolphinemu.dolphinemu.databinding.DialogInputStringBinding
@@ -195,6 +197,10 @@ class SettingsAdapter(
         val inflater = LayoutInflater.from(context)
         val binding = DialogInputStringBinding.inflate(inflater)
         val input = binding.input
+        if (item.isSecret) {
+            input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            binding.inputLayout.endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
+        }
         input.setText(item.selectedValue)
         dialog = MaterialAlertDialogBuilder(fragmentView.fragmentActivity).setView(binding.root)
             .setMessage(item.description)

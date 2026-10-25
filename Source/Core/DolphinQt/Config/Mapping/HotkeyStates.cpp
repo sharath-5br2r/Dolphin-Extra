@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyStates.h"
 
-#include <QGroupBox>
-#include <QHBoxLayout>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingHorizontalPage.h"
 
 HotkeyStates::HotkeyStates(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,14 +14,13 @@ HotkeyStates::HotkeyStates(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyStates::CreateMainLayout()
 {
-  m_main_layout = new QHBoxLayout();
+  Ui::MappingHorizontalPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Save"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_SAVE_STATE)));
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Load"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_LOAD_STATE)));
-
-  setLayout(m_main_layout);
 }
 
 InputConfig* HotkeyStates::GetConfig()

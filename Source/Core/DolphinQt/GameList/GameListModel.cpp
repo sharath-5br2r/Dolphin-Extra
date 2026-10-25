@@ -301,6 +301,12 @@ bool GameListModel::ShouldDisplayGameListItem(int index) const
     }
   }
 
+  if (m_platform_filter && game.GetPlatform() != *m_platform_filter)
+    return false;
+
+  if (m_region_filter && game.GetRegion() != *m_region_filter)
+    return false;
+
   const bool show_platform = [&game] {
     switch (game.GetPlatform())
     {
@@ -467,6 +473,16 @@ GameListModel::FindSecondDisc(const UICommon::GameFile& game) const
 void GameListModel::SetSearchTerm(const QString& term)
 {
   m_term = term;
+}
+
+void GameListModel::SetPlatformFilter(std::optional<DiscIO::Platform> platform)
+{
+  m_platform_filter = platform;
+}
+
+void GameListModel::SetRegionFilter(std::optional<DiscIO::Region> region)
+{
+  m_region_filter = region;
 }
 
 void GameListModel::SetScale(float scale)

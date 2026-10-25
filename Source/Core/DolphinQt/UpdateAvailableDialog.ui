@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>UpdateAvailableDialog</class>
+ <widget class="QDialog" name="UpdateAvailableDialog">
+  <property name="windowTitle">
+   <string>Update available</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QLabel" name="updateLabel">
+     <property name="text">
+      <string>&lt;h2&gt;A new version of Dolphin is available!&lt;/h2&gt;Dolphin %1 is available for download. You are running %2.&lt;br&gt; Would you like to update?&lt;br&gt;&lt;h4&gt;Release Notes:&lt;/h4&gt;</string>
+     </property>
+     <property name="textFormat">
+      <enum>Qt::TextFormat::RichText</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTextBrowser" name="changelogBrowser">
+     <property name="minimumSize">
+      <size>
+       <width>400</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="openExternalLinks">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="updateLaterCheckBox">
+     <property name="text">
+      <string>Update after closing Dolphin</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox"/>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>changelogBrowser</tabstop>
+  <tabstop>updateLaterCheckBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

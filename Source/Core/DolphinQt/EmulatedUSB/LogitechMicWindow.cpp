@@ -19,7 +19,7 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/System.h"
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 
@@ -61,8 +61,9 @@ void LogitechMicWindow::CreateCheckboxGroup(QVBoxLayout* main_layout)
 
   for (std::size_t index = 0; index != Config::EMULATED_LOGITECH_MIC_COUNT; ++index)
   {
-    m_mic_enabled_checkboxes[index] = new ConfigBool(
-        tr("Emulate Logitech USB Mic %1").arg(index + 1), Config::MAIN_EMULATE_LOGITECH_MIC[index]);
+    m_mic_enabled_checkboxes[index] =
+        new QCheckBox(tr("Emulate Logitech USB Mic %1").arg(index + 1));
+    ConfigWidget::Bind(m_mic_enabled_checkboxes[index], Config::MAIN_EMULATE_LOGITECH_MIC[index]);
     checkbox_layout->addWidget(m_mic_enabled_checkboxes[index]);
   }
 
@@ -81,7 +82,8 @@ void LogitechMicWindow::CreateMicrophoneConfigurationGroup(QVBoxLayout* main_lay
     auto* config_group = new QGroupBox(tr("Microphone %1 Configuration").arg(index + 1));
     auto* const config_layout = new QHBoxLayout();
 
-    auto* const mic_muted = new ConfigBool(tr("Mute"), Config::MAIN_LOGITECH_MIC_MUTED[index]);
+    auto* const mic_muted = new QCheckBox(tr("Mute"));
+    ConfigWidget::Bind(mic_muted, Config::MAIN_LOGITECH_MIC_MUTED[index]);
     mic_muted->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     config_layout->addWidget(mic_muted);
 

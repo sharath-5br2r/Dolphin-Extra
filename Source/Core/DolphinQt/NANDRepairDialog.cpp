@@ -6,13 +6,11 @@
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QStyle>
-#include <QVBoxLayout>
 
 #include <fmt/format.h>
 
@@ -23,29 +21,16 @@
 #include "DiscIO/WiiSaveBanner.h"
 #include "DolphinQt/Resources.h"
 
+#include "ui_NANDRepairDialog.h"
+
 NANDRepairDialog::NANDRepairDialog(const WiiUtils::NANDCheckResult& result, QWidget* parent)
-    : QDialog(parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::NANDRepairDialog>())
 {
-  setWindowTitle(tr("NAND Check"));
+  m_ui->setupUi(this);
   setWindowIcon(Resources::GetAppIcon());
-
-  QVBoxLayout* main_layout = new QVBoxLayout();
-
-  QLabel* damaged_label =
-      new QLabel(tr("The emulated NAND is damaged. System titles such as the Wii Menu and "
-                    "the Wii Shop Channel may not work correctly."));
-  damaged_label->setWordWrap(true);
-  main_layout->addWidget(damaged_label);
 
   if (!result.titles_to_remove.empty())
   {
-    QLabel* warning_label =
-        new QLabel(tr("WARNING: Fixing this NAND requires the deletion of titles that have "
-                      "incomplete data on the NAND, including all associated save data. "
-                      "By continuing, the following title(s) will be removed:"));
-    warning_label->setWordWrap(true);
-    main_layout->addWidget(warning_label);
-
     std::string title_listings;
     Core::TitleDatabase title_db;
     const DiscIO::Language language = SConfig::GetInstance().GetCurrentLanguage(true);
@@ -73,36 +58,22 @@ NANDRepairDialog::NANDRepairDialog(const WiiUtils::NANDCheckResult& result, QWid
       title_listings += "\n";
     }
 
-    QPlainTextEdit* title_box = new QPlainTextEdit(QString::fromStdString(title_listings));
-    title_box->setReadOnly(true);
-    main_layout->addWidget(title_box);
-
-    QLabel* maybe_fix_label = new QLabel(tr("Launching these titles may also fix the issues."));
-    maybe_fix_label->setWordWrap(true);
-    main_layout->addWidget(maybe_fix_label);
+    m_ui->titleBox->setPlainText(QString::fromStdString(title_listings));
+  }
+  else
+  {
+    m_ui->warningLabel->hide();
+    m_ui->titleBox->hide();
+    m_ui->maybeFixLabel->hide();
   }
 
-  QLabel* question_label = new QLabel(tr("Do you want to try to repair the NAND?"));
-  question_label->setWordWrap(true);
-  main_layout->addWidget(question_label);
-
-  QDialogButtonBox* button_box = new QDialogButtonBox(QDialogButtonBox::Yes | QDialogButtonBox::No);
-  main_layout->addWidget(button_box);
-
-  QHBoxLayout* top_layout = new QHBoxLayout();
-
   QIcon icon = QApplication::style()->standardIcon(QStyle::SP_MessageBoxWarning);
-  QLabel* icon_label = new QLabel;
-  icon_label->setPixmap(icon.pixmap(100));
-  icon_label->setAlignment(Qt::AlignTop);
-  top_layout->addWidget(icon_label);
-  top_layout->addSpacing(10);
+  m_ui->iconLabel->setPixmap(icon.pixmap(100));
 
-  top_layout->addLayout(main_layout);
-
-  setLayout(top_layout);
-  resize(600, 400);
-
-  connect(button_box->button(QDialogButtonBox::Yes), &QPushButton::clicked, this, &QDialog::accept);
-  connect(button_box->button(QDialogButtonBox::No), &QPushButton::clicked, this, &QDialog::reject);
+  connect(m_ui->buttonBox->button(QDialogButtonBox::Yes), &QPushButton::clicked, this,
+          &QDialog::accept);
+  connect(m_ui->buttonBox->button(QDialogButtonBox::No), &QPushButton::clicked, this,
+          &QDialog::reject);
 }
+
+NANDRepairDialog::~NANDRepairDialog() = default;

@@ -10,6 +10,7 @@
 #include "VideoBackends/D3D12/D3D12PerfQuery.h"
 #include "VideoBackends/D3D12/D3D12SwapChain.h"
 #include "VideoBackends/D3D12/DX12Context.h"
+#include "VideoBackends/D3D12/DX12LibrashaderRuntime.h"
 #include "VideoBackends/D3D12/DX12Pipeline.h"
 #include "VideoBackends/D3D12/DX12Shader.h"
 #include "VideoBackends/D3D12/DX12Texture.h"
@@ -65,6 +66,11 @@ Gfx::CreateFramebuffer(AbstractTexture* color_attachment, AbstractTexture* depth
   return DXFramebuffer::Create(static_cast<DXTexture*>(color_attachment),
                                static_cast<DXTexture*>(depth_attachment),
                                std::move(additional_color_attachments));
+}
+
+std::unique_ptr<VideoCommon::LibrashaderRuntime> Gfx::CreateLibrashaderRuntime()
+{
+  return std::make_unique<DX12LibrashaderRuntime>();
 }
 
 std::unique_ptr<AbstractShader>
@@ -244,13 +250,30 @@ void Gfx::SetScissorRect(const MathUtil::Rectangle<int>& rc)
 void Gfx::SetTexture(u32 index, const AbstractTexture* texture)
 {
   const DXTexture* dxtex = static_cast<const DXTexture*>(texture);
-  if (m_state.textures[index].ptr == dxtex->GetSRVDescriptor().cpu_handle.ptr)
+
+  // Null texture: bind the null SRV descriptor. UpdateSRVDescriptorTable copies all slots
+  // unconditionally, so every entry must be a valid descriptor handle.
+  if (!dxtex)
+  {
+    const auto null_descriptor = g_dx_context->GetNullSRVDescriptor().cpu_handle.ptr;
+    if (m_state.textures[index].ptr == null_descriptor)
+      return;
+    m_state.textures[index].ptr = null_descriptor;
+    m_dirty_bits |= DirtyState_Textures;
+    return;
+  }
+
+  const auto new_descriptor_ptr = dxtex->GetSRVDescriptor().cpu_handle.ptr;
+
+  // Always transition, even when the descriptor is unchanged: the resource may have been
+  // transitioned elsewhere (e.g., to RENDER_TARGET by DXFramebuffer::TransitionRenderTargets).
+  dxtex->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+  // Short-circuit descriptor upload and dirty flag only when the descriptor hasn't changed.
+  if (m_state.textures[index].ptr == new_descriptor_ptr)
     return;
 
-  m_state.textures[index].ptr = dxtex->GetSRVDescriptor().cpu_handle.ptr;
-  if (dxtex)
-    dxtex->TransitionToState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
+  m_state.textures[index].ptr = new_descriptor_ptr;
   m_dirty_bits |= DirtyState_Textures;
 }
 
@@ -443,8 +466,19 @@ void Gfx::OnConfigChanged(u32 bits)
 
 void Gfx::ExecuteCommandList(bool wait_for_completion)
 {
-  PerfQuery::GetInstance()->ResolveQueries();
+  if (g_perf_query)
+    PerfQuery::GetInstance()->ResolveQueries();
   g_dx_context->ExecuteCommandList(wait_for_completion);
+  m_dirty_bits = DirtyState_All;
+}
+
+void Gfx::InvalidateCachedState()
+{
+  // The same one-liner ExecuteCommandList() uses above, for the same reason: whatever the command
+  // list was believed to hold is no longer there. m_state is deliberately left alone -- it holds
+  // what Dolphin *wants* bound, which is what the next ApplyState() should re-issue -- and so are
+  // m_current_framebuffer and m_current_pipeline, since ApplyState() returns false on either being
+  // null and would silently drop the next draw.
   m_dirty_bits = DirtyState_All;
 }
 

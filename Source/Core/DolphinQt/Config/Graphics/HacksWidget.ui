@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>HacksWidget</class>
+ <widget class="QWidget" name="HacksWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>680</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="efbGroup">
+     <property name="title">
+      <string>Embedded Frame Buffer (EFB)</string>
+     </property>
+     <layout class="QGridLayout" name="efbLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="skipEfbCpuCheckBox">
+        <property name="text">
+         <string>Skip EFB Access from CPU</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="ignoreFormatChangesCheckBox">
+        <property name="text">
+         <string>Ignore Format Changes</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="storeEfbCopiesCheckBox">
+        <property name="text">
+         <string>Store EFB Copies to Texture Only</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="deferEfbCopiesCheckBox">
+        <property name="text">
+         <string>Defer EFB Copies to RAM</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="textureCacheGroup">
+     <property name="title">
+      <string>Texture Cache</string>
+     </property>
+     <layout class="QGridLayout" name="textureCacheLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="accuracyLabel">
+        <property name="text">
+         <string>Accuracy:</string>
+        </property>
+        <property name="buddy">
+         <cstring>accuracySlider</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="safeLabel">
+        <property name="text">
+         <string>Safe</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QSlider" name="accuracySlider">
+        <property name="maximum">
+         <number>2</number>
+        </property>
+        <property name="pageStep">
+         <number>1</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="tickPosition">
+         <enum>QSlider::TickPosition::TicksBelow</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QLabel" name="fastLabel">
+        <property name="text">
+         <string>Fast</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="gpuTextureDecodingCheckBox">
+        <property name="text">
+         <string>GPU Texture Decoding</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="xfbGroup">
+     <property name="title">
+      <string>External Frame Buffer (XFB)</string>
+     </property>
+     <layout class="QVBoxLayout" name="xfbLayout">
+      <item>
+       <widget class="QCheckBox" name="storeXfbCopiesCheckBox">
+        <property name="text">
+         <string>Store XFB Copies to Texture Only</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="immediateXfbCheckBox">
+        <property name="text">
+         <string>Immediately Present XFB</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="skipDuplicateXfbsCheckBox">
+        <property name="text">
+         <string>Skip Presenting Duplicate Frames</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="otherGroup">
+     <property name="title">
+      <string>Other</string>
+     </property>
+     <layout class="QGridLayout" name="otherLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="fastDepthCalculationCheckBox">
+        <property name="text">
+         <string>Fast Depth Calculation</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="disableBoundingBoxCheckBox">
+        <property name="text">
+         <string>Disable Bounding Box</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="vertexRoundingCheckBox">
+        <property name="text">
+         <string>Vertex Rounding</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="saveTextureCacheStateCheckBox">
+        <property name="text">
+         <string>Save Texture Cache to State</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="viSkipCheckBox">
+        <property name="text">
+         <string>VBI Skip</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>skipEfbCpuCheckBox</tabstop>
+  <tabstop>ignoreFormatChangesCheckBox</tabstop>
+  <tabstop>storeEfbCopiesCheckBox</tabstop>
+  <tabstop>deferEfbCopiesCheckBox</tabstop>
+  <tabstop>accuracySlider</tabstop>
+  <tabstop>gpuTextureDecodingCheckBox</tabstop>
+  <tabstop>storeXfbCopiesCheckBox</tabstop>
+  <tabstop>immediateXfbCheckBox</tabstop>
+  <tabstop>skipDuplicateXfbsCheckBox</tabstop>
+  <tabstop>fastDepthCalculationCheckBox</tabstop>
+  <tabstop>disableBoundingBoxCheckBox</tabstop>
+  <tabstop>vertexRoundingCheckBox</tabstop>
+  <tabstop>saveTextureCacheStateCheckBox</tabstop>
+  <tabstop>viSkipCheckBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

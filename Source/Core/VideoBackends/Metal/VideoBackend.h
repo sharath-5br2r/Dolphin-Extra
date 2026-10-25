@@ -12,6 +12,9 @@ class VideoBackend : public VideoBackendBase
 {
 public:
   bool Initialize(const WindowSystemInfo& wsi) override;
+  bool SupportsUI() const override { return true; }
+  bool InitializeUI(const WindowSystemInfo& wsi) override;
+  bool PresentUI() override;
   void Shutdown() override;
 
   std::string GetConfigName() const override;
@@ -23,5 +26,8 @@ public:
   void PrepareWindow(WindowSystemInfo& wsi) override;
 
   static constexpr const char* CONFIG_NAME = "Metal";
+
+private:
+  bool InitializeInternal(const WindowSystemInfo& wsi);
 };
 }  // namespace Metal

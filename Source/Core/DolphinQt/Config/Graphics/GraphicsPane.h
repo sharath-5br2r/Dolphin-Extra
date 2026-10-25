@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QWidget>
 
 class MainWindow;
@@ -12,11 +14,17 @@ namespace Config
 class Layer;
 }  // namespace Config
 
+namespace Ui
+{
+class GraphicsPane;
+}
+
 class GraphicsPane final : public QWidget
 {
   Q_OBJECT
 public:
   explicit GraphicsPane(MainWindow* main_window, Config::Layer* config_layer);
+  ~GraphicsPane() override;
 
   Config::Layer* GetConfigLayer();
 
@@ -26,9 +34,10 @@ signals:
   void UpdateGPUTextureDecoding();
 
 private:
-  void CreateMainLayout();
+  void CreatePages();
   void OnBackendChanged(const QString& backend);
 
+  std::unique_ptr<Ui::GraphicsPane> m_ui;
   MainWindow* const m_main_window;
   Config::Layer* const m_config_layer;
 };

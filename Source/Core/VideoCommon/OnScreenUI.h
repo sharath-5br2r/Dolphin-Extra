@@ -10,12 +10,14 @@
 #include <vector>
 
 #include "Common/CommonTypes.h"
+#include "VideoCommon/BigPicture/Navigation.h"
 #include "VideoCommon/OnScreenUIKeyMap.h"
 
 class NativeVertexFormat;
 class AbstractTexture;
 class AbstractPipeline;
 struct ImTextureData;
+struct ImFont;
 
 namespace VideoCommon
 {
@@ -52,7 +54,9 @@ public:
 
   void SetScale(float backbuffer_scale);
 
-  void Finalize();
+  // Complete the frame and update dynamic font textures. UI-only sessions must not draw overlays
+  // that read emulation state. The caller must own the graphics context, as for DrawImGui().
+  void Finalize(bool draw_emulation_overlays = true);
 
   // Receive keyboard and mouse from QT
   void SetKeyMap(const DolphinKeyMap& key_map);
@@ -64,6 +68,14 @@ private:
   void DrawDebugText();
   void DrawChallengesAndLeaderboards();
   void UpdateImguiTexture(ImTextureData* tex);
+  void ProcessInput();
+  void DrawNavigation();
+  u64 m_input_epoch = 0;
+  u64 m_navigation_generation = 0;
+  ::BigPicture::NavigationStatus m_navigation;
+  BigPicture::NavigationToolkit m_navigation_toolkit;
+  bool m_navigation_keyboard = true;
+  ImFont* m_menu_font = nullptr;
 
   // ImGui resources.
   std::unique_ptr<NativeVertexFormat> m_imgui_vertex_format;

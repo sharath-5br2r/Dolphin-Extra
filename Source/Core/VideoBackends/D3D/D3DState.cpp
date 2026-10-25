@@ -220,6 +220,38 @@ u32 StateManager::UnsetTexture(ID3D11ShaderResourceView* srv)
   return mask;
 }
 
+void StateManager::UnbindTextureFromDevice(ID3D11ShaderResourceView* srv)
+{
+  // A resource with no SRV can never be bound as one, and matching null against the slots would
+  // report every empty slot as one we had to unbind.
+  if (!srv)
+    return;
+
+  for (u32 index = 0; index < VideoCommon::MAX_PIXEL_SHADER_SAMPLERS; ++index)
+  {
+    if (m_current.textures[index] != srv)
+      continue;
+
+    ID3D11ShaderResourceView* const null_srv = nullptr;
+    D3D::context->PSSetShaderResources(index, 1, &null_srv);
+    m_current.textures[index] = nullptr;
+
+    if (m_pending.textures[index] == srv || !m_pending.textures[index])
+    {
+      // Nothing else wants this slot, so there is nothing left to re-bind.
+      m_pending.textures[index] = nullptr;
+      m_dirtyFlags.reset(DirtyFlag_Texture0 + index);
+    }
+    else
+    {
+      // Something has already been staged here. Keep it pending and leave the slot dirty so that
+      // Apply() binds it after the render target change, which is the only order the runtime
+      // accepts.
+      m_dirtyFlags.set(DirtyFlag_Texture0 + index);
+    }
+  }
+}
+
 void StateManager::SetTextureByMask(u32 textureSlotMask, ID3D11ShaderResourceView* srv)
 {
   while (textureSlotMask)

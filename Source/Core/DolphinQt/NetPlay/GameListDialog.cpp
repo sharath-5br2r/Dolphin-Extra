@@ -7,44 +7,33 @@
 
 #include <QDialogButtonBox>
 #include <QListWidget>
-#include <QVBoxLayout>
 
 #include "UICommon/GameFile.h"
 
-GameListDialog::GameListDialog(const GameListModel& game_list_model, QWidget* parent)
-    : QDialog(parent), m_game_list_model(game_list_model)
-{
-  setWindowTitle(tr("Select a game"));
+#include "ui_GameListDialog.h"
 
-  CreateWidgets();
+GameListDialog::GameListDialog(const GameListModel& game_list_model, QWidget* parent)
+    : QDialog(parent), m_game_list_model(game_list_model),
+      m_ui(std::make_unique<Ui::GameListDialog>())
+{
+  m_ui->setupUi(this);
   ConnectWidgets();
 }
 
-void GameListDialog::CreateWidgets()
-{
-  m_main_layout = new QVBoxLayout;
-  m_game_list = new QListWidget;
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Ok);
-  m_button_box->setEnabled(false);
-
-  m_main_layout->addWidget(m_game_list);
-  m_main_layout->addWidget(m_button_box);
-
-  setLayout(m_main_layout);
-}
+GameListDialog::~GameListDialog() = default;
 
 void GameListDialog::ConnectWidgets()
 {
-  connect(m_game_list, &QListWidget::itemSelectionChanged,
-          [this] { m_button_box->setEnabled(m_game_list->currentRow() != -1); });
+  connect(m_ui->gameList, &QListWidget::itemSelectionChanged,
+          [this] { m_ui->buttonBox->setEnabled(m_ui->gameList->currentRow() != -1); });
 
-  connect(m_game_list, &QListWidget::itemDoubleClicked, this, &GameListDialog::accept);
-  connect(m_button_box, &QDialogButtonBox::accepted, this, &GameListDialog::accept);
+  connect(m_ui->gameList, &QListWidget::itemDoubleClicked, this, &GameListDialog::accept);
+  connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &GameListDialog::accept);
 }
 
 void GameListDialog::PopulateGameList()
 {
-  m_game_list->clear();
+  m_ui->gameList->clear();
 
   for (int i = 0; i < m_game_list_model.rowCount(QModelIndex()); i++)
   {
@@ -53,15 +42,15 @@ void GameListDialog::PopulateGameList()
     auto* item =
         new QListWidgetItem(QString::fromStdString(m_game_list_model.GetNetPlayName(*game)));
     item->setData(Qt::UserRole, QVariant::fromValue(std::move(game)));
-    m_game_list->addItem(item);
+    m_ui->gameList->addItem(item);
   }
 
-  m_game_list->sortItems();
+  m_ui->gameList->sortItems();
 }
 
 const UICommon::GameFile& GameListDialog::GetSelectedGame() const
 {
-  auto items = m_game_list->selectedItems();
+  auto items = m_ui->gameList->selectedItems();
   return *items[0]->data(Qt::UserRole).value<std::shared_ptr<const UICommon::GameFile>>();
 }
 

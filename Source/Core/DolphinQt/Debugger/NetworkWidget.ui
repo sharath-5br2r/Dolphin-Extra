@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>NetworkWidget</class>
+ <widget class="QWidget" name="NetworkWidget">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QGroupBox" name="socketTableGroup">
+     <property name="title">
+      <string>Socket table</string>
+     </property>
+     <layout class="QGridLayout" name="socketTableLayout">
+      <property name="spacing">
+       <number>1</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QTableWidget" name="socketTable">
+        <property name="tabKeyNavigation">
+         <bool>false</bool>
+        </property>
+        <property name="editTriggers">
+         <set>QAbstractItemView::NoEditTriggers</set>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::NoSelection</enum>
+        </property>
+        <property name="wordWrap">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="sslContextGroup">
+     <property name="title">
+      <string>SSL context</string>
+     </property>
+     <layout class="QGridLayout" name="sslContextLayout">
+      <property name="spacing">
+       <number>1</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QTableWidget" name="sslTable">
+        <property name="tabKeyNavigation">
+         <bool>false</bool>
+        </property>
+        <property name="editTriggers">
+         <set>QAbstractItemView::NoEditTriggers</set>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::NoSelection</enum>
+        </property>
+        <property name="wordWrap">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="dumpOptionsGroup">
+     <property name="title">
+      <string>Dump options</string>
+     </property>
+     <layout class="QVBoxLayout" name="dumpOptionsLayout">
+      <property name="spacing">
+       <number>1</number>
+      </property>
+      <item>
+       <layout class="QHBoxLayout" name="dumpFormatLayout">
+        <item>
+         <widget class="QLabel" name="dumpFormatLabel">
+          <property name="text">
+           <string>Network dump format:</string>
+          </property>
+          <property name="buddy">
+           <cstring>dumpFormatCombo</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="dumpFormatSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>12</width>
+            <height>0</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QComboBox" name="dumpFormatCombo">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <item>
+           <property name="text">
+            <string>None</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string extracomment="PCAP is a file format">PCAP</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Binary SSL</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Binary SSL (read)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Binary SSL (write)</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <spacer name="dumpFormatStretch">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="dumpSslReadCheckBox">
+        <property name="text">
+         <string>Dump decrypted SSL reads</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="dumpSslWriteCheckBox">
+        <property name="text">
+         <string>Dump decrypted SSL writes</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="dumpRootCaCheckBox">
+        <property name="text">
+         <string extracomment="CA stands for certificate authority">Dump root CA certificates</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="dumpPeerCertCheckBox">
+        <property name="text">
+         <string>Dump peer certificates</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="dumpBbaCheckBox">
+        <property name="text">
+         <string>Dump GameCube BBA traffic</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="openDumpFolderButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Open dump folder</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="securityOptionsGroup">
+     <property name="title">
+      <string>Security options</string>
+     </property>
+     <layout class="QVBoxLayout" name="securityOptionsLayout">
+      <property name="spacing">
+       <number>1</number>
+      </property>
+      <item>
+       <widget class="QCheckBox" name="verifyCertificatesCheckBox">
+        <property name="text">
+         <string>Verify certificates</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="bottomSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

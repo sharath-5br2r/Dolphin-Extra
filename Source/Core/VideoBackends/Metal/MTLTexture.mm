@@ -95,6 +95,20 @@ void Metal::Texture::Load(u32 level, u32 width, u32 height, u32 row_length,  //
   }
 }
 
+void Metal::Texture::GenerateMipmaps()
+{
+  if (GetLevels() <= 1)
+    return;
+  @autoreleasepool
+  {
+    g_state_tracker->EndRenderPass();
+    id<MTLBlitCommandEncoder> blit = [g_state_tracker->GetRenderCmdBuf() blitCommandEncoder];
+    [blit setLabel:@"Generate Mipmaps"];
+    [blit generateMipmapsForTexture:m_tex];
+    [blit endEncoding];
+  }
+}
+
 Metal::StagingTexture::StagingTexture(MRCOwned<id<MTLBuffer>> buffer, StagingTextureType type,
                                       const TextureConfig& config)
     : AbstractStagingTexture(type, config), m_buffer(std::move(buffer))

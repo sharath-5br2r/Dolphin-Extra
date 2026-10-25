@@ -3,25 +3,27 @@
 
 #include "DolphinQt/Config/Graphics/HacksWidget.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QLabel>
-#include <QSignalBlocker>
-#include <QVBoxLayout>
+#include <array>
+#include <memory>
+
+#include <QCheckBox>
 
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigSlider.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/Config/GameConfigWidget.h"
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
 
 #include "VideoCommon/VideoConfig.h"
 
-HacksWidget::HacksWidget(GraphicsPane* gfx_pane) : m_game_layer{gfx_pane->GetConfigLayer()}
+#include "ui_HacksWidget.h"
+
+HacksWidget::HacksWidget(GraphicsPane* gfx_pane)
+    : m_ui{std::make_unique<Ui::HacksWidget>()}, m_game_layer{gfx_pane->GetConfigLayer()}
 {
-  CreateWidgets();
+  m_ui->setupUi(this);
+  BindSettings();
   ConnectWidgets();
   AddDescriptions();
 
@@ -34,93 +36,35 @@ HacksWidget::HacksWidget(GraphicsPane* gfx_pane) : m_game_layer{gfx_pane->GetCon
   OnBackendChanged(get_backend_name());
 }
 
-void HacksWidget::CreateWidgets()
+HacksWidget::~HacksWidget() = default;
+
+void HacksWidget::BindSettings()
 {
-  auto* main_layout = new QVBoxLayout;
-
-  // EFB
-  auto* efb_box = new QGroupBox(tr("Embedded Frame Buffer (EFB)"));
-  auto* efb_layout = new QGridLayout();
-  efb_box->setLayout(efb_layout);
-  m_skip_efb_cpu = new ConfigBool(tr("Skip EFB Access from CPU"),
-                                  Config::GFX_HACK_EFB_ACCESS_ENABLE, m_game_layer, true);
-  m_ignore_format_changes = new ConfigBool(
-      tr("Ignore Format Changes"), Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES, m_game_layer, true);
-  m_store_efb_copies = new ConfigBool(tr("Store EFB Copies to Texture Only"),
-                                      Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM, m_game_layer);
-  m_defer_efb_copies = new ConfigBool(tr("Defer EFB Copies to RAM"),
-                                      Config::GFX_HACK_DEFER_EFB_COPIES, m_game_layer);
-
-  efb_layout->addWidget(m_skip_efb_cpu, 0, 0);
-  efb_layout->addWidget(m_ignore_format_changes, 0, 1);
-  efb_layout->addWidget(m_store_efb_copies, 1, 0);
-  efb_layout->addWidget(m_defer_efb_copies, 1, 1);
-
-  // Texture Cache
-  auto* texture_cache_box = new QGroupBox(tr("Texture Cache"));
-  auto* texture_cache_layout = new QGridLayout();
-  texture_cache_box->setLayout(texture_cache_layout);
-
-  m_accuracy =
-      new ConfigSlider({0, 512, 128}, Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, m_game_layer);
-  m_gpu_texture_decoding = new ConfigBool(tr("GPU Texture Decoding"),
-                                          Config::GFX_ENABLE_GPU_TEXTURE_DECODING, m_game_layer);
-
-  auto* safe_label = new QLabel(tr("Safe"));
-  safe_label->setAlignment(Qt::AlignRight);
-
-  m_accuracy_label = new ConfigSliderLabel(tr("Accuracy:"), m_accuracy);
-
-  texture_cache_layout->addWidget(m_accuracy_label, 0, 0);
-  texture_cache_layout->addWidget(safe_label, 0, 1);
-  texture_cache_layout->addWidget(m_accuracy, 0, 2);
-  texture_cache_layout->addWidget(new QLabel(tr("Fast")), 0, 3);
-  texture_cache_layout->addWidget(m_gpu_texture_decoding, 1, 0);
-
-  // XFB
-  auto* xfb_box = new QGroupBox(tr("External Frame Buffer (XFB)"));
-  auto* xfb_layout = new QVBoxLayout();
-  xfb_box->setLayout(xfb_layout);
-
-  m_store_xfb_copies = new ConfigBool(tr("Store XFB Copies to Texture Only"),
-                                      Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM, m_game_layer);
-  m_immediate_xfb =
-      new ConfigBool(tr("Immediately Present XFB"), Config::GFX_HACK_IMMEDIATE_XFB, m_game_layer);
-  m_skip_duplicate_xfbs = new ConfigBool(tr("Skip Presenting Duplicate Frames"),
-                                         Config::GFX_HACK_SKIP_DUPLICATE_XFBS, m_game_layer);
-
-  xfb_layout->addWidget(m_store_xfb_copies);
-  xfb_layout->addWidget(m_immediate_xfb);
-  xfb_layout->addWidget(m_skip_duplicate_xfbs);
-
-  // Other
-  auto* other_box = new QGroupBox(tr("Other"));
-  auto* other_layout = new QGridLayout();
-  other_box->setLayout(other_layout);
-
-  m_fast_depth_calculation =
-      new ConfigBool(tr("Fast Depth Calculation"), Config::GFX_FAST_DEPTH_CALC, m_game_layer);
-  m_disable_bounding_box =
-      new ConfigBool(tr("Disable Bounding Box"), Config::GFX_HACK_BBOX_ENABLE, m_game_layer, true);
-  m_vertex_rounding =
-      new ConfigBool(tr("Vertex Rounding"), Config::GFX_HACK_VERTEX_ROUNDING, m_game_layer);
-  m_save_texture_cache_state = new ConfigBool(
-      tr("Save Texture Cache to State"), Config::GFX_SAVE_TEXTURE_CACHE_TO_STATE, m_game_layer);
-  m_vi_skip = new ConfigBool(tr("VBI Skip"), Config::GFX_HACK_VI_SKIP, m_game_layer);
-
-  other_layout->addWidget(m_fast_depth_calculation, 0, 0);
-  other_layout->addWidget(m_disable_bounding_box, 0, 1);
-  other_layout->addWidget(m_vertex_rounding, 1, 0);
-  other_layout->addWidget(m_save_texture_cache_state, 1, 1);
-  other_layout->addWidget(m_vi_skip, 2, 0);
-
-  main_layout->addWidget(efb_box);
-  main_layout->addWidget(texture_cache_box);
-  main_layout->addWidget(xfb_box);
-  main_layout->addWidget(other_box);
-  main_layout->addStretch();
-
-  setLayout(main_layout);
+  ConfigWidget::Bind(m_ui->skipEfbCpuCheckBox, Config::GFX_HACK_EFB_ACCESS_ENABLE, m_game_layer,
+                     true);
+  ConfigWidget::Bind(m_ui->ignoreFormatChangesCheckBox, Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES,
+                     m_game_layer, true);
+  ConfigWidget::Bind(m_ui->storeEfbCopiesCheckBox, Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->deferEfbCopiesCheckBox, Config::GFX_HACK_DEFER_EFB_COPIES, m_game_layer);
+  constexpr std::array accuracy_values{0, 512, 128};
+  ConfigWidget::BindMapped(m_ui->accuracySlider, Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES,
+                           accuracy_values, m_game_layer);
+  ConfigWidget::MirrorFont(m_ui->accuracyLabel, m_ui->accuracySlider);
+  ConfigWidget::Bind(m_ui->gpuTextureDecodingCheckBox, Config::GFX_ENABLE_GPU_TEXTURE_DECODING,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->storeXfbCopiesCheckBox, Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->immediateXfbCheckBox, Config::GFX_HACK_IMMEDIATE_XFB, m_game_layer);
+  ConfigWidget::Bind(m_ui->skipDuplicateXfbsCheckBox, Config::GFX_HACK_SKIP_DUPLICATE_XFBS,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->fastDepthCalculationCheckBox, Config::GFX_FAST_DEPTH_CALC, m_game_layer);
+  ConfigWidget::Bind(m_ui->disableBoundingBoxCheckBox, Config::GFX_HACK_BBOX_ENABLE, m_game_layer,
+                     true);
+  ConfigWidget::Bind(m_ui->vertexRoundingCheckBox, Config::GFX_HACK_VERTEX_ROUNDING, m_game_layer);
+  ConfigWidget::Bind(m_ui->saveTextureCacheStateCheckBox, Config::GFX_SAVE_TEXTURE_CACHE_TO_STATE,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->viSkipCheckBox, Config::GFX_HACK_VI_SKIP, m_game_layer);
 
   UpdateDeferEFBCopiesEnabled();
   UpdateSkipPresentingDuplicateFramesEnabled();
@@ -134,25 +78,14 @@ void HacksWidget::OnBackendChanged(const QString& backend_name)
 
 void HacksWidget::ConnectWidgets()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-  connect(m_store_efb_copies, &QCheckBox::checkStateChanged,
-          [this](Qt::CheckState) { UpdateDeferEFBCopiesEnabled(); });
-  connect(m_store_xfb_copies, &QCheckBox::checkStateChanged,
-          [this](Qt::CheckState) { UpdateDeferEFBCopiesEnabled(); });
-  connect(m_immediate_xfb, &QCheckBox::checkStateChanged,
-          [this](Qt::CheckState) { UpdateSkipPresentingDuplicateFramesEnabled(); });
-  connect(m_vi_skip, &QCheckBox::checkStateChanged,
-          [this](Qt::CheckState) { UpdateSkipPresentingDuplicateFramesEnabled(); });
-#else
-  connect(m_store_efb_copies, &QCheckBox::stateChanged,
-          [this](int) { UpdateDeferEFBCopiesEnabled(); });
-  connect(m_store_xfb_copies, &QCheckBox::stateChanged,
-          [this](int) { UpdateDeferEFBCopiesEnabled(); });
-  connect(m_immediate_xfb, &QCheckBox::stateChanged,
-          [this](int) { UpdateSkipPresentingDuplicateFramesEnabled(); });
-  connect(m_vi_skip, &QCheckBox::stateChanged,
-          [this](int) { UpdateSkipPresentingDuplicateFramesEnabled(); });
-#endif
+  ConfigWidget::ConnectCheckStateChanged(m_ui->storeEfbCopiesCheckBox, this,
+                                         &HacksWidget::UpdateDeferEFBCopiesEnabled);
+  ConfigWidget::ConnectCheckStateChanged(m_ui->storeXfbCopiesCheckBox, this,
+                                         &HacksWidget::UpdateDeferEFBCopiesEnabled);
+  ConfigWidget::ConnectCheckStateChanged(m_ui->immediateXfbCheckBox, this,
+                                         &HacksWidget::UpdateSkipPresentingDuplicateFramesEnabled);
+  ConfigWidget::ConnectCheckStateChanged(m_ui->viSkipCheckBox, this,
+                                         &HacksWidget::UpdateSkipPresentingDuplicateFramesEnabled);
 }
 
 void HacksWidget::AddDescriptions()
@@ -228,19 +161,28 @@ void HacksWidget::AddDescriptions()
                  "issues.</dolphin_emphasis> <br><br>"
                  "<dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>");
 
-  m_skip_efb_cpu->SetDescription(tr(TR_SKIP_EFB_CPU_ACCESS_DESCRIPTION));
-  m_ignore_format_changes->SetDescription(tr(TR_IGNORE_FORMAT_CHANGE_DESCRIPTION));
-  m_store_efb_copies->SetDescription(tr(TR_STORE_EFB_TO_TEXTURE_DESCRIPTION));
-  m_defer_efb_copies->SetDescription(tr(TR_DEFER_EFB_COPIES_DESCRIPTION));
-  m_accuracy->SetTitle(tr("Texture Cache Accuracy"));
-  m_accuracy->SetDescription(tr(TR_ACCUARCY_DESCRIPTION));
-  m_store_xfb_copies->SetDescription(tr(TR_STORE_XFB_TO_TEXTURE_DESCRIPTION));
-  m_immediate_xfb->SetDescription(tr(TR_IMMEDIATE_XFB_DESCRIPTION));
-  m_skip_duplicate_xfbs->SetDescription(tr(TR_SKIP_DUPLICATE_XFBS_DESCRIPTION));
-  m_fast_depth_calculation->SetDescription(tr(TR_FAST_DEPTH_CALC_DESCRIPTION));
-  m_save_texture_cache_state->SetDescription(tr(TR_SAVE_TEXTURE_CACHE_TO_STATE_DESCRIPTION));
-  m_vertex_rounding->SetDescription(tr(TR_VERTEX_ROUNDING_DESCRIPTION));
-  m_vi_skip->SetDescription(tr(TR_VI_SKIP_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->skipEfbCpuCheckBox, {},
+                               tr(TR_SKIP_EFB_CPU_ACCESS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->ignoreFormatChangesCheckBox, {},
+                               tr(TR_IGNORE_FORMAT_CHANGE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->storeEfbCopiesCheckBox, {},
+                               tr(TR_STORE_EFB_TO_TEXTURE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->deferEfbCopiesCheckBox, {},
+                               tr(TR_DEFER_EFB_COPIES_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->accuracySlider, tr("Texture Cache Accuracy"),
+                               tr(TR_ACCUARCY_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->storeXfbCopiesCheckBox, {},
+                               tr(TR_STORE_XFB_TO_TEXTURE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->immediateXfbCheckBox, {}, tr(TR_IMMEDIATE_XFB_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->skipDuplicateXfbsCheckBox, {},
+                               tr(TR_SKIP_DUPLICATE_XFBS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->fastDepthCalculationCheckBox, {},
+                               tr(TR_FAST_DEPTH_CALC_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->saveTextureCacheStateCheckBox, {},
+                               tr(TR_SAVE_TEXTURE_CACHE_TO_STATE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->vertexRoundingCheckBox, {},
+                               tr(TR_VERTEX_ROUNDING_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->viSkipCheckBox, {}, tr(TR_VI_SKIP_DESCRIPTION));
 }
 
 void HacksWidget::UpdateGPUTextureDecodingEnabled(const QString& backend_name)
@@ -252,30 +194,34 @@ void HacksWidget::UpdateGPUTextureDecodingEnabled(const QString& backend_name)
 
   const bool gpu_texture_decoding_supported = g_backend_info.bSupportsGPUTextureDecoding;
   const bool arbitrary_mipmap_detection_enabled =
-      Get(m_game_layer, Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION);
+      ConfigWidget::Logic::ReadValue(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION, m_game_layer);
   const bool gpu_texture_decoding_enabled =
       gpu_texture_decoding_supported && !arbitrary_mipmap_detection_enabled;
-  m_gpu_texture_decoding->setEnabled(gpu_texture_decoding_enabled);
+  m_ui->gpuTextureDecodingCheckBox->setEnabled(gpu_texture_decoding_enabled);
 
   if (!gpu_texture_decoding_supported)
   {
-    m_gpu_texture_decoding->SetDescription(tr(TR_GPU_DECODING_DESCRIPTION) +
-                                           tr("<dolphin_emphasis>The %1 backend doesn't support "
-                                              "GPU Texture Decoding.</dolphin_emphasis>")
-                                               .arg(backend_name));
+    ConfigWidget::SetDescription(
+        m_ui->gpuTextureDecodingCheckBox, {},
+        tr(TR_GPU_DECODING_DESCRIPTION) +
+            tr("<dolphin_emphasis>The %1 backend doesn't support GPU Texture "
+               "Decoding.</dolphin_emphasis>")
+                .arg(backend_name));
   }
   else if (arbitrary_mipmap_detection_enabled)
   {
-    m_gpu_texture_decoding->SetDescription(
+    ConfigWidget::SetDescription(
+        m_ui->gpuTextureDecodingCheckBox, {},
         tr(TR_GPU_DECODING_DESCRIPTION) +
-        tr("<dolphin_emphasis>GPU Texture Decoding is currently disabled by Arbitrary Mipmap "
-           "Detection.</dolphin_emphasis>"));
+            tr("<dolphin_emphasis>GPU Texture Decoding is currently disabled by Arbitrary Mipmap "
+               "Detection.</dolphin_emphasis>"));
   }
   else
   {
-    m_gpu_texture_decoding->SetDescription(
+    ConfigWidget::SetDescription(
+        m_ui->gpuTextureDecodingCheckBox, {},
         tr(TR_GPU_DECODING_DESCRIPTION) +
-        tr("<dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>"));
+            tr("<dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>"));
   }
 }
 
@@ -286,20 +232,23 @@ void HacksWidget::UpdateBoundingBoxEnabled(const QString& backend_name)
                  "significantly, but some games will break.<br><br>");
 
   const bool bbox = g_backend_info.bSupportsBBox;
-  m_disable_bounding_box->setEnabled(bbox);
+  m_ui->disableBoundingBoxCheckBox->setEnabled(bbox);
 
   if (bbox)
   {
-    m_disable_bounding_box->SetDescription(
+    ConfigWidget::SetDescription(
+        m_ui->disableBoundingBoxCheckBox, {},
         tr(TR_DISABLE_BOUNDINGBOX_DESCRIPTION) +
-        tr("<dolphin_emphasis>If unsure, leave this checked.</dolphin_emphasis>"));
+            tr("<dolphin_emphasis>If unsure, leave this checked.</dolphin_emphasis>"));
   }
   else
   {
-    m_disable_bounding_box->SetDescription(tr(TR_DISABLE_BOUNDINGBOX_DESCRIPTION) +
-                                           tr("<dolphin_emphasis>The %1 backend doesn't support "
-                                              "Bounding Box emulation.</dolphin_emphasis>")
-                                               .arg(backend_name));
+    ConfigWidget::SetDescription(
+        m_ui->disableBoundingBoxCheckBox, {},
+        tr(TR_DISABLE_BOUNDINGBOX_DESCRIPTION) +
+            tr("<dolphin_emphasis>The %1 backend doesn't support Bounding Box "
+               "emulation.</dolphin_emphasis>")
+                .arg(backend_name));
   }
 }
 
@@ -307,13 +256,16 @@ void HacksWidget::UpdateDeferEFBCopiesEnabled()
 {
   // We disable the checkbox for defer EFB copies when both EFB and XFB copies to texture are
   // enabled.
-  const bool can_defer = m_store_efb_copies->isChecked() && m_store_xfb_copies->isChecked();
-  m_defer_efb_copies->setEnabled(!can_defer);
+  const bool can_defer = ConfigWidget::EffectiveChecked(m_ui->storeEfbCopiesCheckBox) &&
+                         ConfigWidget::EffectiveChecked(m_ui->storeXfbCopiesCheckBox);
+  m_ui->deferEfbCopiesCheckBox->setEnabled(!can_defer);
 }
 
 void HacksWidget::UpdateSkipPresentingDuplicateFramesEnabled()
 {
   // If Immediate XFB is on, there's no point to skipping duplicate XFB copies as immediate presents
   // when the XFB is created, therefore all XFB copies will be unique.
-  m_skip_duplicate_xfbs->setDisabled(m_immediate_xfb->isChecked() || m_vi_skip->isChecked());
+  m_ui->skipDuplicateXfbsCheckBox->setDisabled(
+      ConfigWidget::EffectiveChecked(m_ui->immediateXfbCheckBox) ||
+      ConfigWidget::EffectiveChecked(m_ui->viSkipCheckBox));
 }

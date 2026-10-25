@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
 #include <memory>
 
 #include "InputCommon/ControlReference/ExpressionParser.h"
@@ -45,6 +46,8 @@ public:
   int BoundCount() const;
   ciface::ExpressionParser::ParseStatus GetParseStatus() const;
   void UpdateReference(ciface::ExpressionParser::ControlEnvironment& env);
+  // Caller holds the controller state lock. This does not evaluate the binding.
+  void ClearHotkeySuppressions();
   std::string GetExpression() const;
 
   // Returns a human-readable error description when the given expression is invalid.
@@ -93,6 +96,10 @@ public:
   InputReference();
   bool IsInput() const override;
   ControlState State(const ControlState state) override;
+
+private:
+  std::uint64_t m_input_epoch = 0;
+  bool m_require_release = false;
 };
 
 //

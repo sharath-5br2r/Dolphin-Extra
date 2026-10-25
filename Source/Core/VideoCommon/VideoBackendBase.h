@@ -35,6 +35,9 @@ class VideoBackendBase
 public:
   virtual ~VideoBackendBase() {}
   virtual bool Initialize(const WindowSystemInfo& wsi) = 0;
+  virtual bool SupportsUI() const { return false; }
+  virtual bool InitializeUI(const WindowSystemInfo& wsi) { return false; }
+  virtual bool PresentUI();
   virtual void Shutdown() = 0;
 
   virtual std::string GetConfigName() const = 0;
@@ -78,9 +81,12 @@ protected:
                         std::unique_ptr<BoundingBox> bounding_box,
                         std::unique_ptr<EFBInterfaceBase> efb_interface,
                         std::unique_ptr<TextureCacheBase> texture_cache);
-  void ShutdownShared();
+  bool InitializeUIShared(std::unique_ptr<AbstractGfx> gfx,
+                          std::unique_ptr<VertexManagerBase> vertex_manager);
+  void ShutdownShared(bool keep_gfx = false);
 
   bool m_initialized = false;
+  bool m_ui_only = false;
 };
 
 extern VideoBackendBase* g_video_backend;

@@ -126,7 +126,6 @@ constexpr std::array<const char*, NUM_HOTKEYS> s_hotkey_labels{{
 
     _trans("Toggle 3D Side-by-Side"),
     _trans("Toggle 3D Top-Bottom"),
-    _trans("Toggle 3D Anaglyph"),
     _trans("Decrease Depth"),
     _trans("Increase Depth"),
     _trans("Decrease Convergence"),
@@ -316,7 +315,7 @@ constexpr std::array<HotkeyGroupInfo, NUM_HOTKEY_GROUPS> s_groups_info = {
      {_trans("Internal Resolution"), HK_INCREASE_IR, HK_DECREASE_IR},
      {_trans("Freelook"), HK_FREELOOK_TOGGLE, HK_FREELOOK_TOGGLE},
      // i18n: Stereoscopic 3D
-     {_trans("3D"), HK_TOGGLE_STEREO_SIDE_BY_SIDE, HK_TOGGLE_STEREO_ANAGLYPH},
+     {_trans("3D"), HK_TOGGLE_STEREO_SIDE_BY_SIDE, HK_TOGGLE_STEREO_TOP_AND_BOTTOM},
      // i18n: Stereoscopic 3D
      {_trans("3D Depth"), HK_DECREASE_DEPTH, HK_INCREASE_CONVERGENCE},
      {_trans("Load State"), HK_LOAD_STATE_SLOT_1, HK_LOAD_STATE_SLOT_SELECTED},

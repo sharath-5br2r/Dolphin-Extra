@@ -14,7 +14,6 @@
 #include <QStyledItemDelegate>
 #include <QTableWidget>
 #include <QToolBar>
-#include <QVBoxLayout>
 
 #include "Common/Contains.h"
 #include "Common/FileUtil.h"
@@ -32,6 +31,8 @@
 #include "DolphinQt/Host.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_BreakpointWidget.h"
 
 // Qt constants
 namespace
@@ -150,16 +151,15 @@ BreakpointWidget::~BreakpointWidget()
 
 void BreakpointWidget::CreateWidgets()
 {
-  m_toolbar = new QToolBar;
-  m_toolbar->setContentsMargins(0, 0, 0, 0);
-  m_toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  auto* widget = new QWidget;
+  Ui::BreakpointWidget ui;
+  ui.setupUi(widget);
+  m_toolbar = ui.toolbar;
+  m_table = ui.table;
 
-  m_table = new QTableWidget;
   m_table->setItemDelegate(new CustomDelegate(this));
-  m_table->setTabKeyNavigation(false);
   m_table->setContentsMargins(0, 0, 0, 0);
   m_table->setColumnCount(10);
-  m_table->setSelectionMode(QAbstractItemView::NoSelection);
   m_table->verticalHeader()->hide();
 
   OnDebugFontChanged(Settings::Instance().GetDebugFont());
@@ -167,15 +167,6 @@ void BreakpointWidget::CreateWidgets()
   connect(m_table, &QTableWidget::itemClicked, this, &BreakpointWidget::OnClicked);
   connect(m_table, &QTableWidget::customContextMenuRequested, this,
           &BreakpointWidget::OnContextMenu);
-
-  m_table->setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
-
-  auto* layout = new QVBoxLayout;
-
-  layout->addWidget(m_toolbar);
-  layout->addWidget(m_table);
-  layout->setContentsMargins(2, 2, 2, 2);
-  layout->setSpacing(0);
 
   m_enabled = m_toolbar->addAction(tr("Disable"), this, &BreakpointWidget::OnToggleBreaking);
   m_new = m_toolbar->addAction(tr("New"), this, &BreakpointWidget::OnNewBreakpoint);
@@ -186,9 +177,6 @@ void BreakpointWidget::CreateWidgets()
 
   m_load->setEnabled(false);
   m_save->setEnabled(false);
-
-  QWidget* widget = new QWidget;
-  widget->setLayout(layout);
 
   setWidget(widget);
 }

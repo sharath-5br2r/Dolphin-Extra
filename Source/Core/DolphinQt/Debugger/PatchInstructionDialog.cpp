@@ -7,11 +7,12 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QVBoxLayout>
 
 #include "Common/Assembler/GekkoAssembler.h"
 #include "Common/GekkoDisassembler.h"
 #include "Common/Swap.h"
+
+#include "ui_PatchInstructionDialog.h"
 
 PatchInstructionDialog::PatchInstructionDialog(QWidget* parent, u32 address, u32 value)
     : QDialog(parent), m_address(address)
@@ -27,18 +28,11 @@ PatchInstructionDialog::PatchInstructionDialog(QWidget* parent, u32 address, u32
 
 void PatchInstructionDialog::CreateWidgets()
 {
-  auto* layout = new QVBoxLayout;
-
-  m_input_edit = new QLineEdit;
-  m_preview_label = new QLabel;
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-
-  layout->addWidget(new QLabel(tr("New instruction:")));
-  layout->addWidget(m_input_edit);
-  layout->addWidget(m_preview_label);
-  layout->addWidget(m_button_box);
-
-  setLayout(layout);
+  Ui::PatchInstructionDialog ui;
+  ui.setupUi(this);
+  m_input_edit = ui.inputEdit;
+  m_preview_label = ui.previewLabel;
+  m_button_box = ui.buttonBox;
 }
 
 void PatchInstructionDialog::ConnectWidgets()

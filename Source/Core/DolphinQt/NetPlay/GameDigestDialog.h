@@ -4,23 +4,27 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <QDialog>
 
-class QDialogButtonBox;
-class QGroupBox;
 class QLabel;
 class QProgressBar;
-class QVBoxLayout;
 class QWidget;
+
+namespace Ui
+{
+class GameDigestDialog;
+}
 
 class GameDigestDialog : public QDialog
 {
   Q_OBJECT
 public:
   explicit GameDigestDialog(QWidget* parent);
+  ~GameDigestDialog() override;
 
   void show(const QString& title);
   void SetProgress(int pid, int progress);
@@ -29,17 +33,11 @@ public:
   void reject() override;
 
 private:
-  void CreateWidgets();
   void ConnectWidgets();
 
   std::map<int, QProgressBar*> m_progress_bars;
   std::map<int, QLabel*> m_status_labels;
 
   std::vector<std::string> m_results;
-
-  QGroupBox* m_progress_box;
-  QVBoxLayout* m_progress_layout;
-  QVBoxLayout* m_main_layout;
-  QLabel* m_check_label;
-  QDialogButtonBox* m_button_box;
+  std::unique_ptr<Ui::GameDigestDialog> m_ui;
 };

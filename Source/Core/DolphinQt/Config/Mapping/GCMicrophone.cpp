@@ -3,15 +3,12 @@
 
 #include "DolphinQt/Config/Mapping/GCMicrophone.h"
 
-#include <QFormLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-
 #include "InputCommon/InputConfig.h"
 
 #include "Core/HW/GCPad.h"
 #include "Core/HW/GCPadEmu.h"
+
+#include "ui_MappingHorizontalPage.h"
 
 GCMicrophone::GCMicrophone(MappingWindow* window) : MappingWidget(window)
 {
@@ -20,12 +17,10 @@ GCMicrophone::GCMicrophone(MappingWindow* window) : MappingWidget(window)
 
 void GCMicrophone::CreateMainLayout()
 {
-  m_main_layout = new QHBoxLayout();
-
-  m_main_layout->addWidget(
+  Ui::MappingHorizontalPage ui;
+  ui.setupUi(this);
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Microphone"), Pad::GetGroup(GetPort(), PadGroup::Mic)));
-
-  setLayout(m_main_layout);
 }
 
 void GCMicrophone::LoadSettings()

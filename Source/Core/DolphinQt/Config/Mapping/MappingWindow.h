@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QDialog>
 #include <QString>
 
@@ -14,12 +16,14 @@ class EmulatedController;
 class InputConfig;
 class MappingButton;
 
+namespace Ui
+{
+class MappingWindow;
+}
+
 class QComboBox;
 class QDialogButtonBox;
 class QEvent;
-class QHBoxLayout;
-class QGroupBox;
-class QVBoxLayout;
 class QPushButton;
 class QTabWidget;
 class QToolButton;
@@ -43,6 +47,7 @@ public:
     MAPPING_WIIMOTE_EMU,
     // Hotkeys
     MAPPING_HOTKEYS,
+    MAPPING_BIG_PICTURE,
     // Freelook
     MAPPING_FREELOOK,
     // Triforce
@@ -50,6 +55,7 @@ public:
   };
 
   explicit MappingWindow(QWidget* parent, Type type, int port_num);
+  ~MappingWindow() override;
 
   int GetPort() const;
   ControllerEmu::EmulatedController* GetController() const;
@@ -72,10 +78,7 @@ signals:
 
 private:
   void SetMappingType(Type type);
-  void CreateDevicesLayout();
-  void CreateProfilesLayout();
-  void CreateResetLayout();
-  void CreateMainLayout();
+  void CreateWidgets();
   void ConnectWidgets();
 
   QWidget* AddWidget(const QString& name, QWidget* widget);
@@ -99,22 +102,16 @@ private:
 
   ControllerEmu::EmulatedController* m_controller = nullptr;
 
-  // Main
-  QVBoxLayout* m_main_layout;
-  QHBoxLayout* m_config_layout;
+  std::unique_ptr<Ui::MappingWindow> m_ui;
   QDialogButtonBox* m_button_box;
 
   // Devices
-  QGroupBox* m_devices_box;
-  QHBoxLayout* m_devices_layout;
   QComboBox* m_devices_combo;
   QAction* m_other_device_mappings;
   QAction* m_wait_for_alternate_mappings;
   QAction* m_iterative_mapping;
 
   // Profiles
-  QGroupBox* m_profiles_box;
-  QHBoxLayout* m_profiles_layout;
   QComboBox* m_profiles_combo;
   QPushButton* m_profiles_load;
   QPushButton* m_profiles_save;
@@ -123,8 +120,6 @@ private:
   QAction* m_profiles_open_folder;
 
   // Reset
-  QGroupBox* m_reset_box;
-  QHBoxLayout* m_reset_layout;
   QPushButton* m_reset_default;
   QPushButton* m_reset_clear;
 

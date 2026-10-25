@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>NetPlayDialog</class>
+ <widget class="QDialog" name="NetPlayDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>620</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>NetPlay</string>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QMenuBar" name="menuBar">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <widget class="QMenu" name="dataMenu">
+      <property name="title">
+       <string>Data</string>
+      </property>
+      <property name="toolTipsVisible">
+       <bool>true</bool>
+      </property>
+      <addaction name="actionSavedataNone"/>
+      <addaction name="actionSavedataLoadOnly"/>
+      <addaction name="actionSavedataLoadWrite"/>
+      <addaction name="separator"/>
+      <addaction name="actionSavedataAllWii"/>
+      <addaction name="separator"/>
+      <addaction name="actionSyncCodes"/>
+      <addaction name="actionStrictSettingsSync"/>
+     </widget>
+     <widget class="QMenu" name="networkMenu">
+      <property name="title">
+       <string>Network</string>
+      </property>
+      <property name="toolTipsVisible">
+       <bool>true</bool>
+      </property>
+      <addaction name="actionFixedDelay"/>
+      <addaction name="actionHostInputAuthority"/>
+      <addaction name="actionGolfMode"/>
+     </widget>
+     <widget class="QMenu" name="gameDigestMenu">
+      <property name="title">
+       <string>Checksum</string>
+      </property>
+      <addaction name="actionChecksumCurrentGame"/>
+      <addaction name="actionChecksumOtherGame"/>
+      <addaction name="actionChecksumSdCard"/>
+     </widget>
+     <widget class="QMenu" name="otherMenu">
+      <property name="title">
+       <string>Other</string>
+      </property>
+      <addaction name="actionRecordInputs"/>
+      <addaction name="actionGolfModeOverlay"/>
+      <addaction name="actionHideRemoteGBAs"/>
+     </widget>
+     <addaction name="dataMenu"/>
+     <addaction name="networkMenu"/>
+     <addaction name="gameDigestMenu"/>
+     <addaction name="otherMenu"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="contentWidget" native="true">
+     <layout class="QVBoxLayout" name="contentLayout">
+      <item>
+       <widget class="QPushButton" name="gameButton">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+        <property name="default">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSplitter" name="splitter">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <widget class="QGroupBox" name="chatBox">
+         <property name="title">
+          <string>Chat</string>
+         </property>
+         <layout class="QGridLayout" name="chatLayout">
+          <item row="0" column="0" colspan="2">
+           <widget class="QTextBrowser" name="chatEdit">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLineEdit" name="chatTypeEdit"/>
+          </item>
+          <item row="1" column="1">
+           <widget class="QPushButton" name="chatSendButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>Send</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+            <property name="default">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QGroupBox" name="playersBox">
+         <property name="title">
+          <string>Players</string>
+         </property>
+         <layout class="QGridLayout" name="playersLayout">
+          <item row="0" column="0">
+           <widget class="QComboBox" name="roomBox"/>
+          </item>
+          <item row="0" column="1">
+           <widget class="ClickBlurLabel" name="hostcodeLabel"/>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="hostcodeActionButton">
+            <property name="text">
+             <string>Copy</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="3">
+           <widget class="QTableWidget" name="playersList">
+            <property name="tabKeyNavigation">
+             <bool>false</bool>
+            </property>
+            <property name="selectionBehavior">
+             <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+            </property>
+            <property name="columnCount">
+             <number>5</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0" colspan="3">
+           <widget class="QPushButton" name="kickButton">
+            <property name="text">
+             <string>Kick Player</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0" colspan="3">
+           <widget class="QPushButton" name="assignPortsButton">
+            <property name="text">
+             <string>Assign Controller Ports</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="optionsLayout">
+        <item>
+         <widget class="QPushButton" name="startButton">
+          <property name="text">
+           <string>Start</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="bufferLabel">
+          <property name="text">
+           <string>Buffer:</string>
+          </property>
+          <property name="buddy">
+           <cstring>bufferSizeSpinBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="bufferSizeSpinBox"/>
+        </item>
+        <item>
+         <spacer name="optionsSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="quitButton">
+          <property name="text">
+           <string>Quit</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+  <action name="actionSavedataNone">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>No Save Data</string>
+   </property>
+   <property name="toolTip">
+    <string>Netplay will start without any save data, and any created save data will be discarded at the end of the Netplay session.</string>
+   </property>
+  </action>
+  <action name="actionSavedataLoadOnly">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Load Host's Save Data Only</string>
+   </property>
+   <property name="toolTip">
+    <string>Netplay will start using the Host's save data, but any save data created or modified during the Netplay session will be discarded at the end of the session.</string>
+   </property>
+  </action>
+  <action name="actionSavedataLoadWrite">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Load and Write Host's Save Data</string>
+   </property>
+   <property name="toolTip">
+    <string>Netplay will start using the Host's save data, and any save data created or modified during the Netplay session will remain in the Host's local saves.</string>
+   </property>
+  </action>
+  <action name="actionSavedataAllWii">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Use All Wii Save Data</string>
+   </property>
+   <property name="toolTip">
+    <string>If checked, all Wii saves will be used instead of only the save of the game being started. Useful when switching games mid-session. Has no effect if No Save Data is selected.</string>
+   </property>
+  </action>
+  <action name="actionSyncCodes">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Sync AR/Gecko Codes</string>
+   </property>
+  </action>
+  <action name="actionStrictSettingsSync">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Strict Settings Sync</string>
+   </property>
+   <property name="toolTip">
+    <string>This will sync additional graphics settings, and force everyone to the same internal resolution.
+May prevent desync in some games that use EFB reads. Please ensure everyone uses the same video backend.</string>
+   </property>
+  </action>
+  <action name="actionFixedDelay">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Fair Input Delay</string>
+   </property>
+   <property name="toolTip">
+    <string>Each player sends their own inputs to the game, with equal buffer size for all players, configured by the host.
+Suitable for competitive games where fairness and minimal latency are most important.</string>
+   </property>
+  </action>
+  <action name="actionHostInputAuthority">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Host Input Authority</string>
+   </property>
+   <property name="toolTip">
+    <string>Host has control of sending all inputs to the game, as received from other players, giving the host zero latency but increasing latency for others.
+Suitable for casual games with 3+ players, possibly on unstable or high latency connections.</string>
+   </property>
+  </action>
+  <action name="actionGolfMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Golf Mode</string>
+   </property>
+   <property name="toolTip">
+    <string>Identical to Host Input Authority, except the &quot;Host&quot; (who has zero latency) can be switched at any time.
+Suitable for turn-based games with timing-sensitive controls, such as golf.</string>
+   </property>
+  </action>
+  <action name="actionChecksumCurrentGame">
+   <property name="text">
+    <string>Current game</string>
+   </property>
+  </action>
+  <action name="actionChecksumOtherGame">
+   <property name="text">
+    <string>Other game...</string>
+   </property>
+  </action>
+  <action name="actionChecksumSdCard">
+   <property name="text">
+    <string>SD Card</string>
+   </property>
+  </action>
+  <action name="actionRecordInputs">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Record Inputs</string>
+   </property>
+  </action>
+  <action name="actionGolfModeOverlay">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Golf Mode Overlay</string>
+   </property>
+  </action>
+  <action name="actionHideRemoteGBAs">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Hide Remote GBAs</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ClickBlurLabel</class>
+   <extends>QStackedWidget</extends>
+   <header>DolphinQt/NetPlay/ClickBlurLabel.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>gameButton</tabstop>
+  <tabstop>chatEdit</tabstop>
+  <tabstop>chatTypeEdit</tabstop>
+  <tabstop>chatSendButton</tabstop>
+  <tabstop>roomBox</tabstop>
+  <tabstop>hostcodeLabel</tabstop>
+  <tabstop>hostcodeActionButton</tabstop>
+  <tabstop>playersList</tabstop>
+  <tabstop>kickButton</tabstop>
+  <tabstop>assignPortsButton</tabstop>
+  <tabstop>startButton</tabstop>
+  <tabstop>bufferSizeSpinBox</tabstop>
+  <tabstop>quitButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

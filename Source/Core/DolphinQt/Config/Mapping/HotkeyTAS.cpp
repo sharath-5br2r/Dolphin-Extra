@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyTAS.h"
 
-#include <QGroupBox>
-#include <QHBoxLayout>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingHorizontalPage.h"
 
 HotkeyTAS::HotkeyTAS(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,14 +14,13 @@ HotkeyTAS::HotkeyTAS(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyTAS::CreateMainLayout()
 {
-  m_main_layout = new QHBoxLayout();
+  Ui::MappingHorizontalPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Frame Advance"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_FRAME_ADVANCE)));
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Movie"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_MOVIE)));
-
-  setLayout(m_main_layout);
 }
 
 InputConfig* HotkeyTAS::GetConfig()

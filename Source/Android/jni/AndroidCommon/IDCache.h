@@ -102,6 +102,9 @@ jmethodID GetGraphicsModConstructor();
 jclass GetRiivolutionPatchesClass();
 jfieldID GetRiivolutionPatchesPointer();
 
+jclass GetShaderParameterEditorClass();
+jfieldID GetShaderParameterEditorPointer();
+
 jclass GetWiiUpdateCallbackClass();
 jmethodID GetWiiUpdateCallbackFunction();
 

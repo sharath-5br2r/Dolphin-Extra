@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AdvancedPane</class>
+ <widget class="QWidget" name="AdvancedPane">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>850</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="cpuOptionsGroup">
+     <property name="title">
+      <string>CPU Options</string>
+     </property>
+     <layout class="QVBoxLayout" name="cpuOptionsLayout">
+      <item>
+       <layout class="QFormLayout" name="cpuEngineLayout">
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+        </property>
+        <property name="formAlignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="cpuEngineLabel">
+          <property name="text">
+           <string>CPU Emulation Engine:</string>
+          </property>
+          <property name="buddy">
+           <cstring>cpuEngineComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="cpuEngineComboBox"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="enableMmuCheckBox">
+        <property name="text">
+         <string>Enable MMU</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="pauseOnPanicCheckBox">
+        <property name="text">
+         <string>Pause on Panic</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="accurateCpuCacheCheckBox">
+        <property name="text">
+         <string>Enable Write-Back Cache (slow)</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="timingGroup">
+     <property name="title">
+      <string>Timing</string>
+     </property>
+     <layout class="QVBoxLayout" name="timingLayout">
+      <item>
+       <widget class="QCheckBox" name="correctTimeDriftCheckBox">
+        <property name="text">
+         <string extracomment="Correct is a verb">Correct Time Drift</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="rushFramePresentationCheckBox">
+        <property name="text">
+         <string extracomment="&quot;Rush&quot; is a verb">Rush Frame Presentation</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="smoothEarlyPresentationCheckBox">
+        <property name="text">
+         <string extracomment="&quot;Smooth&quot; is a verb">Smooth Early Presentation</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="clockOverrideGroup">
+     <property name="title">
+      <string>Clock Override</string>
+     </property>
+     <layout class="QVBoxLayout" name="clockOverrideLayout">
+      <item>
+       <widget class="QCheckBox" name="cpuClockOverrideCheckBox">
+        <property name="text">
+         <string>Enable Emulated CPU Clock Override</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="cpuClockSliderLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QSlider" name="cpuClockSlider">
+          <property name="maximum">
+           <number>499</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="cpuClockLabel">
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="vbiOverrideGroup">
+     <property name="title">
+      <string>VBI Frequency Override</string>
+     </property>
+     <layout class="QVBoxLayout" name="vbiOverrideLayout">
+      <item>
+       <widget class="QCheckBox" name="vbiOverrideCheckBox">
+        <property name="text">
+         <string>Enable VBI Frequency Override</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="vbiSliderLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QSlider" name="vbiOverrideSlider">
+          <property name="maximum">
+           <number>499</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="vbiOverrideLabel">
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="memoryOverrideGroup">
+     <property name="title">
+      <string>Memory Override</string>
+     </property>
+     <layout class="QVBoxLayout" name="memoryOverrideLayout">
+      <item>
+       <widget class="QCheckBox" name="memoryOverrideCheckBox">
+        <property name="text">
+         <string>Enable Emulated Memory Size Override</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="mem1SliderLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QSlider" name="mem1Slider">
+          <property name="minimum">
+           <number>24</number>
+          </property>
+          <property name="maximum">
+           <number>64</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="mem1Label">
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="mem2SliderLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QSlider" name="mem2Slider">
+          <property name="minimum">
+           <number>64</number>
+          </property>
+          <property name="maximum">
+           <number>256</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="mem2Label">
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="customRtcGroup">
+     <property name="title">
+      <string>Custom RTC Options</string>
+     </property>
+     <layout class="QVBoxLayout" name="customRtcLayout">
+      <item>
+       <widget class="QCheckBox" name="customRtcCheckBox">
+        <property name="text">
+         <string>Enable Custom RTC</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QDateTimeEdit" name="customRtcDateTimeEdit"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="resetSettingsGroup">
+     <property name="title">
+      <string>Reset Dolphin Settings</string>
+     </property>
+     <layout class="QVBoxLayout" name="resetSettingsLayout">
+      <item>
+       <widget class="QPushButton" name="resetSettingsButton">
+        <property name="text">
+         <string>Reset All Settings</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>cpuEngineComboBox</tabstop>
+  <tabstop>enableMmuCheckBox</tabstop>
+  <tabstop>pauseOnPanicCheckBox</tabstop>
+  <tabstop>accurateCpuCacheCheckBox</tabstop>
+  <tabstop>correctTimeDriftCheckBox</tabstop>
+  <tabstop>rushFramePresentationCheckBox</tabstop>
+  <tabstop>smoothEarlyPresentationCheckBox</tabstop>
+  <tabstop>cpuClockOverrideCheckBox</tabstop>
+  <tabstop>cpuClockSlider</tabstop>
+  <tabstop>vbiOverrideCheckBox</tabstop>
+  <tabstop>vbiOverrideSlider</tabstop>
+  <tabstop>memoryOverrideCheckBox</tabstop>
+  <tabstop>mem1Slider</tabstop>
+  <tabstop>mem2Slider</tabstop>
+  <tabstop>customRtcCheckBox</tabstop>
+  <tabstop>customRtcDateTimeEdit</tabstop>
+  <tabstop>resetSettingsButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

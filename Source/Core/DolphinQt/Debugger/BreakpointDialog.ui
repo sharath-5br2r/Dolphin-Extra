@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BreakpointDialog</class>
+ <widget class="QDialog" name="BreakpointDialog">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QWidget" name="instructionWidget" native="true">
+     <layout class="QGridLayout" name="instructionLayout">
+      <item row="0" column="0">
+       <widget class="QRadioButton" name="instructionBreakpointRadio">
+        <property name="text">
+         <string>Instruction Breakpoint</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QGroupBox" name="instructionBox">
+        <layout class="QHBoxLayout" name="instructionDataLayout">
+         <item>
+          <widget class="QLabel" name="instructionAddressLabel">
+           <property name="text">
+            <string>Address:</string>
+           </property>
+           <property name="buddy">
+            <cstring>instructionAddressEdit</cstring>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="instructionAddressEdit"/>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="memoryWidget" native="true">
+     <layout class="QGridLayout" name="memoryLayout">
+      <item row="0" column="0">
+       <widget class="QRadioButton" name="memoryBreakpointRadio">
+        <property name="text">
+         <string>Memory Breakpoint</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QGroupBox" name="memoryBox">
+        <layout class="QGridLayout" name="memoryDataLayout">
+         <item row="0" column="0">
+          <widget class="QRadioButton" name="memoryUseAddressRadio">
+           <property name="text">
+            <string>Address</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QRadioButton" name="memoryUseRangeRadio">
+           <property name="text">
+            <string extracomment="A range of memory addresses">Range</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="memoryAddressFromLabel"/>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="memoryAddressFromEdit"/>
+         </item>
+         <item row="1" column="2">
+          <widget class="QLabel" name="memoryAddressToLabel">
+           <property name="text">
+            <string>To:</string>
+           </property>
+           <property name="buddy">
+            <cstring>memoryAddressToEdit</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QLineEdit" name="memoryAddressToEdit"/>
+         </item>
+         <item row="2" column="0" colspan="4">
+          <widget class="QGroupBox" name="memoryConditionBox">
+           <property name="title">
+            <string extracomment="If a condition is set for a breakpoint, the condition becoming true is a prerequisite for triggering the breakpoint.">Condition</string>
+           </property>
+           <layout class="QHBoxLayout" name="memoryConditionLayout">
+            <item>
+             <widget class="QRadioButton" name="memoryOnReadRadio">
+              <property name="text">
+               <string extracomment="This is a selectable condition when adding a breakpoint">Read</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="memoryOnWriteRadio">
+              <property name="text">
+               <string extracomment="This is a selectable condition when adding a breakpoint">Write</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="memoryOnReadWriteRadio">
+              <property name="text">
+               <string extracomment="This is a selectable condition when adding a breakpoint">Read or Write</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="actionBox">
+     <property name="title">
+      <string>Action</string>
+     </property>
+     <layout class="QVBoxLayout" name="actionVerticalLayout">
+      <item>
+       <layout class="QHBoxLayout" name="conditionalLayout">
+        <item>
+         <widget class="QLabel" name="conditionalLabel">
+          <property name="text">
+           <string extracomment="If a condition is set for a breakpoint, the condition becoming true is a prerequisite for triggering the breakpoint.">Condition:</string>
+          </property>
+          <property name="buddy">
+           <cstring>conditionalEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="conditionalEdit"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="actionLayout">
+        <item>
+         <widget class="QRadioButton" name="writeLogRadio">
+          <property name="text">
+           <string extracomment="This is a selectable action when adding a breakpoint">Write to Log</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="breakRadio">
+          <property name="text">
+           <string extracomment="This is a selectable action when adding a breakpoint">Break</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="writeLogAndBreakRadio">
+          <property name="text">
+           <string extracomment="This is a selectable action when adding a breakpoint">Write to Log and Break</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Help|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>instructionBreakpointRadio</tabstop>
+  <tabstop>instructionAddressEdit</tabstop>
+  <tabstop>memoryBreakpointRadio</tabstop>
+  <tabstop>memoryUseAddressRadio</tabstop>
+  <tabstop>memoryUseRangeRadio</tabstop>
+  <tabstop>memoryAddressFromEdit</tabstop>
+  <tabstop>memoryAddressToEdit</tabstop>
+  <tabstop>memoryOnReadRadio</tabstop>
+  <tabstop>memoryOnWriteRadio</tabstop>
+  <tabstop>memoryOnReadWriteRadio</tabstop>
+  <tabstop>conditionalEdit</tabstop>
+  <tabstop>writeLogRadio</tabstop>
+  <tabstop>breakRadio</tabstop>
+  <tabstop>writeLogAndBreakRadio</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

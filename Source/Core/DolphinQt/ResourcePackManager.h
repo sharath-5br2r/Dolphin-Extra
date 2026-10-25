@@ -3,7 +3,14 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QDialog>
+
+namespace Ui
+{
+class ResourcePackManager;
+}
 
 class QPushButton;
 class QTableWidget;
@@ -13,6 +20,7 @@ class ResourcePackManager : public QDialog
 {
 public:
   explicit ResourcePackManager(QWidget* parent = nullptr);
+  ~ResourcePackManager() override;
 
 private:
   void CreateWidgets();
@@ -32,6 +40,7 @@ private:
 
   int GetResourcePackIndex(QTableWidgetItem* item) const;
 
+  std::unique_ptr<Ui::ResourcePackManager> m_ui;
   QPushButton* m_open_directory_button;
   QPushButton* m_change_button;
   QPushButton* m_remove_button;

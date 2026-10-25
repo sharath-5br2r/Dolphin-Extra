@@ -11,8 +11,6 @@
 #include <QDialogButtonBox>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <QTabWidget>
-#include <QVBoxLayout>
 
 #include "Core/AchievementManager.h"
 
@@ -24,11 +22,29 @@
 #include "DolphinQt/QtUtils/WrapInScrollArea.h"
 #include "DolphinQt/Settings.h"
 
-AchievementsWindow::AchievementsWindow(QWidget* parent) : QDialog(parent)
-{
-  setWindowTitle(tr("Achievements"));
+#include "ui_AchievementsWindow.h"
 
-  CreateMainLayout();
+AchievementsWindow::AchievementsWindow(QWidget* parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::AchievementsWindow>())
+{
+  m_ui->setupUi(this);
+
+  const bool is_game_loaded = AchievementManager::GetInstance().IsGameLoaded();
+  m_header_widget = new AchievementHeaderWidget(this);
+  m_settings_widget = new AchievementSettingsWidget(m_ui->settingsTab);
+  m_progress_widget = new AchievementProgressWidget(m_ui->progressTab);
+  m_leaderboard_widget = new AchievementLeaderboardWidget(m_ui->leaderboardsTab);
+
+  m_ui->headerLayout->addWidget(m_header_widget);
+  m_ui->settingsLayout->addWidget(GetWrappedWidget(m_settings_widget));
+  m_progress_scroll_area = static_cast<QScrollArea*>(GetWrappedWidget(m_progress_widget));
+  m_leaderboard_scroll_area = static_cast<QScrollArea*>(GetWrappedWidget(m_leaderboard_widget));
+  m_ui->progressLayout->addWidget(m_progress_scroll_area);
+  m_ui->leaderboardsLayout->addWidget(m_leaderboard_scroll_area);
+  m_ui->tabWidget->setTabVisible(1, is_game_loaded);
+  m_ui->tabWidget->setTabVisible(2, is_game_loaded);
+  adjustSize();
+
   ConnectWidgets();
 
   m_event_hook = AchievementManager::GetInstance().update_event.Register(
@@ -43,41 +59,17 @@ AchievementsWindow::AchievementsWindow(QWidget* parent) : QDialog(parent)
           [this] { m_settings_widget->UpdateData(RC_OK); });
 }
 
+AchievementsWindow::~AchievementsWindow() = default;
+
 void AchievementsWindow::showEvent(QShowEvent* event)
 {
   QDialog::showEvent(event);
   update();
 }
 
-void AchievementsWindow::CreateMainLayout()
-{
-  const auto is_game_loaded = AchievementManager::GetInstance().IsGameLoaded();
-
-  m_header_widget = new AchievementHeaderWidget(this);
-  m_tab_widget = new QTabWidget();
-  m_settings_widget = new AchievementSettingsWidget(m_tab_widget);
-  m_progress_widget = new AchievementProgressWidget(m_tab_widget);
-  m_leaderboard_widget = new AchievementLeaderboardWidget(m_tab_widget);
-  m_tab_widget->addTab(GetWrappedWidget(m_settings_widget), tr("Settings"));
-  m_tab_widget->addTab(GetWrappedWidget(m_progress_widget), tr("Progress"));
-  m_tab_widget->addTab(GetWrappedWidget(m_leaderboard_widget), tr("Leaderboards"));
-
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Close);
-
-  auto* const layout = new QVBoxLayout{this};
-  layout->addWidget(m_header_widget);
-  layout->addWidget(m_tab_widget);
-  layout->addWidget(m_button_box);
-
-  adjustSize();
-
-  m_tab_widget->setTabVisible(1, is_game_loaded);
-  m_tab_widget->setTabVisible(2, is_game_loaded);
-}
-
 void AchievementsWindow::ConnectWidgets()
 {
-  connect(m_button_box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+  connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
 void AchievementsWindow::UpdateData(const AchievementManager::UpdatedItems& updated_items)
@@ -88,8 +80,8 @@ void AchievementsWindow::UpdateData(const AchievementManager::UpdatedItems& upda
     m_header_widget->UpdateData();
     m_progress_widget->UpdateData(true);
     m_leaderboard_widget->UpdateData(true);
-    static_cast<QScrollArea*>(m_tab_widget->widget(1))->verticalScrollBar()->setValue(0);
-    static_cast<QScrollArea*>(m_tab_widget->widget(2))->verticalScrollBar()->setValue(0);
+    m_progress_scroll_area->verticalScrollBar()->setValue(0);
+    m_leaderboard_scroll_area->verticalScrollBar()->setValue(0);
   }
   else
   {
@@ -113,15 +105,15 @@ void AchievementsWindow::UpdateData(const AchievementManager::UpdatedItems& upda
     std::lock_guard lg{instance.GetLock()};
     const bool is_game_loaded = instance.IsGameLoaded();
     m_header_widget->setVisible(instance.HasAPIToken());
-    m_tab_widget->setTabVisible(1, is_game_loaded);
-    m_tab_widget->setTabVisible(2, is_game_loaded);
+    m_ui->tabWidget->setTabVisible(1, is_game_loaded);
+    m_ui->tabWidget->setTabVisible(2, is_game_loaded);
   }
   update();
 }
 
 void AchievementsWindow::ForceSettingsTab()
 {
-  m_tab_widget->setCurrentIndex(0);
+  m_ui->tabWidget->setCurrentIndex(0);
 }
 
 #endif  // USE_RETRO_ACHIEVEMENTS

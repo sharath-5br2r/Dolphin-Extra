@@ -12,7 +12,6 @@
 #include <QComboBox>
 #include <QFileDialog>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -23,7 +22,6 @@
 #include <QSpacerItem>
 #include <QSplitter>
 #include <QTableWidget>
-#include <QVBoxLayout>
 
 #include "Common/FileUtil.h"
 #include "Common/IOFile.h"
@@ -36,6 +34,8 @@
 #include "DolphinQt/Host.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_MemoryWidget.h"
 
 using Type = MemoryViewWidget::Type;
 
@@ -92,50 +92,40 @@ MemoryWidget::~MemoryWidget()
 
 void MemoryWidget::CreateWidgets()
 {
-  auto* layout = new QHBoxLayout;
+  auto* widget = new QWidget;
+  Ui::MemoryWidget ui;
+  ui.setupUi(widget);
+  m_splitter = ui.splitter;
+  m_search_address = ui.searchAddressCombo;
+  m_search_offset = ui.searchOffsetEdit;
+  m_data_edit = ui.dataEdit;
+  m_base_check = ui.hexCheckBox;
+  m_set_value = ui.setValueButton;
+  m_data_preview = ui.dataPreviewLabel;
+  m_input_combo = ui.inputTypeCombo;
+  m_find_next = ui.findNextButton;
+  m_find_previous = ui.findPreviousButton;
+  m_result_label = ui.resultLabel;
+  m_display_combo = ui.displayTypeCombo;
+  m_align_combo = ui.alignmentCombo;
+  m_row_length_combo = ui.rowLengthCombo;
+  m_dual_check = ui.dualViewCheckBox;
+  m_address_space_effective = ui.effectiveAddressRadio;
+  m_address_space_auxiliary = ui.auxiliaryAddressRadio;
+  m_address_space_physical = ui.physicalAddressRadio;
+  m_bp_read_write = ui.readWriteRadio;
+  m_bp_read_only = ui.readOnlyRadio;
+  m_bp_write_only = ui.writeOnlyRadio;
+  m_bp_log_check = ui.breakpointLogCheckBox;
+  m_labels_group = ui.labelsGroup;
+  m_search_labels = ui.labelsFilterEdit;
+  m_note_list = ui.notesList;
+  m_data_list = ui.dataList;
+  m_symbols_list = ui.symbolsList;
 
-  layout->setContentsMargins(2, 2, 2, 2);
-  layout->setSpacing(0);
+  ui.addressSplitter->setCollapsible(0, false);
+  ui.addressSplitter->setStretchFactor(1, 2);
 
-  //// Sidebar
-
-  // Search
-  auto* m_address_splitter = new QSplitter(Qt::Horizontal);
-
-  m_search_address = new QComboBox;
-  m_search_address->setInsertPolicy(QComboBox::InsertAtTop);
-  m_search_address->setDuplicatesEnabled(false);
-  m_search_address->setEditable(true);
-  m_search_address->setMaxVisibleItems(8);
-  m_search_offset = new QLineEdit;
-
-  m_search_offset->setMaxLength(9);
-  m_search_address->setPlaceholderText(tr("Search Address"));
-  m_search_offset->setPlaceholderText(tr("Offset"));
-
-  m_address_splitter->addWidget(m_search_address);
-  m_address_splitter->addWidget(m_search_offset);
-  m_address_splitter->setHandleWidth(1);
-  m_address_splitter->setCollapsible(0, false);
-  m_address_splitter->setStretchFactor(1, 2);
-
-  auto* input_layout = new QHBoxLayout;
-  m_data_edit = new QLineEdit;
-  m_base_check = new QCheckBox(tr("Hex"));
-  m_set_value = new QPushButton(tr("Set &Value"));
-  m_data_preview = new QLabel;
-
-  m_base_check->setLayoutDirection(Qt::RightToLeft);
-  m_data_edit->setPlaceholderText(tr("Value"));
-  m_data_preview->setBackgroundRole(QPalette::AlternateBase);
-  m_data_preview->setAutoFillBackground(true);
-
-  input_layout->addWidget(m_data_edit);
-  input_layout->addWidget(m_base_check);
-
-  // Input types
-  m_input_combo = new QComboBox;
-  m_input_combo->setMaxVisibleItems(20);
   // Order here determines combo list order.
   m_input_combo->addItem(tr("Hex Byte String"), int(Type::HexString));
   m_input_combo->addItem(tr("ASCII"), int(Type::ASCII));
@@ -148,47 +138,6 @@ void MemoryWidget::CreateWidgets()
   m_input_combo->addItem(tr("Signed 16"), int(Type::Signed16));
   m_input_combo->addItem(tr("Signed 32"), int(Type::Signed32));
 
-  // Search Options
-  auto* search_group = new QGroupBox(tr("Search"));
-  auto* search_layout = new QVBoxLayout;
-  search_group->setLayout(search_layout);
-
-  m_find_next = new QPushButton(tr("Find &Next"));
-  m_find_previous = new QPushButton(tr("Find &Previous"));
-  m_result_label = new QLabel;
-
-  search_layout->addWidget(m_find_next);
-  search_layout->addWidget(m_find_previous);
-  search_layout->addWidget(m_result_label);
-  search_layout->setSpacing(1);
-
-  // Address Space
-  auto* address_space_group = new QGroupBox(tr("Address Space"));
-  auto* address_space_layout = new QVBoxLayout;
-  address_space_group->setLayout(address_space_layout);
-
-  // i18n: One of the options shown below "Address Space". "Effective" addresses are the addresses
-  // used directly by the CPU and may be subject to translation via the MMU to physical addresses.
-  m_address_space_effective = new QRadioButton(tr("Effective"));
-  // i18n: One of the options shown below "Address Space". "Auxiliary" is the address space of ARAM
-  // (Auxiliary RAM).
-  m_address_space_auxiliary = new QRadioButton(tr("Auxiliary"));
-  // i18n: One of the options shown below "Address Space". "Physical" is the address space that
-  // reflects how devices (e.g. RAM) is physically wired up.
-  m_address_space_physical = new QRadioButton(tr("Physical"));
-
-  address_space_layout->addWidget(m_address_space_effective);
-  address_space_layout->addWidget(m_address_space_auxiliary);
-  address_space_layout->addWidget(m_address_space_physical);
-  address_space_layout->setSpacing(1);
-
-  // Data Type
-  auto* displaytype_group = new QGroupBox(tr("Display Type"));
-  auto* displaytype_layout = new QVBoxLayout;
-  displaytype_group->setLayout(displaytype_layout);
-
-  m_display_combo = new QComboBox;
-  m_display_combo->setMaxVisibleItems(20);
   m_display_combo->addItem(tr("Hex 8"), int(Type::Hex8));
   m_display_combo->addItem(tr("Hex 16"), int(Type::Hex16));
   m_display_combo->addItem(tr("Hex 32"), int(Type::Hex32));
@@ -202,85 +151,23 @@ void MemoryWidget::CreateWidgets()
   m_display_combo->addItem(tr("Float"), int(Type::Float32));
   m_display_combo->addItem(tr("Double"), int(Type::Double));
 
-  m_align_combo = new QComboBox;
   // i18n: "Fixed" here means that the alignment is always the same
   m_align_combo->addItem(tr("Fixed Alignment"));
   m_align_combo->addItem(tr("Type-based Alignment"), 0);
   m_align_combo->addItem(tr("No Alignment"), 1);
 
-  m_row_length_combo = new QComboBox;
   m_row_length_combo->addItem(tr("4 Bytes"), 4);
   m_row_length_combo->addItem(tr("8 Bytes"), 8);
   m_row_length_combo->addItem(tr("16 Bytes"), 16);
 
   m_row_length_combo->setCurrentIndex(2);
-  m_dual_check = new QCheckBox(tr("Dual View"));
-
-  displaytype_layout->addWidget(m_display_combo);
-  displaytype_layout->addWidget(m_align_combo);
-  displaytype_layout->addWidget(m_row_length_combo);
-  displaytype_layout->addWidget(m_dual_check);
-
-  // MBP options
-  auto* bp_group = new QGroupBox(tr("Memory breakpoint options"));
-  auto* bp_layout = new QVBoxLayout;
-  bp_group->setLayout(bp_layout);
-
-  // i18n: This string is used for a radio button that represents the type of
-  // memory breakpoint that gets triggered when a read operation or write operation occurs.
-  // The string is not a command to read and write something or to allow reading and writing.
-  m_bp_read_write = new QRadioButton(tr("Read and write"));
-  // i18n: This string is used for a radio button that represents the type of
-  // memory breakpoint that gets triggered when a read operation occurs.
-  // The string does not mean "read-only" in the sense that something cannot be written to.
-  m_bp_read_only = new QRadioButton(tr("Read only"));
-  // i18n: This string is used for a radio button that represents the type of
-  // memory breakpoint that gets triggered when a write operation occurs.
-  // The string does not mean "write-only" in the sense that something cannot be read from.
-  m_bp_write_only = new QRadioButton(tr("Write only"));
-  m_bp_log_check = new QCheckBox(tr("Log"));
-
-  bp_layout->addWidget(m_bp_read_write);
-  bp_layout->addWidget(m_bp_read_only);
-  bp_layout->addWidget(m_bp_write_only);
-  bp_layout->addWidget(m_bp_log_check);
-  bp_layout->setSpacing(1);
-
-  // Notes
-  m_labels_group = new QGroupBox(tr("Labels"));
-  auto* symbols_box = new QTabWidget;
-  m_note_list = new QListWidget;
-  m_data_list = new QListWidget;
-  m_symbols_list = new QListWidget;
-  symbols_box->addTab(m_note_list, tr("Notes"));
-  symbols_box->addTab(m_data_list, tr("Data"));
-  symbols_box->addTab(m_symbols_list, tr("Symbols"));
-  m_symbols_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-  auto* labels_layout = new QVBoxLayout;
-  m_search_labels = new QLineEdit;
-  // i18n: Filter is a verb. Typing into this text box will filter the label list so that only
-  // labels containing the typed text are shown.
-  m_search_labels->setPlaceholderText(tr("Filter Label List"));
-
-  m_labels_group->setLayout(labels_layout);
-  labels_layout->addWidget(symbols_box);
-  labels_layout->addWidget(m_search_labels);
-
-  // Sidebar
-  auto* sidebar = new QWidget;
-  auto* sidebar_layout = new QVBoxLayout;
 
   // Sidebar top menu
-  QMenuBar* menubar = new QMenuBar(sidebar);
-  menubar->setNativeMenuBar(false);
-  QMenu* menu_views = new QMenu(tr("&View"), menubar);
-  menubar->addMenu(menu_views);
+  QMenu* menu_views = ui.menuBar->addMenu(tr("&View"));
 
-  QMenu* menu_import = new QMenu(tr("&Import"), menubar);
+  QMenu* menu_import = ui.menuBar->addMenu(tr("&Import"));
   menu_import->addAction(tr("&Load file to current address"), this,
                          &MemoryWidget::OnSetValueFromFile);
-  menubar->addMenu(menu_import);
 
   // View Menu
   auto* auto_update_action =
@@ -314,51 +201,17 @@ void MemoryWidget::CreateWidgets()
   show_notes->setCheckable(true);
   show_notes->setChecked(true);
 
-  QMenu* menu_export = new QMenu(tr("&Export"), menubar);
+  QMenu* menu_export = ui.menuBar->addMenu(tr("&Export"));
   menu_export->addAction(tr("Dump &MRAM"), this, &MemoryWidget::OnDumpMRAM);
   menu_export->addAction(tr("Dump &ExRAM"), this, &MemoryWidget::OnDumpExRAM);
   menu_export->addAction(tr("Dump &ARAM"), this, &MemoryWidget::OnDumpARAM);
   menu_export->addAction(tr("Dump &FakeVMEM"), this, &MemoryWidget::OnDumpFakeVMEM);
-  menubar->addMenu(menu_export);
-
-  sidebar_layout->setSpacing(1);
-  sidebar->setLayout(sidebar_layout);
-  sidebar_layout->addItem(new QSpacerItem(1, 20));
-  sidebar_layout->addWidget(m_address_splitter);
-  sidebar_layout->addLayout(input_layout);
-  sidebar_layout->addWidget(m_input_combo);
-  sidebar_layout->addItem(new QSpacerItem(1, 10));
-  sidebar_layout->addWidget(m_data_preview);
-  sidebar_layout->addWidget(m_set_value);
-  sidebar_layout->addItem(new QSpacerItem(1, 10));
-  sidebar_layout->addWidget(search_group);
-  sidebar_layout->addItem(new QSpacerItem(1, 10));
-  sidebar_layout->addWidget(displaytype_group);
-  sidebar_layout->addItem(new QSpacerItem(1, 10));
-  sidebar_layout->addWidget(address_space_group);
-  sidebar_layout->addItem(new QSpacerItem(1, 10));
-  sidebar_layout->addWidget(bp_group);
-  sidebar_layout->addWidget(m_labels_group);
-  sidebar_layout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding));
-
-  // Splitter
-  m_splitter = new QSplitter(Qt::Horizontal);
-
-  auto* sidebar_scroll = new QScrollArea;
-  sidebar_scroll->setWidget(sidebar);
-  sidebar_scroll->setWidgetResizable(true);
 
   m_memory_view = new MemoryViewWidget(m_system, this);
-
-  m_splitter->addWidget(m_memory_view);
-  m_splitter->addWidget(sidebar_scroll);
+  ui.memoryViewLayout->addWidget(m_memory_view);
   m_splitter->setStretchFactor(0, 3);
   m_splitter->setStretchFactor(1, 1);
 
-  layout->addWidget(m_splitter);
-
-  auto* widget = new QWidget;
-  widget->setLayout(layout);
   setWidget(widget);
   UpdateNotes();
 }

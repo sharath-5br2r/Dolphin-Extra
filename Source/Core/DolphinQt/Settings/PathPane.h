@@ -3,41 +3,35 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QWidget>
 
-class ConfigText;
-class QGridLayout;
-class QGroupBox;
-class QListWidget;
-class QPushButton;
+namespace Ui
+{
+class PathPane;
+}
 
 class PathPane final : public QWidget
 {
   Q_OBJECT
 public:
   explicit PathPane(QWidget* parent = nullptr);
-  void BrowseDefaultGame();
+  ~PathPane() override;
 
 private:
+  void PopulatePaths();
+  void BindSettings();
+  void ConnectWidgets();
+
   void Browse();
+  void BrowseDefaultGame();
   void BrowseWiiNAND();
   void BrowseDump();
   void BrowseLoad();
-  void BrowseLauncher();
   void BrowseResourcePack();
   void BrowseWFS();
-  QGroupBox* MakeGameFolderBox();
-  QGridLayout* MakePathsLayout();
   void RemovePath();
 
-  QListWidget* m_path_list;
-  ConfigText* m_game_edit;
-  ConfigText* m_nand_edit;
-  ConfigText* m_dump_edit;
-  ConfigText* m_load_edit;
-  ConfigText* m_launcher_edit;
-  ConfigText* m_resource_pack_edit;
-  ConfigText* m_wfs_edit;
-
-  QPushButton* m_remove_path;
+  std::unique_ptr<Ui::PathPane> m_ui;
 };

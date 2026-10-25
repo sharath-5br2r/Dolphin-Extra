@@ -12,7 +12,6 @@
 #include <QDialogButtonBox>
 #include <QHeaderView>
 #include <QItemDelegate>
-#include <QLabel>
 #include <QLineEdit>
 #include <QPainter>
 #include <QPlainTextEdit>
@@ -22,7 +21,6 @@
 #include <QTableWidget>
 #include <QTextBlock>
 #include <QTimer>
-#include <QVBoxLayout>
 
 #include "DolphinQt/Config/Mapping/MappingCommon.h"
 #include "DolphinQt/Config/Mapping/MappingIndicator.h"
@@ -36,6 +34,8 @@
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/ControllerInterface/MappingCommon.h"
+
+#include "ui_IOWindow.h"
 
 namespace
 {
@@ -279,18 +279,23 @@ std::shared_ptr<ciface::Core::Device> IOWindow::GetSelectedDevice() const
 
 void IOWindow::CreateMainLayout()
 {
-  m_main_layout = new QVBoxLayout();
+  Ui::IOWindow ui;
+  ui.setupUi(this);
+  m_devices_combo = ui.devicesComboBox;
+  m_option_list = ui.optionTableWidget;
+  m_select_button = ui.selectButton;
+  m_detect_button = ui.detectButton;
+  m_test_button = ui.testButton;
+  m_button_box = ui.buttonBox;
+  m_scalar_spinbox = ui.scalarSpinBox;
+  m_expression_text = ui.expressionPlainTextEdit;
 
-  m_devices_combo = new QComboBox();
-  m_option_list = new QTableWidget();
-
-  m_select_button =
-      new QPushButton(m_type == IOWindow::Type::Input ? tr("Insert Input") : tr("Insert Output"));
-  m_detect_button = new QPushButton(tr("Detect Input"), this);
-  m_test_button = new QPushButton(tr("Test Output"), this);
-  m_button_box = new QDialogButtonBox();
+  m_select_button->setText(m_type == IOWindow::Type::Input ? tr("Insert Input") :
+                                                             tr("Insert Output"));
   m_clear_button = new QPushButton(tr("Clear"));
-  m_scalar_spinbox = new QSpinBox();
+
+  m_output_test_timer = new QTimer(this);
+  m_output_test_timer->setSingleShot(true);
 
   if (m_type == Type::Input)
   {
@@ -306,8 +311,8 @@ void IOWindow::CreateMainLayout()
       return m_output_test_timer->isActive() * m_reference->range;
     });
   }
+  ui.parseTextLayout->addWidget(m_parse_text);
 
-  m_expression_text = new QPlainTextEdit();
   m_expression_text->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
   new ControlExpressionSyntaxHighlighter(m_expression_text->document());
 
@@ -373,15 +378,8 @@ void IOWindow::CreateMainLayout()
   m_variables_combo->insertSeparator(m_variables_combo->count());
   m_variables_combo->addItem(tr("Reset Values"));
   m_variables_combo->insertSeparator(m_variables_combo->count());
-
-  // Devices
-  m_main_layout->addWidget(m_devices_combo);
-
-  // Scalar
-  auto* scalar_hbox = new QHBoxLayout();
-  // i18n: Controller input values are multiplied by this percentage value.
-  scalar_hbox->addWidget(new QLabel(tr("Multiplier")));
-  scalar_hbox->addWidget(m_scalar_spinbox);
+  ui.variablesComboLayout->addWidget(m_variables_combo);
+  ui.operatorsComboLayout->addWidget(m_operators_combo);
 
   // Outputs are not bounds checked and greater than 100% has no use case.
   // (incoming values are always 0 or 1)
@@ -413,57 +411,22 @@ void IOWindow::CreateMainLayout()
     m_option_list->setColumnCount(1);
   }
 
-  m_option_list->horizontalHeader()->hide();
   m_option_list->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-  m_option_list->verticalHeader()->hide();
   m_option_list->verticalHeader()->setDefaultSectionSize(
       m_option_list->verticalHeader()->minimumSectionSize());
-  m_option_list->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_option_list->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_option_list->setSelectionMode(QAbstractItemView::SingleSelection);
-
-  auto* hbox = new QHBoxLayout();
-  auto* button_vbox = new QVBoxLayout();
-  hbox->addWidget(m_option_list, 8);
-  hbox->addLayout(button_vbox, 1);
-
-  button_vbox->addWidget(m_select_button);
 
   if (m_type == Type::Input)
   {
     m_test_button->hide();
-    button_vbox->addWidget(m_detect_button);
+    ui.functionsComboLayout->addWidget(m_functions_combo);
   }
   else
   {
     m_detect_button->hide();
-    button_vbox->addWidget(m_test_button);
+    m_functions_combo->hide();
   }
 
-  button_vbox->addWidget(m_variables_combo);
-
-  button_vbox->addWidget(m_operators_combo);
-
-  if (m_type == Type::Input)
-    button_vbox->addWidget(m_functions_combo);
-  else
-    m_functions_combo->hide();
-
-  button_vbox->addLayout(scalar_hbox);
-
-  m_main_layout->addLayout(hbox, 2);
-  m_main_layout->addWidget(m_expression_text, 1);
-  m_main_layout->addWidget(m_parse_text);
-
-  // Button Box
-  m_main_layout->addWidget(m_button_box);
   m_button_box->addButton(m_clear_button, QDialogButtonBox::ActionRole);
-  m_button_box->addButton(QDialogButtonBox::Ok);
-
-  m_output_test_timer = new QTimer(this);
-  m_output_test_timer->setSingleShot(true);
-
-  setLayout(m_main_layout);
 }
 
 void IOWindow::ConfigChanged()

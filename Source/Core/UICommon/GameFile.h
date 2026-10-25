@@ -111,6 +111,7 @@ public:
   bool IsModDescriptor() const;
   const GameBanner& GetBannerImage() const;
   const GameCover& GetCoverImage() const;
+  bool HasCustomCoverImage() const { return !m_custom_cover.empty(); }
   void DoState(PointerWrap& p);
   bool XMLMetadataChanged();
   void XMLMetadataCommit();

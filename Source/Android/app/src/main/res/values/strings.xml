@@ -261,7 +261,43 @@
     <string name="texture_filtering">Texture Filtering</string>
     <string name="texture_filtering_description">Overrides the texture scaling filter selected by the game. Any option except \'Default\' will alter the look of the game\'s textures and might cause issues in a small number of games.</string>
     <string name="post_processing_shader">Post-Processing Effect</string>
-    <string name="post_processing_shader_description">Apply a post-processing effect after finishing a frame</string>
+    <string name="shader_parameters">Shader Parameters</string>
+    <string name="shader_parameters_description">Adjust the settings of the selected effect, such as scanline strength or mask type.</string>
+    <string name="shader_parameters_unavailable_no_preset">Select a post-processing effect first.</string>
+    <string name="shader_parameters_unavailable_library">Unavailable: the librashader library could not be loaded on this device.</string>
+    <string name="shader_parameters_unavailable_backend">Requires the Vulkan video backend.</string>
+    <string name="shader_parameters_title">Shader Parameters - %1$s</string>
+    <string name="shader_parameters_global_note">Note: parameter values are global. They apply to every game that uses this effect.</string>
+    <string name="shader_parameters_load_error">Could not load preset: %1$s</string>
+    <string name="shader_parameters_none">This preset has no adjustable parameters.</string>
+    <string name="shader_parameters_reset">Reset</string>
+    <string name="shader_parameters_reset_all">Reset All</string>
+    <string name="shader_parameters_range">Range: %1$s to %2$s</string>
+    <string name="shader_parameters_invalid_value">Enter a number.</string>
+    <string name="post_processing_category_all">All</string>
+    <string name="post_processing_select">Select</string>
+    <string name="post_processing_chain_empty">No shaders available. Download the shader pack first.</string>
+    <string name="post_processing_download_libretro">Download libretro Shaders</string>
+    <string name="post_processing_download_libretro_description">RetroArch slang shader pack (~50 MB) from the libretro buildbot</string>
+    <string name="post_processing_download_libretro_confirmation">This will download the libretro slang shader pack (~50 MB) and install it into your Shaders folder. Continue?</string>
+    <string name="post_processing_download_satpixie">Download CRT-SatPixie</string>
+    <string name="post_processing_download_satpixie_description">SatPixie CRT shader (small) from GitHub</string>
+    <string name="post_processing_download_satpixie_confirmation">This will download the CRT-SatPixie shader and install it into your Shaders folder. Continue?</string>
+    <string name="post_processing_downloading">Downloading shader pack…</string>
+    <string name="post_processing_download_success">Installed %1$d shader presets.</string>
+    <string name="post_processing_download_failure">Failed to download the shader pack.</string>
+    <string name="post_processing_download_retrocrisis">Download RetroCrisis GDV-NTSC</string>
+    <string name="post_processing_download_retrocrisis_description">Config-only CRT pack; downloads the libretro base if missing</string>
+    <string name="post_processing_download_retrocrisis_profile_title">Choose a display profile</string>
+    <string-array name="post_processing_retrocrisis_profiles">
+        <item>1080p Flat</item>
+        <item>1440p Flat</item>
+        <item>4K Flat</item>
+        <item>1080p Curved</item>
+        <item>1440p Curved</item>
+        <item>4K Curved</item>
+        <item>720p Steam Deck</item>
+    </string-array>
     <string name="postprocessing_shader">Post Processing Shader</string>
     <string name="postprocessing_shader_description">Apply a post-processing effect after finishing a frame.</string>
     <string name="scaled_efb_copy">Scaled EFB Copy</string>
@@ -339,6 +375,8 @@
     <string name="texture_cache_to_state_description">Includes the contents of the embedded frame buffer (EFB) and upscaled EFB copies in save states. Fixes missing and/or non-upscaled textures/objects when loading states at the cost of additional save/load time.</string>
     <string name="aspect_ratio">Aspect Ratio</string>
     <string name="aspect_ratio_description">Select what aspect ratio to use when rendering</string>
+    <string name="integer_scaling">Integer Scaling</string>
+    <string name="integer_scaling_description">Scales the game image by a whole-number multiple of its rendered resolution when possible. This produces more uniform pixels at the cost of larger black borders.</string>
     <string name="shader_compilation_mode">Shader Compilation Mode</string>
     <string name="wait_for_shaders">Compile Shaders Before Starting</string>
     <string name="wait_for_shaders_description">This causes a delay when launching games, but will reduce stuttering early on.</string>
@@ -846,7 +884,6 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="stereoscopy_off">Off</string>
     <string name="stereoscopy_side_by_side">Side-by-Side</string>
     <string name="stereoscopy_top_and_bottom">Top-and-Bottom</string>
-    <string name="stereoscopy_anaglyph">Anaglyph</string>
 
     <!-- Aspect Ratio Preference -->
     <string name="aspect_ratio_auto">Auto</string>
@@ -973,16 +1010,35 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="system_driver_desc">The GPU driver that is part of the OS.</string>
 
     <!-- Custom GPU drivers -->
-    <string name="gpu_driver_dialog_title">Select the GPU driver for Dolphin</string>
-    <string name="gpu_driver_dialog_system">Default</string>
-    <string name="gpu_driver_dialog_install">Install driver</string>
-    <string name="gpu_driver_dialog_uninstall_done">Successfully switched to the system driver</string>
     <string name="gpu_driver_submenu">GPU Driver</string>
+    <string name="gpu_driver_header_gpu">GPU: %1$s · Vulkan %2$s · driver %3$s</string>
+    <string name="gpu_driver_header_gpu_unknown">GPU: unknown (system driver could not be probed)</string>
+    <string name="gpu_driver_recommended">Recommended source: %1$s</string>
+    <string name="gpu_driver_recommended_system">The system driver is recommended for this GPU</string>
+    <string name="gpu_driver_installed_header">Installed drivers</string>
+    <string name="gpu_driver_active_suffix">● Active</string>
+    <string name="gpu_driver_install_from_file">Install from file…</string>
+    <string name="gpu_driver_install_from_file_description">Install a driver package (zip) from your device</string>
+    <string name="gpu_driver_download">Download drivers…</string>
+    <string name="gpu_driver_download_description">Browse driver packages published by community sources on GitHub</string>
+    <string name="gpu_driver_download_fetching">Fetching driver list…</string>
+    <string name="gpu_driver_download_pick_source">Choose a source</string>
+    <string name="gpu_driver_download_source">%1$s (%2$d)</string>
+    <string name="gpu_driver_download_source_recommended">%1$s (%2$d) · Recommended</string>
+    <string name="gpu_driver_download_pick_asset">Choose a driver</string>
+    <string name="gpu_driver_download_action">Download</string>
+    <string name="gpu_driver_downloading">Downloading driver…</string>
+    <string name="gpu_driver_download_failed">Could not download the driver list or package. Check your connection and try again.</string>
+    <string name="gpu_driver_use">Use this driver</string>
+    <string name="gpu_driver_delete">Delete</string>
+    <string name="gpu_driver_deleted">Deleted %1$s</string>
+    <string name="gpu_driver_selected">Now using %1$s</string>
     <string name="gpu_driver_install_inprogress">Installing the GPU driver…</string>
     <string name="gpu_driver_install_success">GPU driver installed successfully</string>
     <string name="gpu_driver_install_invalid_archive">Failed to unzip the provided driver package</string>
     <string name="gpu_driver_install_missing_metadata">The supplied driver package is invalid due to missing metadata.</string>
     <string name="gpu_driver_install_invalid_metadata">The supplied driver package contains invalid metadata, it may be corrupted.</string>
+    <string name="gpu_driver_install_missing_library">The supplied driver package does not contain the driver library named in its metadata.</string>
     <string name="gpu_driver_install_unsupported_android_version">Your device doesn\'t meet the minimum Android version requirements for the supplied driver.</string>
     <string name="gpu_driver_install_already_installed">The supplied driver package is already installed.</string>
     <string name="gpu_driver_install_file_not_found">The selected file could not be found or accessed.</string>
@@ -1111,4 +1167,30 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="netplay_player_buffer">Player buffer</string>
     <string name="netplay_local_network_permission_info">Dolphin needs permission to connect to devices on a local network. If you only want to use netplay over the internet, the permission is not required.</string>
     <string name="netplay_give_permission">Give permission</string>
+    <!-- Memory Card Sync (features/memcardsync) -->
+    <string name="memcard_sync_submenu">Memory Card Sync</string>
+    <string name="memcard_sync_intro">Keeps the saves on your GameCube memory cards in step with your other devices, through cloud storage you own (Amazon S3 or any S3-compatible service). Works with Dolphin on your computers and other Android devices.</string>
+    <string name="memcard_sync_unavailable">This build of Dolphin has no memory card sync.</string>
+    <string name="memcard_sync_enabled">Sync Memory Cards</string>
+    <string name="memcard_sync_enabled_description">Newer saves from your other devices are put on the cards before a game starts; your saves upload as Dolphin writes them, and when you leave the app.</string>
+    <string name="memcard_sync_storage">Storage</string>
+    <string name="memcard_sync_storage_description">Bucket and folder, e.g. s3://my-saves/emusync/v1?region=eu-west-1. Use the same on every device.</string>
+    <string name="memcard_sync_access_key_id">Access Key ID</string>
+    <string name="memcard_sync_access_key_id_description">From your storage provider. A key that can only read and write this bucket is enough.</string>
+    <string name="memcard_sync_secret">Secret Access Key</string>
+    <string name="memcard_sync_secret_description">Kept encrypted with a key in this device\'s Keystore. The show button displays it; enter a new one to replace it.</string>
+    <string name="memcard_sync_passphrase">Encryption Passphrase</string>
+    <string name="memcard_sync_passphrase_description">Optional. Encrypts your saves on this device before they upload. For storage that is already encrypted, enter the passphrase used when it was set up. Use the same on every device; it can\'t be recovered. Clear the field to remove it.</string>
+    <string name="memcard_sync_device_name">Device Name</string>
+    <string name="memcard_sync_device_name_description">How this device appears in a save\'s history on your other devices.</string>
+    <string name="memcard_sync_saved">Saved</string>
+    <string name="memcard_sync_not_set">Not set</string>
+    <string name="memcard_sync_no_passphrase">No passphrase saved</string>
+    <string name="memcard_sync_now">Sync Now</string>
+    <string name="memcard_sync_now_started">Syncing…</string>
+    <string name="memcard_sync_status_connecting">Connecting to the storage…</string>
+    <string name="memcard_sync_status_off">Off.</string>
+    <string name="memcard_sync_status_incomplete">Not syncing: fill in the storage, access key ID and secret access key.</string>
+    <string name="memcard_sync_status_running">Syncing. Nothing has changed yet.</string>
+    <string name="memcard_sync_cards_help">The cards in slots A and B are synced, raw memory cards and GCI folders alike, one card per slot and region: slot A\'s USA card here and on your computer is the same card. When a save changed on two devices, the newest wins and the other stays in the save\'s history. Wii saves are not synced.</string>
 </resources>

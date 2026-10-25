@@ -22,8 +22,12 @@ endif()
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Svg)
+
+include("${CMAKE_SOURCE_DIR}/CMake/DolphinQtDeclarativeUi.cmake")
+dolphin_check_qt_form_layout_boundaries("${CMAKE_CURRENT_SOURCE_DIR}")
 
 if (Qt6_VERSION VERSION_GREATER_EQUAL 6.10.0)
   # GuiPrivate is needed to #include qplatformnativeinterface.h in MainWindow.cpp with Qt 6.10+.
@@ -35,27 +39,89 @@ message(STATUS "Found Qt version ${Qt6_VERSION}")
 
 set_property(TARGET Qt6::Core PROPERTY INTERFACE_COMPILE_FEATURES "")
 
+add_library(dolphinqt-application-theme STATIC
+  ApplicationTheme.cpp
+  ApplicationTheme.h
+)
+target_include_directories(dolphinqt-application-theme PUBLIC ${CMAKE_SOURCE_DIR}/Source/Core)
+target_link_libraries(dolphinqt-application-theme PUBLIC Qt6::Gui)
+target_compile_definitions(dolphinqt-application-theme
+PRIVATE
+  -DQT_USE_QSTRINGBUILDER
+  -DQT_NO_CAST_FROM_ASCII
+  -DQT_NO_CAST_TO_ASCII
+)
+
+# The config binder is its own target so qt-tests can link it without pulling in the rest of
+# DolphinQt. Later tasks add sources here with target_sources().
+add_library(dolphinqt-config-binder STATIC
+  Config/Binder/ConfigBindingLogic.h
+  Config/Binder/ConfigSliderMapping.h
+  Config/Binder/ConfigChangeBroadcaster.cpp
+  Config/Binder/ConfigChangeBroadcaster.h
+  Config/Binder/ConfigBinding.cpp
+  Config/Binder/ConfigBinding.h
+  Config/Binder/ConfigWidgetBinder.cpp
+  Config/Binder/ConfigWidgetBinder.h
+  Config/Binder/ConfigSettingRegistry.cpp
+  Config/Binder/ConfigSettingRegistry.h
+  Config/SettingsHelp.h
+  Config/Binder/BalloonTip.cpp
+  Config/Binder/BalloonTip.h
+  Config/Binder/BalloonTipFilter.cpp
+  Config/Binder/BalloonTipFilter.h
+  Config/Binder/ToolTipStyle.cpp
+  Config/Binder/ToolTipStyle.h
+  # ModalMessageBox lives here so qt-tests can link ConfigWidgetBinder (which calls it for user path
+  # validation) without pulling in the full dolphin-emu sources.
+  QtUtils/ModalMessageBox.cpp
+  QtUtils/ModalMessageBox.h
+)
+target_include_directories(dolphinqt-config-binder PUBLIC ${CMAKE_SOURCE_DIR}/Source/Core)
+target_link_libraries(dolphinqt-config-binder PUBLIC Qt6::Widgets PRIVATE core)
+target_compile_definitions(dolphinqt-config-binder
+PRIVATE
+  -DQT_USE_QSTRINGBUILDER
+  -DQT_NO_CAST_FROM_ASCII
+  -DQT_NO_CAST_TO_ASCII
+)
+
 add_executable(dolphin-emu
+  BigPictureHost.cpp
+  BigPictureHost.h
   AboutDialog.cpp
   AboutDialog.h
+  AboutDialog.ui
   CheatSearchFactoryWidget.cpp
   CheatSearchFactoryWidget.h
+  CheatSearchFactoryWidget.ui
   CheatSearchWidget.cpp
   CheatSearchWidget.h
+  CheatSearchWidget.ui
   CheatsManager.cpp
   CheatsManager.h
+  CheatsManager.ui
   Achievements/AchievementBox.cpp
   Achievements/AchievementBox.h
+  Achievements/AchievementBox.ui
   Achievements/AchievementHeaderWidget.cpp
   Achievements/AchievementHeaderWidget.h
+  Achievements/AchievementHeaderWidget.ui
+  Achievements/AchievementLeaderboardCell.cpp
+  Achievements/AchievementLeaderboardCell.h
+  Achievements/AchievementLeaderboardCell.ui
   Achievements/AchievementLeaderboardWidget.cpp
   Achievements/AchievementLeaderboardWidget.h
+  Achievements/AchievementLeaderboardWidget.ui
   Achievements/AchievementProgressWidget.cpp
   Achievements/AchievementProgressWidget.h
+  Achievements/AchievementProgressWidget.ui
   Achievements/AchievementSettingsWidget.cpp
   Achievements/AchievementSettingsWidget.h
+  Achievements/AchievementSettingsWidget.ui
   Achievements/AchievementsWindow.cpp
   Achievements/AchievementsWindow.h
+  Achievements/AchievementsWindow.ui
   Config/ARCodeWidget.cpp
   Config/ARCodeWidget.h
   Config/CheatCodeEditor.cpp
@@ -64,37 +130,25 @@ add_executable(dolphin-emu
   Config/CheatWarningWidget.h
   Config/CommonControllersWidget.cpp
   Config/CommonControllersWidget.h
-  Config/ConfigControls/ConfigBool.cpp
-  Config/ConfigControls/ConfigBool.h
-  Config/ConfigControls/ConfigChoice.cpp
-  Config/ConfigControls/ConfigChoice.h
-  Config/ConfigControls/ConfigControl.h
-  Config/ConfigControls/ConfigInteger.cpp
-  Config/ConfigControls/ConfigInteger.h
-  Config/ConfigControls/ConfigRadio.cpp
-  Config/ConfigControls/ConfigRadio.h
-  Config/ConfigControls/ConfigFloatSlider.cpp
-  Config/ConfigControls/ConfigFloatSlider.h
-  Config/ConfigControls/ConfigSlider.cpp
-  Config/ConfigControls/ConfigSlider.h
-  Config/ConfigControls/ConfigText.cpp
-  Config/ConfigControls/ConfigText.h
-  Config/ConfigControls/ConfigUserPath.cpp
-  Config/ConfigControls/ConfigUserPath.h
+  Config/CommonControllersWidget.ui
   Config/ControllerInterface/ControllerInterfaceWindow.cpp
   Config/ControllerInterface/ControllerInterfaceWindow.h
+  Config/ControllerInterface/ControllerInterfaceWindow.ui
   Config/SDLHints/SDLHintsWindow.cpp
   Config/SDLHints/SDLHintsWindow.h
   Config/ControllerInterface/DualShockUDPClientEditServerDialog.cpp
   Config/ControllerInterface/DualShockUDPClientEditServerDialog.h
+  Config/ControllerInterface/DualShockUDPClientEditServerDialog.ui
   Config/ControllerInterface/DualShockUDPClientWidget.cpp
   Config/ControllerInterface/DualShockUDPClientWidget.h
+  Config/ControllerInterface/DualShockUDPClientWidget.ui
   Config/ControllerInterface/DualShockUDPSettings.cpp
   Config/ControllerInterface/DualShockUDPSettings.h
   Config/ControllerInterface/ServerStringValidator.cpp
   Config/ControllerInterface/ServerStringValidator.h
   Config/ControllersPane.cpp
   Config/ControllersPane.h
+  Config/ControllersPane.ui
   Config/FilesystemWidget.cpp
   Config/FilesystemWidget.h
   Config/FreeLookWidget.cpp
@@ -103,28 +157,36 @@ add_executable(dolphin-emu
   Config/FreeLookWindow.h
   Config/GameConfigEdit.cpp
   Config/GameConfigEdit.h
+  Config/GameConfigEdit.ui
   Config/GameConfigHighlighter.cpp
   Config/GameConfigHighlighter.h
   Config/GameConfigWidget.cpp
   Config/GameConfigWidget.h
+  Config/GameConfigWidget.ui
   Config/GamecubeControllersWidget.cpp
   Config/GamecubeControllersWidget.h
+  Config/GamecubeControllersWidget.ui
   Config/GeckoCodeWidget.cpp
   Config/GeckoCodeWidget.h
   Config/Graphics/AdvancedWidget.cpp
   Config/Graphics/AdvancedWidget.h
+  Config/Graphics/AdvancedWidget.ui
   Config/Graphics/EnhancementsWidget.cpp
   Config/Graphics/EnhancementsWidget.h
+  Config/Graphics/EnhancementsWidget.ui
   Config/Graphics/GeneralWidget.cpp
   Config/Graphics/GeneralWidget.h
+  Config/Graphics/GeneralWidget.ui
   Config/Graphics/GraphicsPane.cpp
   Config/Graphics/GraphicsPane.h
+  Config/Graphics/GraphicsPane.ui
   Config/Graphics/HacksWidget.cpp
   Config/Graphics/HacksWidget.h
-  Config/Graphics/ColorCorrectionConfigWindow.cpp
-  Config/Graphics/ColorCorrectionConfigWindow.h
-  Config/Graphics/PostProcessingConfigWindow.cpp
-  Config/Graphics/PostProcessingConfigWindow.h
+  Config/Graphics/HacksWidget.ui
+  Config/Graphics/ShaderParametersDialog.cpp
+  Config/Graphics/ShaderParametersDialog.h
+  Config/Graphics/ShaderPresetPickerDialog.cpp
+  Config/Graphics/ShaderPresetPickerDialog.h
   Config/GraphicsModListWidget.cpp
   Config/GraphicsModListWidget.h
   Config/GraphicsModWarningWidget.cpp
@@ -137,20 +199,25 @@ add_executable(dolphin-emu
   Config/LogConfigWidget.h
   Config/LogWidget.cpp
   Config/LogWidget.h
+  Config/Mapping/BigPictureMapping.cpp
+  Config/Mapping/BigPictureMapping.h
   Config/Mapping/FreeLookGeneral.cpp
   Config/Mapping/FreeLookGeneral.h
   Config/Mapping/FreeLookRotation.cpp
   Config/Mapping/FreeLookRotation.h
+  Config/Mapping/FreeLookRotation.ui
   Config/Mapping/GBAPadEmu.cpp
   Config/Mapping/GBAPadEmu.h
   Config/Mapping/GCKeyboardEmu.cpp
   Config/Mapping/GCKeyboardEmu.h
+  Config/Mapping/GCKeyboardEmu.ui
   Config/Mapping/GCMicrophone.cpp
   Config/Mapping/GCMicrophone.h
   Config/Mapping/GCPadEmu.cpp
   Config/Mapping/GCPadEmu.h
   Config/Mapping/GCPadWiiUConfigDialog.cpp
   Config/Mapping/GCPadWiiUConfigDialog.h
+  Config/Mapping/GCPadWiiUConfigDialog.ui
   Config/Mapping/Hotkey3D.cpp
   Config/Mapping/Hotkey3D.h
   Config/Mapping/HotkeyControllerProfile.cpp
@@ -174,6 +241,7 @@ add_executable(dolphin-emu
   Config/Mapping/HotkeyWii.cpp
   Config/Mapping/HotkeyWii.h
   Config/Mapping/IOWindow.cpp
+  Config/Mapping/IOWindow.ui
   Config/Mapping/MappingButton.cpp
   Config/Mapping/MappingButton.h
   Config/Mapping/MappingCommon.cpp
@@ -186,18 +254,25 @@ add_executable(dolphin-emu
   Config/Mapping/MappingWidget.h
   Config/Mapping/MappingWindow.cpp
   Config/Mapping/MappingWindow.h
+  Config/Mapping/MappingGridPage.ui
+  Config/Mapping/MappingHorizontalPage.ui
+  Config/Mapping/MappingWindow.ui
   Config/Mapping/WiimoteEmuExtension.cpp
   Config/Mapping/WiimoteEmuExtension.h
+  Config/Mapping/WiimoteEmuExtension.ui
   Config/Mapping/WiimoteEmuExtensionMotionInput.cpp
   Config/Mapping/WiimoteEmuExtensionMotionInput.h
+  Config/Mapping/WiimoteEmuExtensionMotionInput.ui
   Config/Mapping/WiimoteEmuExtensionMotionSimulation.cpp
   Config/Mapping/WiimoteEmuExtensionMotionSimulation.h
+  Config/Mapping/WiimoteEmuExtensionMotionSimulation.ui
   Config/Mapping/WiimoteEmuGeneral.cpp
   Config/Mapping/WiimoteEmuGeneral.h
   Config/Mapping/WiimoteEmuMotionControl.cpp
   Config/Mapping/WiimoteEmuMotionControl.h
   Config/Mapping/WiimoteEmuMotionControlIMU.cpp
   Config/Mapping/WiimoteEmuMotionControlIMU.h
+  Config/Mapping/WiimoteEmuMotionControlIMU.ui
   Config/NewPatchDialog.cpp
   Config/NewPatchDialog.h
   Config/PatchesWidget.cpp
@@ -206,85 +281,94 @@ add_executable(dolphin-emu
   Config/PropertiesDialog.h
   Config/SettingsWindow.cpp
   Config/SettingsWindow.h
-  Config/ToolTipControls/BalloonTip.cpp
-  Config/ToolTipControls/BalloonTip.h
-  Config/ToolTipControls/ToolTipCheckBox.cpp
-  Config/ToolTipControls/ToolTipCheckBox.h
-  Config/ToolTipControls/ToolTipComboBox.cpp
-  Config/ToolTipControls/ToolTipComboBox.h
-  Config/ToolTipControls/ToolTipPushButton.cpp
-  Config/ToolTipControls/ToolTipPushButton.h
-  Config/ToolTipControls/ToolTipRadioButton.cpp
-  Config/ToolTipControls/ToolTipRadioButton.h
-  Config/ToolTipControls/ToolTipSlider.cpp
-  Config/ToolTipControls/ToolTipSlider.h
-  Config/ToolTipControls/ToolTipSpinBox.cpp
-  Config/ToolTipControls/ToolTipSpinBox.h
-  Config/ToolTipControls/ToolTipWidget.h
+  Config/SettingsWindow.ui
   Config/VerifyWidget.cpp
   Config/VerifyWidget.h
   Config/WiimoteControllersWidget.cpp
   Config/WiimoteControllersWidget.h
+  Config/WiimoteControllersWidget.ui
   ConvertDialog.cpp
   ConvertDialog.h
+  ConvertDialog.ui
   Debugger/AssembleInstructionDialog.cpp
   Debugger/AssembleInstructionDialog.h
+  Debugger/AssembleInstructionDialog.ui
   Debugger/AssemblerWidget.cpp
   Debugger/AssemblerWidget.h
+  Debugger/AssemblerWidget.ui
   Debugger/AssemblyEditor.cpp
   Debugger/AssemblyEditor.h
   Debugger/BranchWatchDialog.cpp
   Debugger/BranchWatchDialog.h
+  Debugger/BranchWatchDialog.ui
   Debugger/BranchWatchTableModel.cpp
   Debugger/BranchWatchTableModel.h
   Debugger/BreakpointDialog.cpp
   Debugger/BreakpointDialog.h
+  Debugger/BreakpointDialog.ui
   Debugger/BreakpointWidget.cpp
   Debugger/BreakpointWidget.h
+  Debugger/BreakpointWidget.ui
   Debugger/CodeViewWidget.cpp
   Debugger/CodeViewWidget.h
   Debugger/CodeWidget.cpp
   Debugger/CodeWidget.h
+  Debugger/CodeWidget.ui
   Debugger/EditSymbolDialog.cpp
   Debugger/EditSymbolDialog.h
+  Debugger/EditSymbolDialog.ui
   Debugger/GekkoSyntaxHighlight.cpp
   Debugger/GekkoSyntaxHighlight.h
   Debugger/JitBlockTableModel.cpp
   Debugger/JitBlockTableModel.h
   Debugger/JITWidget.cpp
   Debugger/JITWidget.h
+  Debugger/JITWidget.ui
   Debugger/MemoryViewWidget.cpp
   Debugger/MemoryViewWidget.h
+  Debugger/MemoryViewWidget.ui
   Debugger/MemoryWidget.cpp
   Debugger/MemoryWidget.h
+  Debugger/MemoryWidget.ui
   Debugger/NetworkWidget.cpp
   Debugger/NetworkWidget.h
+  Debugger/NetworkWidget.ui
   Debugger/PatchInstructionDialog.cpp
   Debugger/PatchInstructionDialog.h
+  Debugger/PatchInstructionDialog.ui
   Debugger/RegisterColumn.cpp
   Debugger/RegisterColumn.h
   Debugger/RegisterWidget.cpp
   Debugger/RegisterWidget.h
+  Debugger/RegisterWidget.ui
   Debugger/ThreadWidget.cpp
   Debugger/ThreadWidget.h
+  Debugger/ThreadWidget.ui
   Debugger/WatchWidget.cpp
   Debugger/WatchWidget.h
+  Debugger/WatchWidget.ui
   DiscordHandler.cpp
   DiscordHandler.h
   DiscordJoinRequestDialog.cpp
   DiscordJoinRequestDialog.h
+  DiscordJoinRequestDialog.ui
   EmulatedUSB/WiiSpeakWindow.cpp
   EmulatedUSB/WiiSpeakWindow.h
   EmulatedUSB/LogitechMicWindow.cpp
   EmulatedUSB/LogitechMicWindow.h
   FIFO/FIFOAnalyzer.cpp
   FIFO/FIFOAnalyzer.h
+  FIFO/FIFOAnalyzer.ui
   FIFO/FIFOPlayerWindow.cpp
   FIFO/FIFOPlayerWindow.h
+  FIFO/FIFOPlayerWindow.ui
   GameCount.cpp
   GameCount.h
   GameList/GameList.cpp
   GameList/GameList.h
+  GameList/GameListWidget.ui
+  GameList/CoverManager.cpp
+  GameList/CoverManager.h
   GameList/GameListModel.cpp
   GameList/GameListModel.h
   GameList/GameTracker.cpp
@@ -295,39 +379,58 @@ add_executable(dolphin-emu
   GameList/ListProxyModel.h
   GCMemcardCreateNewDialog.cpp
   GCMemcardCreateNewDialog.h
+  GCMemcardCreateNewDialog.ui
   GCMemcardManager.cpp
   GCMemcardManager.h
+  GCMemcardManager.ui
   Host.cpp
   Host.h
   HotkeyScheduler.cpp
   HotkeyScheduler.h
   InfinityBase/InfinityBaseWindow.cpp
   InfinityBase/InfinityBaseWindow.h
+  EmulationStatusWidget.cpp
+  EmulationStatusWidget.h
+  EmulationStatusWidget.ui
   Main.cpp
   MainWindow.cpp
   MainWindow.h
+  MainWindow.ui
+  SetupWizardDialog.cpp
+  SetupWizardDialog.h
+  SetupWizardDialog.ui
+  SetupWizardPolicy.h
   MenuBar.cpp
   MenuBar.h
   NetPlay/ChunkedProgressDialog.cpp
   NetPlay/ChunkedProgressDialog.h
+  NetPlay/ChunkedProgressDialog.ui
   NetPlay/GameDigestDialog.cpp
   NetPlay/GameDigestDialog.h
+  NetPlay/GameDigestDialog.ui
   NetPlay/GameListDialog.cpp
   NetPlay/GameListDialog.h
+  NetPlay/GameListDialog.ui
   NetPlay/ClickBlurLabel.cpp
   NetPlay/ClickBlurLabel.h
   NetPlay/NetPlayBrowser.cpp
   NetPlay/NetPlayBrowser.h
+  NetPlay/NetPlayBrowser.ui
   NetPlay/NetPlayDialog.cpp
   NetPlay/NetPlayDialog.h
+  NetPlay/NetPlayDialog.ui
   NetPlay/NetPlaySetupDialog.cpp
   NetPlay/NetPlaySetupDialog.h
+  NetPlay/NetPlaySetupDialog.ui
   NetPlay/PadMappingDialog.cpp
   NetPlay/PadMappingDialog.h
+  NetPlay/PadMappingDialog.ui
   NANDRepairDialog.cpp
   NANDRepairDialog.h
+  NANDRepairDialog.ui
   NKitWarningDialog.cpp
   NKitWarningDialog.h
+  NKitWarningDialog.ui
   QtUtils/AnalyticsPrompt.cpp
   QtUtils/AnalyticsPrompt.h
   QtUtils/AspectRatioWidget.cpp
@@ -348,8 +451,8 @@ add_executable(dolphin-emu
   QtUtils/FromStdString.h
   QtUtils/ImageConverter.cpp
   QtUtils/ImageConverter.h
-  QtUtils/ModalMessageBox.cpp
-  QtUtils/ModalMessageBox.h
+  QtUtils/ImGuiKeyEvent.h
+  QtUtils/MenuFontFallbacks.h
   QtUtils/NonAutodismissibleMenu.cpp
   QtUtils/NonAutodismissibleMenu.h
   QtUtils/NonDefaultQPushButton.cpp
@@ -372,46 +475,65 @@ add_executable(dolphin-emu
   RenderWidget.h
   ResourcePackManager.cpp
   ResourcePackManager.h
+  ResourcePackManager.ui
   Resources.cpp
   Resources.h
   RiivolutionBootWidget.cpp
   RiivolutionBootWidget.h
-  SearchBar.cpp
-  SearchBar.h
+  RiivolutionBootWidget.ui
   Settings.cpp
   Settings.h
   Settings/AdvancedPane.cpp
   Settings/AdvancedPane.h
+  Settings/AdvancedPane.ui
   Settings/AudioPane.cpp
   Settings/AudioPane.h
+  Settings/AudioPane.ui
+  Settings/BigPicturePane.cpp
+  Settings/BigPicturePane.h
+  Settings/BigPicturePane.ui
   Settings/BroadbandAdapterSettingsDialog.cpp
   Settings/BroadbandAdapterSettingsDialog.h
   Settings/CloudSavesPane.cpp
   Settings/CloudSavesPane.h
   Settings/GameCubePane.cpp
   Settings/GameCubePane.h
+  Settings/GameCubePane.ui
+  Settings/MemoryCardSyncPane.cpp
+  Settings/MemoryCardSyncPane.h
+  Settings/MemoryCardSyncPane.ui
   Settings/GeneralPane.cpp
   Settings/GeneralPane.h
+  Settings/GeneralPane.ui
   Settings/InterfacePane.cpp
   Settings/InterfacePane.h
+  Settings/InterfacePane.ui
+  Settings/InterfaceSettingsUtils.cpp
+  Settings/InterfaceSettingsUtils.h
   Settings/OnScreenDisplayPane.cpp
   Settings/OnScreenDisplayPane.h
+  Settings/OnScreenDisplayPane.ui
   Settings/PathPane.cpp
   Settings/PathPane.h
+  Settings/PathPane.ui
   Settings/TriforcePane.cpp
   Settings/TriforcePane.h
+  Settings/TriforcePane.ui
   Settings/USBDevicePicker.cpp
   Settings/USBDevicePicker.h
   Settings/WiiPane.cpp
   Settings/WiiPane.h
+  Settings/WiiPane.ui
   SkylanderPortal/SkylanderModifyDialog.cpp
   SkylanderPortal/SkylanderModifyDialog.h
   SkylanderPortal/SkylanderPortalWindow.cpp
   SkylanderPortal/SkylanderPortalWindow.h
   TAS/GCTASInputWindow.cpp
   TAS/GCTASInputWindow.h
+  TAS/GCTASInputWindow.ui
   TAS/GBATASInputWindow.cpp
   TAS/GBATASInputWindow.h
+  TAS/GBATASInputWindow.ui
   TAS/IRWidget.cpp
   TAS/IRWidget.h
   TAS/StickWidget.cpp
@@ -422,27 +544,24 @@ add_executable(dolphin-emu
   TAS/TASControlState.h
   TAS/TASInputWindow.cpp
   TAS/TASInputWindow.h
+  TAS/TASInputWindow.ui
   TAS/TASSlider.cpp
   TAS/TASSlider.h
   TAS/TASSpinBox.cpp
   TAS/TASSpinBox.h
   TAS/WiiTASInputWindow.cpp
   TAS/WiiTASInputWindow.h
+  TAS/WiiTASInputWindow.ui
   ToolBar.cpp
   ToolBar.h
   Translation.cpp
   Translation.h
   Updater.cpp
   Updater.h
+  UpdateAvailableDialog.ui
   WiiUpdate.cpp
   WiiUpdate.h
 )
-
-if (WIN32)
-  target_sources(dolphin-emu PRIVATE
-    Styles/Dark/dark.qrc
-  )
-endif()
 
 if (NOT WIN32)
   target_sources(dolphin-emu PRIVATE
@@ -469,6 +588,8 @@ PRIVATE
 
 target_link_libraries(dolphin-emu
 PRIVATE
+  dolphinqt-application-theme
+  dolphinqt-config-binder
   core
   Qt6::Widgets
   uicommon
@@ -661,6 +782,15 @@ if(NOT DISABLE_NLS AND GETTEXT_MSGFMT_EXECUTABLE)
   endforeach()
 endif()
 
+# Memory card sync: emusync's library next to the executable (found through $ORIGIN on Linux; on
+# Windows core delay-loads it). macOS bundles it below.
+if(EMUSYNC_FOUND AND NOT APPLE)
+  emusync_deploy_runtime(dolphin-emu)
+  if(NOT WIN32)
+    install(FILES "${EMUSYNC_LIBRARY}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  endif()
+endif()
+
 if(APPLE)
   include(BundleUtilities)
 
@@ -722,6 +852,29 @@ if(APPLE)
       target_sources(dolphin-emu PRIVATE ${MOLTENVK_DYLIB})
       set_source_files_properties(${MOLTENVK_DYLIB} PROPERTIES MACOSX_PACKAGE_LOCATION Frameworks)
     endif()
+  endif()
+
+  # Memory card sync: emusync's library goes into the bundle's Frameworks, next to MoltenVK.
+  if(EMUSYNC_FOUND)
+    target_sources(dolphin-emu PRIVATE "${EMUSYNC_LIBRARY}")
+    set_source_files_properties("${EMUSYNC_LIBRARY}" PROPERTIES
+      MACOSX_PACKAGE_LOCATION Frameworks GENERATED TRUE)
+    add_dependencies(dolphin-emu emusync_cargo)
+  endif()
+
+  # Copy librashader into the bundle, next to MoltenVK (see Librashader::LibraryPath).
+  # Deliberately not gated on ENABLE_VULKAN: librashader drives Metal here, and D3D11, D3D12 and
+  # OpenGL elsewhere, so gating the copy on Vulkan would leave a -DENABLE_VULKAN=OFF build with no
+  # library for any of them -- and it would fail silently, since a missing library is exactly the
+  # supported "librashader unavailable, use the built-in engine" state.
+  # Note: macOS dolphin-nogui cannot load librashader because it has no .app bundle for
+  # File::GetBundleDirectory() to resolve against. This is a known, accepted limitation.
+  set(LIBRASHADER_DYLIB "${CMAKE_SOURCE_DIR}/Externals/librashader/lib/macos-arm64/librashader.dylib")
+  if(EXISTS "${LIBRASHADER_DYLIB}")
+    target_sources(dolphin-emu PRIVATE "${LIBRASHADER_DYLIB}")
+    set_source_files_properties("${LIBRASHADER_DYLIB}" PROPERTIES MACOSX_PACKAGE_LOCATION Frameworks)
+  else()
+    message(STATUS "librashader.dylib not found; the librashader post-processing renderer will be unavailable.")
   endif()
 
   if(POSTPROCESS_BUNDLE)

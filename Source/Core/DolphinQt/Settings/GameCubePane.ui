@@ -1,0 +1,563 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GameCubePane</class>
+ <widget class="QWidget" name="GameCubePane">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>980</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="iplGroup">
+     <property name="title">
+      <string>IPL Settings</string>
+     </property>
+     <layout class="QVBoxLayout" name="iplLayout">
+      <item>
+       <widget class="QCheckBox" name="skipMainMenuCheckBox">
+        <property name="text">
+         <string>Skip Main Menu</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="languageLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="systemLanguageLabel">
+          <property name="text">
+           <string>System Language:</string>
+          </property>
+          <property name="buddy">
+           <cstring>systemLanguageComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="systemLanguageComboBox">
+          <item>
+           <property name="text">
+            <string>English</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>German</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>French</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Spanish</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Italian</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Dutch</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="deviceGroup">
+     <property name="title">
+      <string>Device Settings</string>
+     </property>
+     <layout class="QGridLayout" name="deviceLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="slotALabel">
+        <property name="text">
+         <string>Slot A:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotAComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="slotAComboBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="slotAConfigButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="slotAMemcardPathLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Memory Card Path:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotAMemcardPathLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1" colspan="2">
+       <widget class="QLineEdit" name="slotAMemcardPathLineEdit">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="slotAAgpPathLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>GBA Cartridge Path:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotAAgpPathLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <widget class="QLineEdit" name="slotAAgpPathLineEdit">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="3">
+       <widget class="QLabel" name="slotAGciOverrideLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Warning: A GCI folder override path is currently configured for this slot. Adjusting the GCI path here will have no effect.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="slotAGciPathLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>GCI Folder Path:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotAGciPathLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1" colspan="2">
+       <widget class="QLineEdit" name="slotAGciPathLineEdit">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="slotBLabel">
+        <property name="text">
+         <string>Slot B:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotBComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QComboBox" name="slotBComboBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="2">
+       <widget class="QPushButton" name="slotBConfigButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="slotBMemcardPathLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Memory Card Path:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotBMemcardPathLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1" colspan="2">
+       <widget class="QLineEdit" name="slotBMemcardPathLineEdit">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="slotBAgpPathLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>GBA Cartridge Path:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotBAgpPathLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1" colspan="2">
+       <widget class="QLineEdit" name="slotBAgpPathLineEdit">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0" colspan="3">
+       <widget class="QLabel" name="slotBGciOverrideLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Warning: A GCI folder override path is currently configured for this slot. Adjusting the GCI path here will have no effect.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0">
+       <widget class="QLabel" name="slotBGciPathLabel">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>GCI Folder Path:</string>
+        </property>
+        <property name="buddy">
+         <cstring>slotBGciPathLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="1" colspan="2">
+       <widget class="QLineEdit" name="slotBGciPathLineEdit">
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QLabel" name="sp1Label">
+        <property name="text">
+         <string>SP1:</string>
+        </property>
+        <property name="buddy">
+         <cstring>sp1ComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="1">
+       <widget class="QComboBox" name="sp1ComboBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="2">
+       <widget class="QPushButton" name="sp1ConfigButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="gbaGroup">
+     <property name="title">
+      <string>GBA Settings</string>
+     </property>
+     <layout class="QGridLayout" name="gbaLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="gbaBiosLabel">
+        <property name="text">
+         <string>BIOS:</string>
+        </property>
+        <property name="buddy">
+         <cstring>gbaBiosLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="gbaBiosLineEdit"/>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="gbaBiosBrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="gbaRom1Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>gbaRom1LineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="gbaRom1LineEdit"/>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="gbaRom1BrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="gbaRom2Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>gbaRom2LineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="gbaRom2LineEdit"/>
+      </item>
+      <item row="2" column="2">
+       <widget class="QPushButton" name="gbaRom2BrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="gbaRom3Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>gbaRom3LineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="gbaRom3LineEdit"/>
+      </item>
+      <item row="3" column="2">
+       <widget class="QPushButton" name="gbaRom3BrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="gbaRom4Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>gbaRom4LineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="gbaRom4LineEdit"/>
+      </item>
+      <item row="4" column="2">
+       <widget class="QPushButton" name="gbaRom4BrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="gbaRom5Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>gbaRom5LineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLineEdit" name="gbaRom5LineEdit"/>
+      </item>
+      <item row="5" column="2">
+       <widget class="QPushButton" name="gbaRom5BrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0" colspan="3">
+       <widget class="QCheckBox" name="gbaSaveInRomPathCheckBox">
+        <property name="text">
+         <string>Save in Same Directory as the ROM</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="gbaSavesLabel">
+        <property name="text">
+         <string>Saves:</string>
+        </property>
+        <property name="buddy">
+         <cstring>gbaSavesLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QLineEdit" name="gbaSavesLineEdit"/>
+      </item>
+      <item row="7" column="2">
+       <widget class="QPushButton" name="gbaSavesBrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>skipMainMenuCheckBox</tabstop>
+  <tabstop>systemLanguageComboBox</tabstop>
+  <tabstop>slotAComboBox</tabstop>
+  <tabstop>slotAConfigButton</tabstop>
+  <tabstop>slotAMemcardPathLineEdit</tabstop>
+  <tabstop>slotAAgpPathLineEdit</tabstop>
+  <tabstop>slotAGciPathLineEdit</tabstop>
+  <tabstop>slotBComboBox</tabstop>
+  <tabstop>slotBConfigButton</tabstop>
+  <tabstop>slotBMemcardPathLineEdit</tabstop>
+  <tabstop>slotBAgpPathLineEdit</tabstop>
+  <tabstop>slotBGciPathLineEdit</tabstop>
+  <tabstop>sp1ComboBox</tabstop>
+  <tabstop>sp1ConfigButton</tabstop>
+  <tabstop>gbaBiosLineEdit</tabstop>
+  <tabstop>gbaBiosBrowseButton</tabstop>
+  <tabstop>gbaRom1LineEdit</tabstop>
+  <tabstop>gbaRom1BrowseButton</tabstop>
+  <tabstop>gbaRom2LineEdit</tabstop>
+  <tabstop>gbaRom2BrowseButton</tabstop>
+  <tabstop>gbaRom3LineEdit</tabstop>
+  <tabstop>gbaRom3BrowseButton</tabstop>
+  <tabstop>gbaRom4LineEdit</tabstop>
+  <tabstop>gbaRom4BrowseButton</tabstop>
+  <tabstop>gbaRom5LineEdit</tabstop>
+  <tabstop>gbaRom5BrowseButton</tabstop>
+  <tabstop>gbaSaveInRomPathCheckBox</tabstop>
+  <tabstop>gbaSavesLineEdit</tabstop>
+  <tabstop>gbaSavesBrowseButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

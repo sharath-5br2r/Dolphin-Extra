@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyGBA.h"
 
-#include <QGroupBox>
-#include <QHBoxLayout>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingHorizontalPage.h"
 
 HotkeyGBA::HotkeyGBA(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,16 +14,15 @@ HotkeyGBA::HotkeyGBA(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyGBA::CreateMainLayout()
 {
-  m_main_layout = new QHBoxLayout();
+  Ui::MappingHorizontalPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Core"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_CORE)));
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Volume"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_VOLUME)));
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Window Size"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_SIZE)));
-
-  setLayout(m_main_layout);
 }
 
 InputConfig* HotkeyGBA::GetConfig()

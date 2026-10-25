@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CommonControllersWidget</class>
+ <widget class="QWidget" name="CommonControllersWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>160</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QGroupBox" name="commonGroup">
+     <property name="title">
+      <string extracomment="This is &quot;common&quot; as in &quot;shared&quot;, not the opposite of &quot;uncommon&quot;">Common</string>
+     </property>
+     <layout class="QVBoxLayout" name="commonLayout">
+      <item>
+       <widget class="QCheckBox" name="backgroundInputCheckBox">
+        <property name="text">
+         <string>Background Input</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="alternateInputSourcesButton">
+        <property name="text">
+         <string>Alternate Input Sources</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="sdlControllerSettingsButton">
+        <property name="text">
+         <string>SDL Controller Settings</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>backgroundInputCheckBox</tabstop>
+  <tabstop>alternateInputSourcesButton</tabstop>
+  <tabstop>sdlControllerSettingsButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

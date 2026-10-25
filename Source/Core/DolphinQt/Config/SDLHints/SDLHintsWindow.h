@@ -5,11 +5,11 @@
 
 #include <QDialog>
 
+class QCheckBox;
 class QTabWidget;
 class QDialogButtonBox;
 class QTableWidget;
 class QPushButton;
-class ToolTipCheckBox;
 
 class SDLHintsWindow final : public QDialog
 {
@@ -39,10 +39,10 @@ private:
   QTableWidget* m_hints_table;
   QPushButton* m_rem_row_btn;
 
-  ToolTipCheckBox* m_directinput_detection;
-  ToolTipCheckBox* m_combine_joy_cons;
-  ToolTipCheckBox* m_horizontal_joy_cons;
-  ToolTipCheckBox* m_dualsense_player_led;
+  QCheckBox* m_directinput_detection;
+  QCheckBox* m_combine_joy_cons;
+  QCheckBox* m_horizontal_joy_cons;
+  QCheckBox* m_dualsense_player_led;
 
   int m_current_tab_index;
 };

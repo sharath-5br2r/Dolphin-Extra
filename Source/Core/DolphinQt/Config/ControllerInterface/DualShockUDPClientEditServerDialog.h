@@ -3,14 +3,15 @@
 
 #pragma once
 
+#include <memory>
 #include <optional>
 
 #include <QDialog>
 
-class QDialogButtonBox;
-class QGridLayout;
-class QLineEdit;
-class QSpinBox;
+namespace Ui
+{
+class DualShockUDPClientEditServerDialog;
+}
 
 class DualShockUDPClientEditServerDialog final : public QDialog
 {
@@ -18,15 +19,12 @@ class DualShockUDPClientEditServerDialog final : public QDialog
 public:
   explicit DualShockUDPClientEditServerDialog(QWidget* parent,
                                               std::optional<size_t> existing_index);
+  ~DualShockUDPClientEditServerDialog() override;
 
 private:
   void CreateWidgets();
   void OnServerFinished();
 
+  std::unique_ptr<Ui::DualShockUDPClientEditServerDialog> m_ui;
   std::optional<size_t> m_existing_index;
-  QDialogButtonBox* m_buttonbox;
-  QGridLayout* m_main_layout;
-  QLineEdit* m_description;
-  QLineEdit* m_server_address;
-  QSpinBox* m_server_port;
 };

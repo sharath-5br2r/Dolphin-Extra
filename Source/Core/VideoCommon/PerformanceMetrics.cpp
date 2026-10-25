@@ -34,6 +34,7 @@ void PerformanceMetrics::Reset()
   m_max_speed = 0;
 
   m_frame_presentation_offset = DT{};
+  m_frame_buffer_size = FrameBufferSize{};
 }
 
 void PerformanceMetrics::CountFrame()
@@ -101,6 +102,12 @@ double PerformanceMetrics::GetSpeed() const
 double PerformanceMetrics::GetMaxSpeed() const
 {
   return m_max_speed.load(std::memory_order_relaxed);
+}
+
+std::pair<u32, u32> PerformanceMetrics::GetLatestFrameBufferSize() const
+{
+  const FrameBufferSize size = m_frame_buffer_size.load(std::memory_order_relaxed);
+  return {size.width, size.height};
 }
 
 void PerformanceMetrics::SetLatestFramePresentationOffset(DT offset)

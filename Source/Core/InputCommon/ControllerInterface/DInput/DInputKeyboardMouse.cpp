@@ -246,7 +246,7 @@ Core::DeviceRemoval KeyboardMouse::UpdateInput()
   else if (SUCCEEDED(mo_hr))
   {
     m_state_in.relative_mouse.Move({tmp_mouse.lX, tmp_mouse.lY, tmp_mouse.lZ});
-    m_state_in.relative_mouse.Update();
+    m_state_in.relative_mouse.Update(ControllerInterface::GetAdditionalInputChannel());
 
     // need to smooth out the axes, otherwise it doesn't work for shit
     for (unsigned int i = 0; i < 3; ++i)

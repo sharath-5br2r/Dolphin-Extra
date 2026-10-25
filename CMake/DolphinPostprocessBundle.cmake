@@ -31,7 +31,12 @@ file(GLOB_RECURSE extra_libs "${DOLPHIN_BUNDLE_PATH}/Contents/MacOS/*.dylib")
 # makes it sometimes break on libraries that do weird things with @rpath. Specify
 # equivalent search directories until https://gitlab.kitware.com/cmake/cmake/issues/16625
 # is fixed and in our minimum CMake version.
-set(extra_dirs "/usr/local/lib" "/lib" "/usr/lib")
+#
+# /opt/homebrew/lib is Homebrew's prefix on Apple Silicon, the counterpart of the
+# /usr/local/lib entry that covers it on Intel. Without it, a dependency reached only
+# through @rpath -- ffmpeg pulls in @rpath/libjxl_cms.0.11.dylib -- makes otool -l fail
+# and takes the whole fixup down with it.
+set(extra_dirs "/opt/homebrew/lib" "/usr/local/lib" "/lib" "/usr/lib")
 
 # BundleUtilities is overly verbose, so disable most of its messages
 function(message)

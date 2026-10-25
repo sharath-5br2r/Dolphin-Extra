@@ -63,6 +63,20 @@ public:
                             u32 num_clear_values);
   void EndClearRenderPass();
 
+  // Defers a full-framebuffer clear until the next render pass begins on `framebuffer`, so the
+  // clear becomes that pass's loadOp instead of costing a clear-store pass of its own followed by a
+  // load pass when the first draw arrives (two full backbuffer round-trips on a tiler). Rendering
+  // to other framebuffers in between leaves it pending. Discard it when the first draw is known to
+  // overwrite every pixel; a caller that ends the frame with nothing drawn must flush it by
+  // beginning (and ending) a render pass on the framebuffer.
+  void SetPendingClear(VKFramebuffer* framebuffer, const VkClearValue& color_value,
+                       const VkClearValue& depth_value);
+  void DiscardPendingClear() { m_pending_clear_framebuffer = nullptr; }
+  bool HasPendingClear(const VKFramebuffer* framebuffer) const
+  {
+    return m_pending_clear_framebuffer != nullptr && m_pending_clear_framebuffer == framebuffer;
+  }
+
   void SetViewport(const VkViewport& viewport);
   void SetScissor(const VkRect2D& scissor);
 
@@ -116,6 +130,10 @@ private:
   // If not, ends the render pass if it is a clear render pass.
   bool IsViewportWithinRenderArea() const;
 
+  // Begins the deferred clear pass if one is pending for the current framebuffer. Returns true if
+  // a render pass was begun.
+  bool BeginPendingClearRenderPass();
+
   void UpdateDescriptorSet();
   void UpdateGXDescriptorSet();
   void UpdateUtilityDescriptorSet();
@@ -163,5 +181,10 @@ private:
   VKFramebuffer* m_framebuffer = nullptr;
   VkRenderPass m_current_render_pass = VK_NULL_HANDLE;
   VkRect2D m_framebuffer_render_area = {};
+
+  // See SetPendingClear(). Compared by identity only; never dereferenced while pending.
+  VKFramebuffer* m_pending_clear_framebuffer = nullptr;
+  VkClearValue m_pending_clear_color = {};
+  VkClearValue m_pending_clear_depth = {};
 };
 }  // namespace Vulkan

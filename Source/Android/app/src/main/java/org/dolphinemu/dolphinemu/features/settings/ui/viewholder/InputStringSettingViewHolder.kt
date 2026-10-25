@@ -25,7 +25,11 @@ class InputStringSettingViewHolder(
 
         binding.textSettingName.text = setting.name
 
-        if (!TextUtils.isEmpty(inputString)) {
+        val secretSummary = setting.secretSummary
+        if (secretSummary != null) {
+            // Never the value itself.
+            binding.textSettingDescription.text = secretSummary()
+        } else if (!TextUtils.isEmpty(inputString)) {
             binding.textSettingDescription.text = inputString
         } else {
             binding.textSettingDescription.text = setting.description

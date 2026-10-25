@@ -79,7 +79,7 @@ bool VertexManager::Initialize()
             {TEXEL_BUFFER_FORMAT_R32G32_UINT, GL_RG32UI},
         }};
     glGenTextures(static_cast<GLsizei>(m_texel_buffer_views.size()), m_texel_buffer_views.data());
-    glActiveTexture(GL_MUTABLE_TEXTURE_INDEX);
+    ActivateMutableTextureUnit();
     for (const auto& it : format_mapping)
     {
       glBindTexture(GL_TEXTURE_BUFFER, m_texel_buffer_views[it.first]);

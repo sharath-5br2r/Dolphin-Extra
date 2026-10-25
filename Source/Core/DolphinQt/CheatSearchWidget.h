@@ -12,6 +12,11 @@
 #include "Core/ActionReplay.h"
 #include "Core/CheatSearch.h"
 
+namespace Ui
+{
+class CheatSearchWidget;
+}
+
 namespace Core
 {
 class System;
@@ -91,6 +96,7 @@ private:
   // this is intentionally NOT cleared when updating values or resetting or similar
   std::unordered_map<u32, CheatSearchTableUserData> m_address_table_user_data;
 
+  std::unique_ptr<Ui::CheatSearchWidget> m_ui;
   QComboBox* m_compare_type_dropdown;
   QComboBox* m_value_source_dropdown;
   QLineEdit* m_given_value_text;

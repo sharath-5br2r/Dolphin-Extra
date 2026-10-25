@@ -8,30 +8,22 @@
 #include <string>
 
 #include <QDialog>
-#include <QMenuBar>
-#include <QCheckBox>
 
 #include "Common/Lazy.h"
 #include "Core/NetPlayClient.h"
 #include "DolphinQt/GameList/GameListModel.h"
-#include "DolphinQt/NetPlay/ClickBlurLabel.h"
 #include "VideoCommon/OnScreenDisplay.h"
 
 class BootSessionData;
 class ChunkedProgressDialog;
 class GameDigestDialog;
 class PadMappingDialog;
-class QCheckBox;
-class QComboBox;
-class QGridLayout;
-class QGroupBox;
-class QLabel;
-class QLineEdit;
-class QPushButton;
-class QSpinBox;
-class QSplitter;
-class QTableWidget;
-class QTextEdit;
+class QActionGroup;
+
+namespace Ui
+{
+class NetPlayDialog;
+}
 
 class NetPlayDialog : public QDialog, public NetPlay::NetPlayUI
 {
@@ -64,8 +56,7 @@ public:
   void OnMsgPowerButton() override;
   void OnPlayerConnect(const std::string& player) override;
   void OnPlayerDisconnect(const std::string& player) override;
-  void OnMinimumPadBufferChanged(u32 buffer) override;
-  void OnPlayerPadBufferChanged(u32 buffer) override;
+  void OnPadBufferChanged(u32 buffer) override;
   void OnHostInputAuthorityChanged(bool enabled) override;
   void OnDesync(u32 frame, const std::string& player) override;
   void OnConnectionLost() override;
@@ -80,8 +71,6 @@ public:
   void OnIndexRefreshFailed(const std::string error) override;
 
   bool IsRecording() override;
-  bool IsSpectator() override;
-  void IsSpectatorEnabled(bool enabled);
   std::shared_ptr<const UICommon::GameFile>
   FindGameFile(const NetPlay::SyncIdentifier& sync_identifier,
                NetPlay::SyncIdentifierComparison* found = nullptr) override;
@@ -107,9 +96,6 @@ signals:
   void Stop();
 
 private:
-  void CreateChatLayout();
-  void CreatePlayersLayout();
-  void CreateMainLayout();
   void ConnectWidgets();
   void OnChat();
   void OnStart();
@@ -123,55 +109,9 @@ private:
 
   void SendMessage(const std::string& message);
 
-  // Chat
-  QGroupBox* m_chat_box;
-  QTextEdit* m_chat_edit;
-  QLineEdit* m_chat_type_edit;
-  QPushButton* m_chat_send_button;
-
-  // Players
-  QGroupBox* m_players_box;
-  QComboBox* m_room_box;
-  ClickBlurLabel* m_hostcode_label;
-  QPushButton* m_hostcode_action_button;
-  QTableWidget* m_players_list;
-  QPushButton* m_kick_button;
-  QPushButton* m_assign_ports_button;
-
-  // Other
-  QMenuBar* m_menu_bar;
-  QMenu* m_data_menu;
-  QMenu* m_network_menu;
-  QMenu* m_game_digest_menu;
-  QMenu* m_other_menu;
-  QPushButton* m_game_button;
-  QPushButton* m_start_button;
-  QLabel* m_minimum_buffer_label;
-  QSpinBox* m_minimum_buffer_size_box;
-  QLabel* m_player_buffer_label;
-  QSpinBox* m_player_buffer_size_box;
-
   QActionGroup* m_savedata_style_group;
-  QAction* m_savedata_none_action;
-  QAction* m_savedata_load_only_action;
-  QAction* m_savedata_load_and_write_action;
-  QAction* m_savedata_all_wii_saves_action;
-
-  QAction* m_sync_codes_action;
-  QAction* m_record_input_action;
-  QAction* m_strict_settings_sync_action;
-  QAction* m_host_input_authority_action;
-  QAction* m_golf_mode_action;
-  QAction* m_golf_mode_overlay_action;
-  QAction* m_fixed_delay_action;
-  QAction* m_hide_remote_gbas_action;
-  QCheckBox* m_brawlmusic_off;
-  QCheckBox* m_spectator_mode;
-  QPushButton* m_quit_button;
-  QSplitter* m_splitter;
   QActionGroup* m_network_mode_group;
 
-  QGridLayout* m_main_layout;
   GameDigestDialog* m_game_digest_dialog;
   ChunkedProgressDialog* m_chunked_progress_dialog;
   PadMappingDialog* m_pad_mapping;
@@ -180,14 +120,13 @@ private:
   Common::Lazy<std::string> m_external_ip_address;
   std::string m_nickname;
   const GameListModel& m_game_list_model;
+  StartGameCallback m_start_game_callback;
+  std::unique_ptr<Ui::NetPlayDialog> m_ui;
   bool m_use_traversal = false;
   bool m_is_copy_button_retry = false;
   bool m_got_stop_request = true;
-  int m_minimum_buffer_size = 0;
-  int m_player_buffer_size = 0;
+  int m_buffer_size = 0;
   int m_player_count = 0;
   int m_old_player_count = 0;
   bool m_host_input_authority = false;
-
-  StartGameCallback m_start_game_callback;
 };

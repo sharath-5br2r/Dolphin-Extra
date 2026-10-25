@@ -84,6 +84,10 @@ public:
     // undesirable behavior in our mapping logic.
     virtual bool IsDetectable() const { return true; }
 
+    // Release suppression applies to zero-neutral controls. Absolute/relative inputs may be
+    // mappable without having a universal release position; aliases may forward to children.
+    virtual bool IsPressedForCapture() const { return IsDetectable() && GetState() > 0.1; }
+
     // Implementations should return a value from 0.0 to 1.0 across their normal range.
     // One input should be provided for each "direction". (e.g. 2 for each axis)
     // If possible, negative values may be returned in situations where an opposing input is

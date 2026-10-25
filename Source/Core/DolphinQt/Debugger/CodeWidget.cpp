@@ -7,7 +7,6 @@
 
 #include <fmt/format.h>
 
-#include <QGridLayout>
 #include <QGroupBox>
 #include <QGuiApplication>
 #include <QLabel>
@@ -19,7 +18,6 @@
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QToolButton>
-#include <QVBoxLayout>
 #include <QWidget>
 
 #include "Common/Event.h"
@@ -34,6 +32,8 @@
 #include "DolphinQt/Host.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_CodeWidget.h"
 
 static const QString BOX_SPLITTER_STYLESHEET = QStringLiteral(
     "QSplitter::handle { border-top: 1px dashed black; width: 1px; margin-left: 10px; "
@@ -107,90 +107,38 @@ void CodeWidget::showEvent(QShowEvent* event)
 
 void CodeWidget::CreateWidgets()
 {
-  auto* layout = new QHBoxLayout;
+  auto* widget = new QWidget(this);
+  Ui::CodeWidget ui;
+  ui.setupUi(widget);
+  m_search_address = ui.searchAddressEdit;
+  m_lock_btn = ui.lockButton;
+  m_branch_watch = ui.branchWatchButton;
+  m_callstack_list = ui.callstackList;
+  m_search_callstack = ui.searchCallstackEdit;
+  m_symbols_list = ui.symbolsList;
+  m_note_list = ui.notesList;
+  m_search_symbols = ui.searchSymbolsEdit;
+  m_function_calls_list = ui.callsList;
+  m_search_calls = ui.searchCallsEdit;
+  m_function_callers_list = ui.callersList;
+  m_search_callers = ui.searchCallersEdit;
+  m_box_splitter = ui.boxSplitter;
+  m_code_splitter = ui.codeSplitter;
 
-  layout->setContentsMargins(2, 2, 2, 2);
-  layout->setSpacing(0);
-
-  auto* top_layout = new QHBoxLayout;
-  m_search_address = new QLineEdit;
-  m_search_address->setPlaceholderText(tr("Search Address"));
-
-  m_lock_btn = new QToolButton();
   m_lock_btn->setIcon(Resources::GetThemeIcon("pause"));
-  m_lock_btn->setCheckable(true);
-  m_lock_btn->setMinimumSize(24, 24);
-  m_lock_btn->setToolTip(tr("When enabled, prevents automatic updates to the code view."));
-  m_branch_watch = new QPushButton(tr("Branch Watch"));
-
-  top_layout->addWidget(m_search_address);
-  top_layout->addWidget(m_lock_btn);
-  top_layout->addWidget(m_branch_watch);
-
-  auto* right_layout = new QVBoxLayout;
   m_code_view = new CodeViewWidget;
-  right_layout->addLayout(top_layout);
-  right_layout->addWidget(m_code_view);
-
-  m_box_splitter = new QSplitter(Qt::Vertical);
+  ui.codeViewLayout->addWidget(m_code_view);
   m_box_splitter->setStyleSheet(BOX_SPLITTER_STYLESHEET);
-
-  auto add_search_line_edit = [this](const QString& name, QWidget* list_widget) {
-    auto* widget = new QWidget;
-    auto* line_layout = new QGridLayout;
-    auto* label = new QLabel(name);
-    auto* search_line_edit = new QLineEdit;
-
-    widget->setLayout(line_layout);
-    line_layout->addWidget(label, 0, 0);
-    line_layout->addWidget(search_line_edit, 0, 1);
-    line_layout->addWidget(list_widget, 1, 0, -1, -1);
-    m_box_splitter->addWidget(widget);
-    return search_line_edit;
-  };
-
-  // Callstack
-  m_callstack_list = new QListWidget;
-  m_search_callstack = add_search_line_edit(tr("Callstack"), m_callstack_list);
-
-  // Symbols
-  auto* symbols_tab = new QTabWidget;
-  m_symbols_list = new QListWidget;
-  m_note_list = new QListWidget;
-  symbols_tab->addTab(m_symbols_list, tr("Symbols"));
-  symbols_tab->addTab(m_note_list, tr("Notes"));
-  m_search_symbols = add_search_line_edit(tr("Symbols"), symbols_tab);
-
-  // Function calls
-  m_function_calls_list = new QListWidget;
-  m_search_calls = add_search_line_edit(tr("Calls"), m_function_calls_list);
-
-  // Function callers
-  m_function_callers_list = new QListWidget;
-  m_search_callers = add_search_line_edit(tr("Callers"), m_function_callers_list);
-
-  m_code_splitter = new QSplitter(Qt::Horizontal);
-
-  // right_layout is the searchbar area and the codeview.
-  QWidget* right_widget = new QWidget;
-  right_widget->setLayout(right_layout);
-
-  m_code_splitter->addWidget(m_box_splitter);
-  m_code_splitter->addWidget(right_widget);
-
-  layout->addWidget(m_code_splitter);
 
   // Corrects button height mis-aligning the layout. Note: Margin only populates values after this
   // point.
   const int height_fix =
       m_branch_watch->sizeHint().height() - m_search_address->sizeHint().height();
-  auto margins = right_layout->contentsMargins();
+  auto margins = ui.rightLayout->contentsMargins();
   margins.setTop(margins.top() - height_fix / 2);
-  right_layout->setContentsMargins(margins);
-  right_layout->setSpacing(right_layout->spacing() - height_fix / 2);
+  ui.rightLayout->setContentsMargins(margins);
+  ui.rightLayout->setSpacing(ui.rightLayout->spacing() - height_fix / 2);
 
-  QWidget* widget = new QWidget(this);
-  widget->setLayout(layout);
   setWidget(widget);
 }
 

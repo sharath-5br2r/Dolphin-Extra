@@ -3,18 +3,23 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QDialog>
 
 #include "Core/NetPlayProto.h"
 
 class QCheckBox;
-class QGridLayout;
 class QComboBox;
-class QDialogButtonBox;
 
 namespace NetPlay
 {
 class Player;
+}
+
+namespace Ui
+{
+class PadMappingDialog;
 }
 
 class PadMappingDialog : public QDialog
@@ -22,6 +27,7 @@ class PadMappingDialog : public QDialog
   Q_OBJECT
 public:
   explicit PadMappingDialog(QWidget* widget);
+  ~PadMappingDialog() override;
 
   int exec() override;
 
@@ -30,7 +36,6 @@ public:
   NetPlay::PadMappingArray GetWiimoteArray();
 
 private:
-  void CreateWidgets();
   void ConnectWidgets();
 
   void OnMappingChanged();
@@ -39,10 +44,9 @@ private:
   NetPlay::GBAConfigArray m_gba_config;
   NetPlay::PadMappingArray m_wii_mapping;
 
-  QGridLayout* m_main_layout;
   std::array<QComboBox*, 4> m_gc_boxes;
   std::array<QCheckBox*, 4> m_gba_boxes;
   std::array<QComboBox*, 4> m_wii_boxes;
   std::vector<const NetPlay::Player*> m_players;
-  QDialogButtonBox* m_button_box;
+  std::unique_ptr<Ui::PadMappingDialog> m_ui;
 };

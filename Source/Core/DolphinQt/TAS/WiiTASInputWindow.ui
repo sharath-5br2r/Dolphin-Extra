@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WiiTASInputWindow</class>
+ <widget class="QWidget" name="WiiTASInputWindow">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <layout class="QHBoxLayout" name="stickLayout"/>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="remoteAccelerometerBox">
+     <property name="title">
+      <string>Wii Remote Accelerometer</string>
+     </property>
+     <layout class="QVBoxLayout" name="remoteAccelerometerLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="remoteGyroscopeBox">
+     <property name="title">
+      <string>Wii Remote Gyroscope</string>
+     </property>
+     <layout class="QVBoxLayout" name="remoteGyroscopeLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="nunchukAccelerometerBox">
+     <property name="title">
+      <string>Nunchuk Accelerometer</string>
+     </property>
+     <layout class="QVBoxLayout" name="nunchukAccelerometerLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="triggersBox">
+     <property name="title">
+      <string>Triggers</string>
+     </property>
+     <layout class="QVBoxLayout" name="triggersLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="remoteButtonsBox">
+     <property name="title">
+      <string>Wii Remote Buttons</string>
+     </property>
+     <layout class="QGridLayout" name="remoteButtonsLayout">
+      <item row="0" column="7">
+       <spacer name="remoteButtonsHorizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Expanding</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>1</width>
+          <height>1</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="nunchukButtonsBox">
+     <property name="title">
+      <string>Nunchuk Buttons</string>
+     </property>
+     <layout class="QHBoxLayout" name="nunchukButtonsLayout">
+      <item>
+       <spacer name="nunchukButtonsHorizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Expanding</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>1</width>
+          <height>1</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="classicButtonsBox">
+     <property name="title">
+      <string>Classic Buttons</string>
+     </property>
+     <layout class="QGridLayout" name="classicButtonsLayout">
+      <item row="0" column="8">
+       <spacer name="classicButtonsHorizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Expanding</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>1</width>
+          <height>1</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

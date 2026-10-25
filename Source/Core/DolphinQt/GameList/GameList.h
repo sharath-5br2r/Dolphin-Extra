@@ -5,7 +5,7 @@
 
 #include <memory>
 
-#include <QStackedWidget>
+#include <QWidget>
 
 #include "DolphinQt/GameList/GameListModel.h"
 
@@ -15,12 +15,17 @@ class QListView;
 class QSortFilterProxyModel;
 class QTableView;
 
+namespace Ui
+{
+class GameListWidget;
+}
+
 namespace UICommon
 {
 class GameFile;
 }
 
-class GameList final : public QStackedWidget
+class GameList final : public QWidget
 {
   Q_OBJECT
 
@@ -39,6 +44,7 @@ public:
   void SetGridView() { SetPreferredView(false); }
   void SetViewColumn(int col, bool view);
   void SetSearchTerm(const QString& term);
+  void ShowSearch();
 
   void OnColumnVisibilityToggled(const QString& row, bool visible);
   void OnGameListVisibilityChanged();
@@ -49,11 +55,14 @@ public:
 
   void PurgeCache();
 
+  QSize GetSizeForGrid(int columns, int rows) const;
+
   const GameListModel& GetGameListModel() const { return m_model; }
 
 signals:
   void GameSelected();
   void GameCountUpdated(int total_games, int visible_games) const;
+  void PreferredViewChanged(bool list);
   void OnStartWithRiivolution(const UICommon::GameFile& game);
   void NetPlayHost(const UICommon::GameFile& game);
   void SelectionChanged(const std::shared_ptr<const UICommon::GameFile>& game_file);
@@ -67,6 +76,8 @@ private:
   void ShowHeaderContextMenu(const QPoint& pos);
   void ShowContextMenu(const QPoint&);
   void OpenContainingFolder();
+  void SetCoverImage();
+  void RemoveCoverImage();
   void OpenProperties();
   void OpenWiiSaveFolder();
   void OpenGCSaveFolder();
@@ -97,11 +108,14 @@ private:
   void MakeEmptyView();
   // We only have two views, just use a bool to distinguish.
   void SetPreferredView(bool list);
+  void SetGridScale(float scale);
   QAbstractItemView* GetActiveView() const;
   QSortFilterProxyModel* GetActiveProxyModel() const;
   void ConsiderViewChange();
   void UpdateFont();
+  bool eventFilter(QObject* object, QEvent* event) override;
 
+  std::unique_ptr<Ui::GameListWidget> m_ui;
   GameListModel m_model;
   QSortFilterProxyModel* m_list_proxy;
   QSortFilterProxyModel* m_grid_proxy;

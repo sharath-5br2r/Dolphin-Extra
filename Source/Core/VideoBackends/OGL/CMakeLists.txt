@@ -5,6 +5,8 @@ add_library(videoogl
   OGLConfig.h
   OGLGfx.cpp
   OGLGfx.h
+  OGLLibrashaderRuntime.cpp
+  OGLLibrashaderRuntime.h
   OGLMain.cpp
   OGLNativeVertexFormat.cpp
   OGLPerfQuery.cpp

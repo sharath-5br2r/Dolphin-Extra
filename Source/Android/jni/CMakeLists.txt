@@ -10,6 +10,7 @@ add_library(main SHARED
   Config/ConfigChangedCallback.cpp
   Config/NativeConfig.cpp
   Config/PostProcessing.cpp
+  Config/ShaderParameterEditor.cpp
   GameList/GameFile.cpp
   GameList/GameFile.h
   GameList/GameFileCache.cpp
@@ -34,6 +35,7 @@ add_library(main SHARED
   NetPlay/NetPlayUICallbacks.cpp
   NetPlay/NetPlayUICallbacks.h
   MainAndroid.cpp
+  MemcardSync.cpp
   RiivolutionPatches.cpp
   SkylanderConfig.cpp
   WiiUtils.cpp

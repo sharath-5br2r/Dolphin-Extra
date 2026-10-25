@@ -4,6 +4,8 @@
 #pragma once
 
 #ifdef USE_RETRO_ACHIEVEMENTS
+#include <memory>
+
 #include <QDialog>
 
 #include "Common/HookableEvent.h"
@@ -13,29 +15,35 @@ class AchievementHeaderWidget;
 class AchievementLeaderboardWidget;
 class AchievementSettingsWidget;
 class AchievementProgressWidget;
-class QDialogButtonBox;
-class QTabWidget;
+class QScrollArea;
 class UpdateCallback;
+
+namespace Ui
+{
+class AchievementsWindow;
+}
 
 class AchievementsWindow : public QDialog
 {
   Q_OBJECT
 public:
   explicit AchievementsWindow(QWidget* parent);
+  ~AchievementsWindow() override;
+
   void UpdateData(const AchievementManager::UpdatedItems& updated_items);
   void ForceSettingsTab();
 
 private:
-  void CreateMainLayout();
   void showEvent(QShowEvent* event) override;
   void ConnectWidgets();
 
+  std::unique_ptr<Ui::AchievementsWindow> m_ui;
   AchievementHeaderWidget* m_header_widget;
-  QTabWidget* m_tab_widget;
   AchievementSettingsWidget* m_settings_widget;
   AchievementProgressWidget* m_progress_widget;
   AchievementLeaderboardWidget* m_leaderboard_widget;
-  QDialogButtonBox* m_button_box;
+  QScrollArea* m_progress_scroll_area;
+  QScrollArea* m_leaderboard_scroll_area;
 
   Common::EventHook m_event_hook;
 };

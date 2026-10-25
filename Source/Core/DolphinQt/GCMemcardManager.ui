@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GCMemcardManager</class>
+ <widget class="QDialog" name="GCMemcardManager">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>650</width>
+    <height>500</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>GameCube Memory Card Manager</string>
+  </property>
+  <layout class="QGridLayout" name="mainLayout">
+   <item row="0" column="0" rowspan="8">
+    <widget class="QGroupBox" name="slotAGroup">
+     <property name="title">
+      <string>Slot A</string>
+     </property>
+     <layout class="QGridLayout" name="slotALayout">
+      <item row="0" column="0">
+       <widget class="QLineEdit" name="slotAFileLineEdit"/>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="slotAOpenButton">
+        <property name="text">
+         <string>&amp;Open...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="slotACreateButton">
+        <property name="text">
+         <string>&amp;Create...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="3">
+       <widget class="QTableWidget" name="slotATableWidget">
+        <property name="tabKeyNavigation">
+         <bool>false</bool>
+        </property>
+        <property name="horizontalScrollMode">
+         <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+        </property>
+        <property name="verticalScrollMode">
+         <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+        </property>
+        <property name="selectionBehavior">
+         <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+        </property>
+        <property name="showGrid">
+         <bool>false</bool>
+        </property>
+        <property name="sortingEnabled">
+         <bool>true</bool>
+        </property>
+        <column>
+         <property name="text">
+          <string>Filename</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Banner</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Title</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Icon</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Blocks</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="slotAStatLabel">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="0" column="2" rowspan="8">
+    <widget class="QGroupBox" name="slotBGroup">
+     <property name="title">
+      <string>Slot B</string>
+     </property>
+     <layout class="QGridLayout" name="slotBLayout">
+      <item row="0" column="0">
+       <widget class="QLineEdit" name="slotBFileLineEdit"/>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="slotBOpenButton">
+        <property name="text">
+         <string>&amp;Open...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QPushButton" name="slotBCreateButton">
+        <property name="text">
+         <string>&amp;Create...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="3">
+       <widget class="QTableWidget" name="slotBTableWidget">
+        <property name="tabKeyNavigation">
+         <bool>false</bool>
+        </property>
+        <property name="horizontalScrollMode">
+         <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+        </property>
+        <property name="verticalScrollMode">
+         <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+        </property>
+        <property name="selectionBehavior">
+         <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+        </property>
+        <property name="showGrid">
+         <bool>false</bool>
+        </property>
+        <property name="sortingEnabled">
+         <bool>true</bool>
+        </property>
+        <column>
+         <property name="text">
+          <string>Filename</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Banner</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Title</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Icon</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Blocks</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="slotBStatLabel">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QPushButton" name="selectButton">
+     <property name="text">
+      <string notr="true"/>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QPushButton" name="copyButton">
+     <property name="text">
+      <string notr="true"/>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QPushButton" name="deleteButton">
+     <property name="text">
+      <string>&amp;Delete</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QToolButton" name="exportButton"/>
+   </item>
+   <item row="5" column="1">
+    <widget class="QPushButton" name="importButton">
+     <property name="text">
+      <string>&amp;Import...</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QPushButton" name="fixChecksumsButton">
+     <property name="text">
+      <string>Fix Checksums</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>slotAFileLineEdit</tabstop>
+  <tabstop>slotAOpenButton</tabstop>
+  <tabstop>slotACreateButton</tabstop>
+  <tabstop>slotATableWidget</tabstop>
+  <tabstop>selectButton</tabstop>
+  <tabstop>copyButton</tabstop>
+  <tabstop>deleteButton</tabstop>
+  <tabstop>exportButton</tabstop>
+  <tabstop>importButton</tabstop>
+  <tabstop>fixChecksumsButton</tabstop>
+  <tabstop>slotBFileLineEdit</tabstop>
+  <tabstop>slotBOpenButton</tabstop>
+  <tabstop>slotBCreateButton</tabstop>
+  <tabstop>slotBTableWidget</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

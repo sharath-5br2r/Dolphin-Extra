@@ -3,21 +3,19 @@
 
 #include "DolphinQt/Config/Mapping/WiimoteEmuMotionControlIMU.h"
 
-#include <QFormLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
+#include <QFontMetrics>
 #include <QPushButton>
 #include <QString>
-#include <QVBoxLayout>
+#include <QStyle>
 
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 
 #include "DolphinQt/Config/ControllerInterface/ControllerInterfaceWindow.h"
-#include "DolphinQt/QtUtils/QtUtils.h"
 
 #include "InputCommon/InputConfig.h"
+
+#include "ui_WiimoteEmuMotionControlIMU.h"
 
 WiimoteEmuMotionControlIMU::WiimoteEmuMotionControlIMU(MappingWindow* window)
     : MappingWidget(window)
@@ -27,37 +25,24 @@ WiimoteEmuMotionControlIMU::WiimoteEmuMotionControlIMU(MappingWindow* window)
 
 void WiimoteEmuMotionControlIMU::CreateMainLayout()
 {
-  auto* warning_layout = new QHBoxLayout();
-  auto* warning_label =
-      new QLabel(tr("The controls under Accelerometer and Gyroscope are designed to "
-                    "interface directly with motion sensor hardware. They are not intended for "
-                    "mapping traditional buttons, triggers or axes. You might need to configure "
-                    "alternate input sources before using these controls."));
-  warning_label->setWordWrap(true);
-  auto* warning_input_sources_button = new QPushButton(tr("Alternate Input Sources"));
-  warning_layout->addWidget(
-      QtUtils::CreateIconWarning(this, QStyle::SP_MessageBoxWarning, warning_label), 1);
-  warning_layout->addWidget(warning_input_sources_button);
-  connect(warning_input_sources_button, &QPushButton::clicked, this, [this] {
+  Ui::WiimoteEmuMotionControlIMU ui;
+  ui.setupUi(this);
+  const int icon_size = QFontMetrics(font()).height() * 5 / 4;
+  ui.warningIconLabel->setPixmap(
+      style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(icon_size, icon_size));
+  connect(ui.alternateInputSourcesButton, &QPushButton::clicked, this, [this] {
     ControllerInterfaceWindow window{this};
     window.exec();
   });
 
-  auto* groups_layout = new QHBoxLayout();
-  groups_layout->addWidget(
+  ui.groupsLayout->addWidget(
       CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUPoint)));
-  groups_layout->addWidget(
+  ui.groupsLayout->addWidget(
       CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IRPassthrough)));
-  groups_layout->addWidget(CreateGroupBox(
+  ui.groupsLayout->addWidget(CreateGroupBox(
       Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUAccelerometer)));
-  groups_layout->addWidget(
+  ui.groupsLayout->addWidget(
       CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUGyroscope)));
-
-  m_main_layout = new QVBoxLayout();
-  m_main_layout->addLayout(warning_layout);
-  m_main_layout->addLayout(groups_layout);
-
-  setLayout(m_main_layout);
 }
 
 void WiimoteEmuMotionControlIMU::LoadSettings()

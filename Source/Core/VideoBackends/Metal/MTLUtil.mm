@@ -52,6 +52,7 @@ void Metal::Util::PopulateBackendInfo(BackendInfo* backend_info)
   backend_info->bSupportsBBox = true;
   backend_info->bSupportsGSInstancing = false;
   backend_info->bSupportsPostProcessing = true;
+  backend_info->bSupportsGPUMipGeneration = true;
   backend_info->bSupportsPaletteConversion = true;
   backend_info->bSupportsClipControl = true;
   backend_info->bSupportsSSAA = true;

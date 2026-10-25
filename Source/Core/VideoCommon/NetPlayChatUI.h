@@ -4,9 +4,11 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <deque>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -28,13 +30,15 @@ public:
 private:
   char m_message_buf[256] = {};
   bool m_scroll_to_bottom = false;
-  bool m_activate = false;
+  std::atomic<bool> m_activate{false};
   bool m_collapse = false;
   bool m_expand = false;
   bool m_is_scrolled_to_bottom = true;
 
   std::deque<std::pair<std::string, Color>> m_messages;
+  std::mutex m_pending_mutex;
+  std::deque<std::pair<std::string, Color>> m_pending_messages;
   std::function<void(const std::string&)> m_message_callback;
 };
 
-extern std::unique_ptr<NetPlayChatUI> g_netplay_chat_ui;
+extern std::atomic<std::shared_ptr<NetPlayChatUI>> g_netplay_chat_ui;

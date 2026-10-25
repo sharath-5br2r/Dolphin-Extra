@@ -14,7 +14,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCursor>
-#include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -24,7 +23,6 @@
 #include <QSignalBlocker>
 #include <QString>
 #include <QTableWidget>
-#include <QVBoxLayout>
 
 #include <fmt/format.h>
 
@@ -42,6 +40,8 @@
 #include "DolphinQt/Host.h"
 #include "DolphinQt/QtUtils/WrapInScrollArea.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_CheatSearchWidget.h"
 
 constexpr size_t TABLE_MAX_ROWS = 1000;
 
@@ -81,7 +81,8 @@ int GetDataTypeByteSize(Cheats::DataType data_type)
 CheatSearchWidget::CheatSearchWidget(Core::System& system,
                                      std::unique_ptr<Cheats::CheatSearchSessionBase> session,
                                      QWidget* parent)
-    : QWidget(parent), m_system(system), m_last_value_session(std::move(session))
+    : QWidget(parent), m_system(system), m_last_value_session(std::move(session)),
+      m_ui(std::make_unique<Ui::CheatSearchWidget>())
 {
   setAttribute(Qt::WA_DeleteOnClose);
   CreateWidgets();
@@ -110,7 +111,21 @@ Q_DECLARE_METATYPE(Cheats::FilterType);
 
 void CheatSearchWidget::CreateWidgets()
 {
-  QLabel* session_info_label = new QLabel();
+  m_ui->setupUi(this);
+
+  m_compare_type_dropdown = m_ui->compareTypeComboBox;
+  m_value_source_dropdown = m_ui->valueSourceComboBox;
+  m_given_value_text = m_ui->givenValueLineEdit;
+  m_info_label_1 = m_ui->infoLabel1;
+  m_info_label_2 = m_ui->infoLabel2;
+  m_next_scan_button = m_ui->nextScanButton;
+  m_refresh_values_button = m_ui->refreshValuesButton;
+  m_reset_button = m_ui->resetButton;
+  m_parse_values_as_hex_checkbox = m_ui->parseValuesAsHexCheckBox;
+  m_display_values_in_hex_checkbox = m_ui->displayValuesInHexCheckBox;
+  m_autoupdate_current_values = m_ui->autoupdateCurrentValuesCheckBox;
+  m_address_table = m_ui->addressTableWidget;
+
   {
     QString ranges;
     const size_t range_count = m_last_value_session->GetMemoryRangeCount();
@@ -197,19 +212,10 @@ void CheatSearchWidget::CreateWidgets()
       break;
     }
     const QString aligned = m_last_value_session->GetAligned() ? tr("aligned") : tr("unaligned");
-    session_info_label->setText(tr("%1, %2, %3, %4").arg(ranges).arg(space).arg(type).arg(aligned));
-    session_info_label->setWordWrap(true);
+    m_ui->sessionInfoLabel->setText(
+        tr("%1, %2, %3, %4").arg(ranges).arg(space).arg(type).arg(aligned));
   }
 
-  // i18n: This label is followed by a dropdown where the user can select things like "is equal to"
-  // or "is less than or equal to", followed by another dropdown where the user can select "any
-  // value", "last value", or "this value:". These three UI elements are intended to form a sentence
-  // together. Because the UI elements can't be reordered by a translation, you may have to give
-  // up on the idea of having them form a sentence depending on the grammar of your target language.
-  auto* instructions_label = new QLabel(tr("Keep addresses where value in memory"));
-
-  auto* value_layout = new QHBoxLayout();
-  m_compare_type_dropdown = new QComboBox();
   m_compare_type_dropdown->addItem(tr("is equal to"),
                                    QVariant::fromValue(Cheats::CompareType::Equal));
   m_compare_type_dropdown->addItem(tr("is not equal to"),
@@ -222,66 +228,29 @@ void CheatSearchWidget::CreateWidgets()
                                    QVariant::fromValue(Cheats::CompareType::Greater));
   m_compare_type_dropdown->addItem(tr("is greater than or equal to"),
                                    QVariant::fromValue(Cheats::CompareType::GreaterOrEqual));
-  value_layout->addWidget(m_compare_type_dropdown);
 
-  m_value_source_dropdown = new QComboBox();
   m_value_source_dropdown->addItem(
       tr("this value:"), QVariant::fromValue(Cheats::FilterType::CompareAgainstSpecificValue));
   m_value_source_dropdown->addItem(
       tr("last value"), QVariant::fromValue(Cheats::FilterType::CompareAgainstLastValue));
   m_value_source_dropdown->addItem(tr("any value"),
                                    QVariant::fromValue(Cheats::FilterType::DoNotFilter));
-  value_layout->addWidget(m_value_source_dropdown);
-
-  m_given_value_text = new QLineEdit();
-  value_layout->addWidget(m_given_value_text);
 
   auto& settings = Settings::GetQSettings();
-  m_parse_values_as_hex_checkbox = new QCheckBox(tr("Parse as Hex"));
   if (m_last_value_session->IsIntegerType())
   {
     m_parse_values_as_hex_checkbox->setChecked(
         settings.value(QStringLiteral("cheatsearchwidget/parsehex")).toBool());
-    value_layout->addWidget(m_parse_values_as_hex_checkbox);
+  }
+  else
+  {
+    m_parse_values_as_hex_checkbox->hide();
   }
 
-  auto* button_layout = new QHBoxLayout();
-  m_next_scan_button = new QPushButton(tr("Search and Filter"));
-  button_layout->addWidget(m_next_scan_button);
-  m_refresh_values_button = new QPushButton(tr("Refresh Current Values"));
-  button_layout->addWidget(m_refresh_values_button);
-  m_reset_button = new QPushButton(tr("Reset Results"));
-  button_layout->addWidget(m_reset_button);
-
-  m_address_table = new QTableWidget();
-  m_address_table->setContextMenuPolicy(Qt::CustomContextMenu);
-  m_address_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-
-  m_info_label_1 = new QLabel(tr("Waiting for first scan..."));
-  m_info_label_2 = new QLabel();
-
-  auto* const checkboxes_layout = new QHBoxLayout();
-  m_display_values_in_hex_checkbox = new QCheckBox(tr("Display values in Hex"));
   m_display_values_in_hex_checkbox->setChecked(
       settings.value(QStringLiteral("cheatsearchwidget/displayhex")).toBool());
-  checkboxes_layout->addWidget(m_display_values_in_hex_checkbox);
-  checkboxes_layout->setStretchFactor(m_display_values_in_hex_checkbox, 1);
-
-  m_autoupdate_current_values = new QCheckBox(tr("Automatically update Current Values"));
   m_autoupdate_current_values->setChecked(
       settings.value(QStringLiteral("cheatsearchwidget/autoupdatecurrentvalues"), true).toBool());
-  checkboxes_layout->addWidget(m_autoupdate_current_values);
-  checkboxes_layout->setStretchFactor(m_autoupdate_current_values, 2);
-
-  auto* const layout = new QVBoxLayout{this};
-  layout->addWidget(session_info_label);
-  layout->addWidget(instructions_label);
-  layout->addLayout(value_layout);
-  layout->addLayout(button_layout);
-  layout->addLayout(checkboxes_layout);
-  layout->addWidget(m_info_label_1);
-  layout->addWidget(m_info_label_2);
-  layout->addWidget(m_address_table);
 }
 
 void CheatSearchWidget::ConnectWidgets()

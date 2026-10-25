@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AchievementSettingsWidget</class>
+ <widget class="QWidget" name="AchievementSettingsWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>520</width>
+    <height>650</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="common_layout">
+   <property name="alignment">
+    <set>Qt::AlignmentFlag::AlignTop</set>
+   </property>
+   <item>
+    <widget class="QCheckBox" name="common_integration_enabled_input">
+     <property name="text">
+      <string>Enable RetroAchievements.org Integration</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="common_username_label">
+     <property name="text">
+      <string>Username</string>
+     </property>
+     <property name="buddy">
+      <cstring>common_username_input</cstring>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="common_username_input"/>
+   </item>
+   <item>
+    <widget class="QLabel" name="common_password_label">
+     <property name="text">
+      <string>Password</string>
+     </property>
+     <property name="buddy">
+      <cstring>common_password_input</cstring>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="common_password_input">
+     <property name="echoMode">
+      <enum>QLineEdit::EchoMode::Password</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="common_login_button">
+     <property name="text">
+      <string>Log In</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="common_logout_button">
+     <property name="text">
+      <string>Log Out</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="common_login_failed">
+     <property name="styleSheet">
+      <string notr="true">QLabel { color : red; }</string>
+     </property>
+     <property name="text">
+      <string>Login Failed</string>
+     </property>
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="function_settings_label">
+     <property name="text">
+      <string extracomment="Settings that affect the functionality of unlocking achievements.">Function Settings</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_hardcore_enabled_input">
+     <property name="text">
+      <string>Enable Hardcore Mode</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_unofficial_enabled_input">
+     <property name="text">
+      <string>Enable Unofficial Achievements</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_encore_enabled_input">
+     <property name="text">
+      <string>Enable Encore Achievements</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_spectator_enabled_input">
+     <property name="text">
+      <string>Enable Spectator Mode</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="display_settings_label">
+     <property name="text">
+      <string extracomment="Settings that affect how achievements are displayed while playing.">Display Settings</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_discord_presence_enabled_input">
+     <property name="text">
+      <string>Enable Discord Presence</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_leaderboard_tracker_enabled_input">
+     <property name="text">
+      <string>Show Leaderboard Tracker</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_challenge_indicators_enabled_input">
+     <property name="text">
+      <string>Show Challenge Indicators</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="common_progress_enabled_input">
+     <property name="text">
+      <string>Enable Progress Notifications</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>common_integration_enabled_input</tabstop>
+  <tabstop>common_username_input</tabstop>
+  <tabstop>common_password_input</tabstop>
+  <tabstop>common_login_button</tabstop>
+  <tabstop>common_logout_button</tabstop>
+  <tabstop>common_hardcore_enabled_input</tabstop>
+  <tabstop>common_unofficial_enabled_input</tabstop>
+  <tabstop>common_encore_enabled_input</tabstop>
+  <tabstop>common_spectator_enabled_input</tabstop>
+  <tabstop>common_discord_presence_enabled_input</tabstop>
+  <tabstop>common_leaderboard_tracker_enabled_input</tabstop>
+  <tabstop>common_challenge_indicators_enabled_input</tabstop>
+  <tabstop>common_progress_enabled_input</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

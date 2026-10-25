@@ -3,17 +3,20 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QDialog>
 
 #include "DolphinQt/GameList/GameListModel.h"
 
-class QVBoxLayout;
-class QListWidget;
-class QDialogButtonBox;
-
 namespace UICommon
 {
 class GameFile;
+}
+
+namespace Ui
+{
+class GameListDialog;
 }
 
 class GameListDialog : public QDialog
@@ -21,17 +24,15 @@ class GameListDialog : public QDialog
   Q_OBJECT
 public:
   explicit GameListDialog(const GameListModel& game_list_model, QWidget* parent);
+  ~GameListDialog() override;
 
   int exec() override;
   const UICommon::GameFile& GetSelectedGame() const;
 
 private:
-  void CreateWidgets();
   void ConnectWidgets();
   void PopulateGameList();
 
   const GameListModel& m_game_list_model;
-  QVBoxLayout* m_main_layout;
-  QListWidget* m_game_list;
-  QDialogButtonBox* m_button_box;
+  std::unique_ptr<Ui::GameListDialog> m_ui;
 };

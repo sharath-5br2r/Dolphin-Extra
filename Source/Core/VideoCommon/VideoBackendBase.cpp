@@ -45,6 +45,7 @@
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/AsyncRequests.h"
 #include "VideoCommon/BPStructs.h"
+#include "VideoCommon/BigPicture/StandaloneSession.h"
 #include "VideoCommon/BoundingBox.h"
 #include "VideoCommon/CPMemory.h"
 #include "VideoCommon/CommandProcessor.h"
@@ -70,6 +71,11 @@
 #include "VideoCommon/XFStateManager.h"
 
 VideoBackendBase* g_video_backend = nullptr;
+
+bool VideoBackendBase::PresentUI()
+{
+  return g_presenter->PresentUI();
+}
 
 #ifdef _WIN32
 #include <windows.h>
@@ -253,9 +259,11 @@ void VideoBackendBase::ActivateBackend(const std::string& name)
 
 void VideoBackendBase::PopulateBackendInfo(const WindowSystemInfo& wsi)
 {
+  const std::lock_guard init_lock(VideoCommon::BigPicture::GetBackendInitializationMutex());
   // If the core has been initialized, the backend info will have been populated already. Doing it
   // again would be unnecessary and could cause the UI thread to race with the GPU thread.
-  if (!Core::IsUninitialized(Core::System::GetInstance()))
+  if (!Core::IsUninitialized(Core::System::GetInstance()) ||
+      VideoCommon::BigPicture::IsStandaloneActive())
     return;
 
   g_Config.Refresh();
@@ -369,8 +377,32 @@ bool VideoBackendBase::InitializeShared(std::unique_ptr<AbstractGfx> gfx,
   return true;
 }
 
-void VideoBackendBase::ShutdownShared()
+bool VideoBackendBase::InitializeUIShared(std::unique_ptr<AbstractGfx> gfx,
+                                          std::unique_ptr<VertexManagerBase> vertex_manager)
 {
+  g_gfx = std::move(gfx);
+  g_vertex_manager = std::move(vertex_manager);
+  g_presenter = std::make_unique<VideoCommon::Presenter>(true);
+  m_initialized = true;
+  if (!g_vertex_manager->Initialize() || !g_presenter->InitializeUI())
+  {
+    Shutdown();
+    return false;
+  }
+  return true;
+}
+
+void VideoBackendBase::ShutdownShared(bool keep_gfx)
+{
+  if (m_ui_only)
+  {
+    g_presenter.reset();
+    g_vertex_manager.reset();
+    if (!keep_gfx)
+      g_gfx.reset();
+    m_initialized = false;
+    return;
+  }
   auto& system = Core::System::GetInstance();
   system.GetCustomResourceManager().Shutdown();
 
@@ -391,7 +423,8 @@ void VideoBackendBase::ShutdownShared()
   g_vertex_manager.reset();
   g_efb_interface.reset();
   g_widescreen.reset();
-  g_gfx.reset();
+  if (!keep_gfx)
+    g_gfx.reset();
 
   m_initialized = false;
 

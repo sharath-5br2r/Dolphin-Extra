@@ -11,8 +11,6 @@
 
 #include <QDialogButtonBox>
 #include <QDir>
-#include <QGridLayout>
-#include <QGroupBox>
 #include <QHeaderView>
 #include <QImage>
 #include <QLabel>
@@ -39,7 +37,8 @@
 #include "DolphinQt/GCMemcardCreateNewDialog.h"
 #include "DolphinQt/QtUtils/DolphinFileDialog.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
-#include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
+
+#include "ui_GCMemcardManager.h"
 
 using namespace ExpansionInterface;
 
@@ -54,7 +53,6 @@ constexpr int COLUMN_INDEX_BANNER = 1;
 constexpr int COLUMN_INDEX_TEXT = 2;
 constexpr int COLUMN_INDEX_ICON = 3;
 constexpr int COLUMN_INDEX_BLOCKS = 4;
-constexpr int COLUMN_COUNT = 5;
 
 namespace
 {
@@ -74,7 +72,8 @@ struct GCMemcardManager::IconAnimationData
   std::vector<u8> m_frame_timing;
 };
 
-GCMemcardManager::GCMemcardManager(QWidget* parent) : QDialog(parent)
+GCMemcardManager::GCMemcardManager(QWidget* parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::GCMemcardManager>())
 {
   CreateWidgets();
   ConnectWidgets();
@@ -90,25 +89,22 @@ GCMemcardManager::GCMemcardManager(QWidget* parent) : QDialog(parent)
   m_timer->start(1000 / 15);
 
   LoadDefaultMemcards();
-
-  // Make the dimensions more reasonable on startup
-  resize(650, 500);
-
-  setWindowTitle(tr("GameCube Memory Card Manager"));
 }
 
 GCMemcardManager::~GCMemcardManager() = default;
 
 void GCMemcardManager::CreateWidgets()
 {
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Close);
+  m_ui->setupUi(this);
+  m_button_box = m_ui->buttonBox;
 
-  // Actions
-  m_select_button = new NonDefaultQPushButton;
-  m_copy_button = new NonDefaultQPushButton;
-  m_delete_button = new NonDefaultQPushButton(tr("&Delete"));
+  m_select_button = m_ui->selectButton;
+  m_copy_button = m_ui->copyButton;
+  m_delete_button = m_ui->deleteButton;
+  m_export_button = m_ui->exportButton;
+  m_import_button = m_ui->importButton;
+  m_fix_checksums_button = m_ui->fixChecksumsButton;
 
-  m_export_button = new QToolButton(this);
   m_export_menu = new QMenu(m_export_button);
   m_export_gci_action = new QAction(tr("&Export as .gci..."), m_export_menu);
   m_export_gcs_action = new QAction(tr("Export as .&gcs..."), m_export_menu);
@@ -120,40 +116,22 @@ void GCMemcardManager::CreateWidgets()
   m_export_button->setPopupMode(QToolButton::MenuButtonPopup);
   m_export_button->setMenu(m_export_menu);
 
-  m_import_button = new NonDefaultQPushButton(tr("&Import..."));
-  m_fix_checksums_button = new NonDefaultQPushButton(tr("Fix Checksums"));
-
-  auto* layout = new QGridLayout;
+  m_slot_file_edit[Slot::A] = m_ui->slotAFileLineEdit;
+  m_slot_file_edit[Slot::B] = m_ui->slotBFileLineEdit;
+  m_slot_open_button[Slot::A] = m_ui->slotAOpenButton;
+  m_slot_open_button[Slot::B] = m_ui->slotBOpenButton;
+  m_slot_create_button[Slot::A] = m_ui->slotACreateButton;
+  m_slot_create_button[Slot::B] = m_ui->slotBCreateButton;
+  m_slot_table[Slot::A] = m_ui->slotATableWidget;
+  m_slot_table[Slot::B] = m_ui->slotBTableWidget;
+  m_slot_stat_label[Slot::A] = m_ui->slotAStatLabel;
+  m_slot_stat_label[Slot::B] = m_ui->slotBStatLabel;
 
   for (Slot slot : MEMCARD_SLOTS)
   {
-    m_slot_group[slot] = new QGroupBox(slot == Slot::A ? tr("Slot A") : tr("Slot B"));
-    m_slot_file_edit[slot] = new QLineEdit;
-    m_slot_open_button[slot] = new NonDefaultQPushButton(tr("&Open..."));
-    m_slot_create_button[slot] = new NonDefaultQPushButton(tr("&Create..."));
-    m_slot_table[slot] = new QTableWidget;
-    m_slot_table[slot]->setTabKeyNavigation(false);
-    m_slot_table[slot]->setHorizontalScrollMode(QAbstractItemView::ScrollMode::ScrollPerPixel);
-    m_slot_table[slot]->setVerticalScrollMode(QAbstractItemView::ScrollMode::ScrollPerPixel);
-    m_slot_stat_label[slot] = new QLabel;
-
-    m_slot_table[slot]->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    m_slot_table[slot]->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_slot_table[slot]->setSortingEnabled(true);
     m_slot_table[slot]->horizontalHeader()->setHighlightSections(false);
     m_slot_table[slot]->horizontalHeader()->setMinimumSectionSize(0);
     m_slot_table[slot]->horizontalHeader()->setSortIndicatorShown(true);
-    m_slot_table[slot]->setColumnCount(COLUMN_COUNT);
-    m_slot_table[slot]->setHorizontalHeaderItem(COLUMN_INDEX_FILENAME,
-                                                new QTableWidgetItem(tr("Filename")));
-    m_slot_table[slot]->setHorizontalHeaderItem(COLUMN_INDEX_BANNER,
-                                                new QTableWidgetItem(tr("Banner")));
-    m_slot_table[slot]->setHorizontalHeaderItem(COLUMN_INDEX_TEXT,
-                                                new QTableWidgetItem(tr("Title")));
-    m_slot_table[slot]->setHorizontalHeaderItem(COLUMN_INDEX_ICON,
-                                                new QTableWidgetItem(tr("Icon")));
-    m_slot_table[slot]->setHorizontalHeaderItem(COLUMN_INDEX_BLOCKS,
-                                                new QTableWidgetItem(tr("Blocks")));
     m_slot_table[slot]->setColumnWidth(COLUMN_INDEX_FILENAME, COLUMN_WIDTH_FILENAME);
     m_slot_table[slot]->setColumnWidth(COLUMN_INDEX_BANNER, COLUMN_WIDTH_BANNER);
     m_slot_table[slot]->setColumnWidth(COLUMN_INDEX_TEXT, COLUMN_WIDTH_TEXT);
@@ -161,31 +139,9 @@ void GCMemcardManager::CreateWidgets()
     m_slot_table[slot]->setColumnWidth(COLUMN_INDEX_BLOCKS, COLUMN_WIDTH_BLOCKS);
     m_slot_table[slot]->verticalHeader()->setDefaultSectionSize(ROW_HEIGHT);
     m_slot_table[slot]->verticalHeader()->hide();
-    m_slot_table[slot]->setShowGrid(false);
-
-    auto* slot_layout = new QGridLayout;
-    m_slot_group[slot]->setLayout(slot_layout);
-
-    slot_layout->addWidget(m_slot_file_edit[slot], 0, 0);
-    slot_layout->addWidget(m_slot_open_button[slot], 0, 1);
-    slot_layout->addWidget(m_slot_create_button[slot], 0, 2);
-    slot_layout->addWidget(m_slot_table[slot], 1, 0, 1, 3);
-    slot_layout->addWidget(m_slot_stat_label[slot], 2, 0);
-
-    layout->addWidget(m_slot_group[slot], 0, slot == Slot::A ? 0 : 2, 8, 1);
 
     UpdateSlotTable(slot);
   }
-
-  layout->addWidget(m_select_button, 1, 1);
-  layout->addWidget(m_copy_button, 2, 1);
-  layout->addWidget(m_delete_button, 3, 1);
-  layout->addWidget(m_export_button, 4, 1);
-  layout->addWidget(m_import_button, 5, 1);
-  layout->addWidget(m_fix_checksums_button, 6, 1);
-  layout->addWidget(m_button_box, 8, 2);
-
-  setLayout(layout);
 }
 
 void GCMemcardManager::ConnectWidgets()

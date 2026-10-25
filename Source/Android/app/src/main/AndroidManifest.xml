@@ -146,6 +146,11 @@
             android:theme="@style/Theme.Dolphin.Main" />
 
         <activity
+            android:name=".features.settings.ui.shaderparameters.ShaderParametersActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Dolphin.Main" />
+
+        <activity
             android:name=".features.riivolution.ui.RiivolutionBootActivity"
             android:exported="false"
             android:theme="@style/Theme.Dolphin.Main" />

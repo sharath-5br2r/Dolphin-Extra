@@ -103,6 +103,9 @@ static jmethodID s_graphics_mod_constructor;
 static jclass s_riivolution_patches_class;
 static jfieldID s_riivolution_patches_pointer;
 
+static jclass s_shader_parameter_editor_class;
+static jfieldID s_shader_parameter_editor_pointer;
+
 static jclass s_wii_update_cb_class;
 static jmethodID s_wii_update_cb_run;
 
@@ -546,6 +549,16 @@ jfieldID GetRiivolutionPatchesPointer()
   return s_riivolution_patches_pointer;
 }
 
+jclass GetShaderParameterEditorClass()
+{
+  return s_shader_parameter_editor_class;
+}
+
+jfieldID GetShaderParameterEditorPointer()
+{
+  return s_shader_parameter_editor_pointer;
+}
+
 jclass GetWiiUpdateCallbackClass()
 {
   return s_wii_update_cb_class;
@@ -919,6 +932,14 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
   s_riivolution_patches_pointer = env->GetFieldID(riivolution_patches_class, "pointer", "J");
   env->DeleteLocalRef(riivolution_patches_class);
 
+  const jclass shader_parameter_editor_class = env->FindClass(
+      "org/dolphinemu/dolphinemu/features/settings/model/ShaderParameterEditor");
+  s_shader_parameter_editor_class =
+      reinterpret_cast<jclass>(env->NewGlobalRef(shader_parameter_editor_class));
+  s_shader_parameter_editor_pointer =
+      env->GetFieldID(shader_parameter_editor_class, "pointer", "J");
+  env->DeleteLocalRef(shader_parameter_editor_class);
+
   const jclass wii_update_cb_class =
       env->FindClass("org/dolphinemu/dolphinemu/utils/WiiUpdateCallback");
   s_wii_update_cb_class = reinterpret_cast<jclass>(env->NewGlobalRef(wii_update_cb_class));
@@ -1042,6 +1063,7 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
   env->DeleteGlobalRef(s_graphics_mod_group_class);
   env->DeleteGlobalRef(s_graphics_mod_class);
   env->DeleteGlobalRef(s_riivolution_patches_class);
+  env->DeleteGlobalRef(s_shader_parameter_editor_class);
   env->DeleteGlobalRef(s_wii_update_cb_class);
   env->DeleteGlobalRef(s_control_class);
   env->DeleteGlobalRef(s_control_group_class);

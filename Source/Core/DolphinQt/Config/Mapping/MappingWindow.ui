@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MappingWindow</class>
+ <widget class="QDialog" name="MappingWindow">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <layout class="QHBoxLayout" name="configLayout">
+     <item>
+      <widget class="QGroupBox" name="devicesBox">
+       <property name="title">
+        <string>Device</string>
+       </property>
+       <layout class="QHBoxLayout" name="devicesLayout">
+        <item>
+         <widget class="QComboBox" name="devicesComboBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="deviceOptionsButton">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="popupMode">
+           <enum>QToolButton::ToolButtonPopupMode::MenuButtonPopup</enum>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="resetBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="title">
+        <string>Reset</string>
+       </property>
+       <layout class="QHBoxLayout" name="resetLayout">
+        <item>
+         <widget class="QPushButton" name="resetDefaultButton">
+          <property name="text">
+           <string>Default</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="resetClearButton">
+          <property name="text">
+           <string>Clear</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="profilesBox">
+       <property name="title">
+        <string>Profile</string>
+       </property>
+       <layout class="QHBoxLayout" name="profilesLayout">
+        <item>
+         <widget class="QComboBox" name="profilesComboBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>100</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="profileButtonLayout">
+          <item>
+           <widget class="QPushButton" name="profilesLoadButton">
+            <property name="text">
+             <string>Load</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="profilesSaveButton">
+            <property name="text">
+             <string>Save</string>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="profileOtherActionsButton">
+            <property name="styleSheet">
+             <string notr="true">QToolButton::menu-indicator { image: none; }</string>
+            </property>
+            <property name="popupMode">
+             <enum>QToolButton::ToolButtonPopupMode::InstantPopup</enum>
+            </property>
+            <property name="arrowType">
+             <enum>Qt::ArrowType::DownArrow</enum>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="tabBarAutoHide">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>devicesComboBox</tabstop>
+  <tabstop>deviceOptionsButton</tabstop>
+  <tabstop>resetDefaultButton</tabstop>
+  <tabstop>resetClearButton</tabstop>
+  <tabstop>profilesComboBox</tabstop>
+  <tabstop>profilesLoadButton</tabstop>
+  <tabstop>profilesSaveButton</tabstop>
+  <tabstop>profileOtherActionsButton</tabstop>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

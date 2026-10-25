@@ -3,19 +3,15 @@
 
 #include "DolphinQt/Config/Mapping/GCKeyboardEmu.h"
 
-#include <QFormLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
+#include <QFontMetrics>
 #include <QStyle>
-#include <QVBoxLayout>
 
 #include "InputCommon/InputConfig.h"
 
 #include "Core/HW/GCKeyboard.h"
 #include "Core/HW/GCKeyboardEmu.h"
 
-#include "DolphinQt/QtUtils/QtUtils.h"
+#include "ui_GCKeyboardEmu.h"
 
 GCKeyboardEmu::GCKeyboardEmu(MappingWindow* window) : MappingWidget(window)
 {
@@ -24,24 +20,15 @@ GCKeyboardEmu::GCKeyboardEmu(MappingWindow* window) : MappingWidget(window)
 
 void GCKeyboardEmu::CreateMainLayout()
 {
-  auto* const vbox_layout = new QVBoxLayout{this};
-
-  auto* const warning_text =
-      new QLabel(tr("You are configuring a \"Keyboard Controller\". "
-                    "This device is exclusively for \"Phantasy Star Online Episode I & II\". "
-                    "If you are unsure, turn back now and configure a \"Standard Controller\"."));
-  warning_text->setWordWrap(true);
-
-  vbox_layout->addWidget(
-      QtUtils::CreateIconWarning(this, QStyle::SP_MessageBoxWarning, warning_text));
-
-  auto* const layout = new QHBoxLayout;
+  Ui::GCKeyboardEmu ui;
+  ui.setupUi(this);
+  const int icon_size = QFontMetrics(font()).height() * 5 / 4;
+  ui.warningIconLabel->setPixmap(
+      style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(icon_size, icon_size));
 
   using KG = KeyboardGroup;
   for (auto kbg : {KG::Kb0x, KG::Kb1x, KG::Kb2x, KG::Kb3x, KG::Kb4x, KG::Kb5x})
-    layout->addWidget(CreateGroupBox(QString{}, Keyboard::GetGroup(GetPort(), kbg)));
-
-  vbox_layout->addLayout(layout);
+    ui.groupLayout->addWidget(CreateGroupBox(QString{}, Keyboard::GetGroup(GetPort(), kbg)));
 }
 
 void GCKeyboardEmu::LoadSettings()

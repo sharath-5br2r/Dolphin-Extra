@@ -17,6 +17,8 @@ add_library(videod3d12
   DescriptorHeapManager.h
   DX12Context.cpp
   DX12Context.h
+  DX12LibrashaderRuntime.cpp
+  DX12LibrashaderRuntime.h
   DX12Pipeline.cpp
   DX12Pipeline.h
   DX12Shader.cpp

@@ -14,6 +14,7 @@
 
 #include "AudioCommon/AudioCommon.h"
 
+#include "Common/BigPicture/PresentationState.h"
 #include "Common/Config/Config.h"
 #include "Common/Thread.h"
 
@@ -24,6 +25,7 @@
 #include "Core/Config/UISettings.h"
 #include "Core/Core.h"
 #include "Core/FreeLookManager.h"
+#include "Core/Host.h"
 #include "Core/HotkeyManager.h"
 #include "Core/IOS/IOS.h"
 #include "Core/State.h"
@@ -36,13 +38,12 @@
 #endif
 #include "DolphinQt/Settings.h"
 
+#include "InputCommon/BigPictureInput.h"
 #include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 
 #include "VideoCommon/OnScreenDisplay.h"
 #include "VideoCommon/VideoConfig.h"
-
-constexpr const char* DUBOIS_ALGORITHM_SHADER = "dubois";
 
 HotkeyScheduler::HotkeyScheduler() : m_stop_requested(false)
 {
@@ -148,8 +149,51 @@ void HotkeyScheduler::Run()
   {
     Common::SleepCurrentThread(5);
 
+    // Menu input has its own channel and must precede guest-affecting hotkeys/FreeLook.
+    // Share the existing sample with both relative-input readers before either evaluates bindings.
     g_controller_interface.SetCurrentInputChannel(ciface::InputChannel::FreeLook);
-    g_controller_interface.UpdateInput();
+    g_controller_interface.UpdateInput(ciface::InputChannel::BigPicture);
+    auto& presentation = BigPicture::GetPresentationState();
+    const auto input_epoch = presentation.GetFrameInputEpoch();
+    const bool toggle = BigPictureInput::Poll(
+        HotkeyManagerEmu::IsEnabled() && Host_RendererHasFocus(), presentation.IsModal());
+    for (const auto& request : presentation.TakeNavigationRequests())
+    {
+      if (request.options)
+      {
+        const auto& options = *request.options;
+        emit BigPictureOptions(options.swap_confirm_back, options.scale, options.safe_area,
+                               request.generation, request.input_epoch);
+      }
+      else
+      {
+        emit BigPictureAction(static_cast<int>(request.action), request.generation,
+                              request.input_epoch, request.slot, request.confirmation_id,
+                              QString::fromStdString(request.path));
+      }
+    }
+    if (toggle)
+    {
+      const auto snapshot = presentation.GetSnapshot();
+      if (snapshot && (snapshot->mode == BigPicture::Mode::Library ||
+                       snapshot->host.lifecycle == BigPicture::Lifecycle::Running ||
+                       snapshot->host.lifecycle == BigPicture::Lifecycle::Paused))
+      {
+        if (snapshot->mode == BigPicture::Mode::Desktop)
+        {
+          if (const auto epoch = presentation.BeginMenuRequest(snapshot->generation, input_epoch))
+            emit BigPictureAction(static_cast<int>(BigPicture::Action::OpenMenu),
+                                  snapshot->generation, *epoch);
+        }
+        else
+        {
+          emit BigPictureAction(static_cast<int>(BigPicture::Action::ReturnToDesktop),
+                                snapshot->generation, input_epoch);
+        }
+      }
+      continue;
+    }
+
     FreeLook::UpdateInput();
 
     g_controller_interface.SetCurrentInputChannel(ciface::InputChannel::Host);
@@ -170,6 +214,14 @@ void HotkeyScheduler::Run()
       ControlReference::SetInputGate(true);
 
       HotkeyManagerEmu::GetStatus(true);
+
+      // Menu navigation has a separate input channel. Polling the host status above clears
+      // old hotkey presses; no emulation/config hotkey may leak through a modal menu.
+      if (BigPicture::GetPresentationState().IsModal())
+      {
+        HandleFrameStepHotkeys();
+        continue;
+      }
 
       // Open
       if (IsHotkey(HK_OPEN))
@@ -567,10 +619,8 @@ void HotkeyScheduler::Run()
       {
         if (Config::Get(Config::GFX_STEREO_MODE) != StereoMode::SideBySide)
         {
-          // Disable post-processing shader, as stereoscopy itself is currently a shader
-          if (Config::Get(Config::GFX_ENHANCE_POST_SHADER) == DUBOIS_ALGORITHM_SHADER)
-            Config::SetCurrent(Config::GFX_ENHANCE_POST_SHADER, "");
-
+          // No post-shader to clear: stereoscopy is no longer implemented by one, and
+          // GFX_ENHANCE_POST_SHADER now holds ';'-separated slang preset paths.
           Config::SetCurrent(Config::GFX_STEREO_MODE, StereoMode::SideBySide);
         }
         else
@@ -583,10 +633,6 @@ void HotkeyScheduler::Run()
       {
         if (Config::Get(Config::GFX_STEREO_MODE) != StereoMode::TopAndBottom)
         {
-          // Disable post-processing shader, as stereoscopy itself is currently a shader
-          if (Config::Get(Config::GFX_ENHANCE_POST_SHADER) == DUBOIS_ALGORITHM_SHADER)
-            Config::SetCurrent(Config::GFX_ENHANCE_POST_SHADER, "");
-
           Config::SetCurrent(Config::GFX_STEREO_MODE, StereoMode::TopAndBottom);
         }
         else
@@ -595,19 +641,10 @@ void HotkeyScheduler::Run()
         }
       }
 
-      if (IsHotkey(HK_TOGGLE_STEREO_ANAGLYPH))
-      {
-        if (Config::Get(Config::GFX_STEREO_MODE) != StereoMode::Anaglyph)
-        {
-          Config::SetCurrent(Config::GFX_STEREO_MODE, StereoMode::Anaglyph);
-          Config::SetCurrent(Config::GFX_ENHANCE_POST_SHADER, DUBOIS_ALGORITHM_SHADER);
-        }
-        else
-        {
-          Config::SetCurrent(Config::GFX_STEREO_MODE, StereoMode::Off);
-          Config::SetCurrent(Config::GFX_ENHANCE_POST_SHADER, "");
-        }
-      }
+      // There is no anaglyph hotkey any more: StereoMode::Anaglyph was implemented by the removed
+      // post-processing shader, so HK_TOGGLE_STEREO_ANAGLYPH is gone too. Hotkeys are persisted by
+      // group/control name rather than by enum index (ControlGroup::SaveConfig), so dropping the
+      // enumerator does not disturb any other binding in an existing Hotkeys.ini.
 
       CheckGBAHotkeys();
     }

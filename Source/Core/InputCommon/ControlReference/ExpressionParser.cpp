@@ -319,6 +319,7 @@ public:
   }
 
   Device::Input* GetInput() const { return m_input; }
+  bool IsAnyInputActive() const override { return m_input && m_input->IsPressedForCapture(); }
 
 private:
   // Keep a shared_ptr to the device so the control pointer doesn't become invalid.
@@ -461,6 +462,15 @@ public:
   {
     return lhs->CountNumControls() + rhs->CountNumControls();
   }
+  bool IsAnyInputActive() const override
+  {
+    return lhs->IsAnyInputActive() || rhs->IsAnyInputActive();
+  }
+  void ClearHotkeySuppressions() override
+  {
+    lhs->ClearHotkeySuppressions();
+    rhs->ClearHotkeySuppressions();
+  }
 
   void UpdateReferences(ControlEnvironment& env) override
   {
@@ -602,12 +612,24 @@ public:
 
   void SetValue(ControlState) override {}
 
+  void ClearHotkeySuppressions() override
+  {
+    m_suppressor = {};
+    m_is_blocked = true;
+  }
+
   int CountNumControls() const override
   {
     int result = 0;
     for (auto& input : m_modifiers)
       result += input->CountNumControls();
     return result + m_final_input->CountNumControls();
+  }
+  bool IsAnyInputActive() const override
+  {
+    return m_final_input->IsAnyInputActive() ||
+           std::ranges::any_of(m_modifiers,
+                               [](const auto& input) { return input->IsAnyInputActive(); });
   }
 
   void UpdateReferences(ControlEnvironment& env) override
@@ -653,6 +675,12 @@ public:
   void SetValue(ControlState value) override { GetActiveChild()->SetValue(value); }
 
   int CountNumControls() const override { return GetActiveChild()->CountNumControls(); }
+  bool IsAnyInputActive() const override { return GetActiveChild()->IsAnyInputActive(); }
+  void ClearHotkeySuppressions() override
+  {
+    m_lhs->ClearHotkeySuppressions();
+    m_rhs->ClearHotkeySuppressions();
+  }
   void UpdateReferences(ControlEnvironment& env) override
   {
     m_lhs->UpdateReferences(env);

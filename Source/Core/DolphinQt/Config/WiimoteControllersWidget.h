@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <memory>
 #include <span>
 
 #include <QWidget>
@@ -12,19 +13,18 @@
 #include "Core/USBUtils.h"
 
 class QAction;
-class QCheckBox;
 class QComboBox;
-class QHBoxLayout;
-class QGridLayout;
-class QToolButton;
-class QGroupBox;
 class QLabel;
 class QPushButton;
-class QRadioButton;
 
 namespace Core
 {
 enum class State;
+}
+
+namespace Ui
+{
+class WiimoteControllersWidget;
 }
 
 class WiimoteControllersWidget final : public QWidget
@@ -45,7 +45,7 @@ private:
   void StartBluetoothAdapterRefresh();
   void UpdateBluetoothAdapterWidgetsEnabled(Core::State state);
 
-  void CreateLayout();
+  void InitializeControls();
   void ConnectWidgets();
   void LoadSettings(Core::State state);
 
@@ -55,28 +55,12 @@ private:
   void TriggerHostWiimoteReset();
 #endif
 
-  QGroupBox* m_wiimote_box;
-  QGridLayout* m_wiimote_layout;
+  std::unique_ptr<Ui::WiimoteControllersWidget> m_ui;
   std::array<QLabel*, 4> m_wiimote_labels;
   std::array<QComboBox*, 4> m_wiimote_boxes;
   std::array<QPushButton*, 4> m_wiimote_buttons;
-  std::array<QHBoxLayout*, 4> m_wiimote_groups;
   std::array<QLabel*, 2> m_wiimote_pt_labels;
 
   Common::AsyncWorkThreadSP m_bluetooth_adapter_refresh_thread;
   bool m_bluetooth_adapter_scan_in_progress = false;
-
-  QRadioButton* m_wiimote_emu;
-  QRadioButton* m_wiimote_passthrough;
-  QLabel* m_bluetooth_adapters_label;
-  QComboBox* m_bluetooth_adapters;
-  QPushButton* m_bluetooth_adapters_refresh;
-  QPushButton* m_wiimote_sync;
-  QPushButton* m_wiimote_reset;
-  QCheckBox* m_wiimote_continuous_scanning;
-  QCheckBox* m_wiimote_real_balance_board;
-  QCheckBox* m_wiimote_speaker_data;
-  QCheckBox* m_wiimote_ciface;
-  QToolButton* m_wiimote_refresh;
-  QLabel* m_wiimote_refresh_indicator;
 };

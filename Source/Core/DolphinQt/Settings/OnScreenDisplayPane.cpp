@@ -3,139 +3,72 @@
 
 #include "DolphinQt/Settings/OnScreenDisplayPane.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QLabel>
-#include <QVBoxLayout>
+#include <memory>
+
+#include <QCheckBox>
 #include <QWidget>
 
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigInteger.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 
-OnScreenDisplayPane::OnScreenDisplayPane(QWidget* parent) : QWidget(parent)
+#include "ui_OnScreenDisplayPane.h"
+
+OnScreenDisplayPane::OnScreenDisplayPane(QWidget* parent)
+    : QWidget(parent), m_ui(std::make_unique<Ui::OnScreenDisplayPane>())
 {
-  CreateLayout();
+  m_ui->setupUi(this);
+  BindSettings();
   ConnectLayout();
   AddDescriptions();
 }
 
-void OnScreenDisplayPane::CreateLayout()
+OnScreenDisplayPane::~OnScreenDisplayPane() = default;
+
+void OnScreenDisplayPane::BindSettings()
 {
-  // General
-  auto* general_box = new QGroupBox(tr("General"));
-  auto* general_layout = new QGridLayout();
-  general_box->setLayout(general_layout);
+  ConfigWidget::Bind(m_ui->showMessagesCheckBox, Config::MAIN_OSD_MESSAGES);
+  ConfigWidget::Bind(m_ui->fontSizeSpinBox, Config::MAIN_OSD_FONT_SIZE);
 
-  m_enable_osd = new ConfigBool(tr("Show Messages"), Config::MAIN_OSD_MESSAGES);
-  m_checkbox_adapter_warning = new ConfigBool(tr("Show Adapter Poll Rate Warning"), Config::MAIN_SHOW_ADAPTER_WARNING);
-  m_font_size = new ConfigInteger(12, 40, Config::MAIN_OSD_FONT_SIZE);
+  ConfigWidget::Bind(m_ui->showFpsCheckBox, Config::GFX_SHOW_FPS);
+  ConfigWidget::Bind(m_ui->showFrameTimesCheckBox, Config::GFX_SHOW_FTIMES);
+  ConfigWidget::Bind(m_ui->showVpsCheckBox, Config::GFX_SHOW_VPS);
+  ConfigWidget::Bind(m_ui->showVblankTimesCheckBox, Config::GFX_SHOW_VTIMES);
+  ConfigWidget::Bind(m_ui->showSpeedCheckBox, Config::GFX_SHOW_SPEED);
+  ConfigWidget::Bind(m_ui->showGraphsCheckBox, Config::GFX_SHOW_GRAPHS);
+  ConfigWidget::Bind(m_ui->showSpeedColorsCheckBox, Config::GFX_SHOW_SPEED_COLORS);
+  ConfigWidget::Bind(m_ui->performanceSampleWindowSpinBox, Config::GFX_PERF_SAMP_WINDOW);
 
-  general_layout->addWidget(m_enable_osd, 0, 0);
-  general_layout->addWidget(m_checkbox_adapter_warning, 0, 1);
-  general_layout->addWidget(new QLabel(tr("Font Size:")), 1, 0);
-  m_font_size->SetTitle(tr("Font Size"));
-  general_layout->addWidget(m_font_size, 1, 1);
+  ConfigWidget::Bind(m_ui->showMovieWindowCheckBox, Config::MAIN_MOVIE_SHOW_OSD);
+  ConfigWidget::Bind(m_ui->showRerecordCounterCheckBox, Config::MAIN_MOVIE_SHOW_RERECORD);
+  ConfigWidget::Bind(m_ui->showLagCounterCheckBox, Config::MAIN_SHOW_LAG);
+  ConfigWidget::Bind(m_ui->showFrameCounterCheckBox, Config::MAIN_SHOW_FRAME_COUNT);
+  ConfigWidget::Bind(m_ui->showInputDisplayCheckBox, Config::MAIN_MOVIE_SHOW_INPUT_DISPLAY);
+  ConfigWidget::Bind(m_ui->showSystemClockCheckBox, Config::MAIN_MOVIE_SHOW_RTC);
 
-  // Performance
-  auto* performance_box = new QGroupBox(tr("Performance Statistics"));
-  auto* performance_layout = new QGridLayout();
-  performance_box->setLayout(performance_layout);
+  ConfigWidget::Bind(m_ui->showNetplayPingCheckBox, Config::GFX_SHOW_NETPLAY_PING);
+  ConfigWidget::Bind(m_ui->showNetplayChatCheckBox, Config::GFX_SHOW_NETPLAY_MESSAGES);
 
-  m_show_fps = new ConfigBool(tr("Show FPS"), Config::GFX_SHOW_FPS);
-  m_show_ftimes = new ConfigBool(tr("Show Frame Times"), Config::GFX_SHOW_FTIMES);
-  m_show_vps = new ConfigBool(tr("Show VPS"), Config::GFX_SHOW_VPS);
-  m_show_vtimes = new ConfigBool(tr("Show VBlank Times"), Config::GFX_SHOW_VTIMES);
-  m_show_speed = new ConfigBool(tr("Show % Speed"), Config::GFX_SHOW_SPEED);
-  m_show_graph = new ConfigBool(tr("Show Performance Graphs"), Config::GFX_SHOW_GRAPHS);
-  m_speed_colors = new ConfigBool(tr("Show Speed Colors"), Config::GFX_SHOW_SPEED_COLORS);
-  m_perf_sample_window = new ConfigInteger(0, 10000, Config::GFX_PERF_SAMP_WINDOW, 100);
-
-  performance_layout->addWidget(m_show_fps, 0, 0);
-  performance_layout->addWidget(m_show_ftimes, 0, 1);
-  performance_layout->addWidget(m_show_vps, 1, 0);
-  performance_layout->addWidget(m_show_vtimes, 1, 1);
-  performance_layout->addWidget(m_show_speed, 2, 0);
-  performance_layout->addWidget(m_show_graph, 2, 1);
-  performance_layout->addWidget(m_speed_colors, 3, 0);
-  performance_layout->addWidget(new QLabel(tr("Performance Sample Window (ms):")), 4, 0);
-  m_perf_sample_window->SetTitle(tr("Performance Sample Window (ms)"));
-  performance_layout->addWidget(m_perf_sample_window, 4, 1);
-
-  // Movie
-  auto* movie_box = new QGroupBox(tr("Movie Window"));
-  auto* movie_layout = new QGridLayout();
-  movie_box->setLayout(movie_layout);
-
-  m_movie_window = new ConfigBool(tr("Show Movie Window"), Config::MAIN_MOVIE_SHOW_OSD);
-  m_rerecord_counter =
-      new ConfigBool(tr("Show Rerecord Counter"), Config::MAIN_MOVIE_SHOW_RERECORD);
-  m_lag_counter = new ConfigBool(tr("Show Lag Counter"), Config::MAIN_SHOW_LAG);
-  m_frame_counter = new ConfigBool(tr("Show Frame Counter"), Config::MAIN_SHOW_FRAME_COUNT);
-  m_input_display = new ConfigBool(tr("Show Input Display"), Config::MAIN_MOVIE_SHOW_INPUT_DISPLAY);
-  m_system_clock = new ConfigBool(tr("Show System Clock"), Config::MAIN_MOVIE_SHOW_RTC);
-
-  movie_layout->addWidget(m_movie_window, 0, 0);
-  movie_layout->addWidget(m_rerecord_counter, 1, 0);
-  movie_layout->addWidget(m_lag_counter, 1, 1);
-  movie_layout->addWidget(m_frame_counter, 2, 0);
-  movie_layout->addWidget(m_input_display, 2, 1);
-  movie_layout->addWidget(m_system_clock, 3, 0);
-
-  // NetPlay
-  auto* netplay_box = new QGroupBox(tr("Netplay"));
-  auto* netplay_layout = new QGridLayout();
-  netplay_box->setLayout(netplay_layout);
-
-  m_show_ping = new ConfigBool(tr("Show NetPlay Ping"), Config::GFX_SHOW_NETPLAY_PING);
-  m_show_chat = new ConfigBool(tr("Show NetPlay Chat"), Config::GFX_SHOW_NETPLAY_MESSAGES);
-
-  netplay_layout->addWidget(m_show_ping, 0, 0);
-  netplay_layout->addWidget(m_show_chat, 0, 1);
-
-  // Debug
-  auto* debug_box = new QGroupBox(tr("Debug"));
-  auto* debug_layout = new QGridLayout();
-  debug_box->setLayout(debug_layout);
-
-  m_show_statistics = new ConfigBool(tr("Show Statistics"), Config::GFX_OVERLAY_STATS);
-  m_show_proj_statistics =
-      new ConfigBool(tr("Show Projection Statistics"), Config::GFX_OVERLAY_PROJ_STATS);
-  m_show_internal_resolution =
-      new ConfigBool(tr("Show XFB Resolution"), Config::GFX_SHOW_INTERNAL_RESOLUTION);
-
-  debug_layout->addWidget(m_show_statistics, 0, 0);
-  debug_layout->addWidget(m_show_proj_statistics, 0, 1);
-  debug_layout->addWidget(m_show_internal_resolution, 1, 0);
-
-  // Stack GroupBoxes
-  auto* main_layout = new QVBoxLayout;
-  main_layout->addWidget(general_box);
-  main_layout->addWidget(performance_box);
-  main_layout->addWidget(movie_box);
-  main_layout->addWidget(netplay_box);
-  main_layout->addWidget(debug_box);
-  main_layout->addStretch();
-  setLayout(main_layout);
+  ConfigWidget::Bind(m_ui->showStatisticsCheckBox, Config::GFX_OVERLAY_STATS);
+  ConfigWidget::Bind(m_ui->showProjectionStatisticsCheckBox, Config::GFX_OVERLAY_PROJ_STATS);
+  ConfigWidget::Bind(m_ui->showXfbResolutionCheckBox, Config::GFX_SHOW_INTERNAL_RESOLUTION);
 }
 
 void OnScreenDisplayPane::ConnectLayout()
 {
   // Disable movie window options when window is closed.
   auto enable_movie_items = [this](bool checked) {
-    for (auto* widget :
-         {m_rerecord_counter, m_frame_counter, m_lag_counter, m_system_clock, m_input_display})
+    for (auto* widget : {m_ui->showRerecordCounterCheckBox, m_ui->showFrameCounterCheckBox,
+                         m_ui->showLagCounterCheckBox, m_ui->showSystemClockCheckBox,
+                         m_ui->showInputDisplayCheckBox})
     {
       widget->setEnabled(checked);
     }
   };
 
-  enable_movie_items(m_movie_window->isChecked());
-  connect(m_movie_window, &QCheckBox::toggled, this, [this, enable_movie_items](bool checked) {
-    enable_movie_items(m_movie_window->isChecked());
-  });
+  enable_movie_items(m_ui->showMovieWindowCheckBox->isChecked());
+  connect(m_ui->showMovieWindowCheckBox, &QCheckBox::toggled, this, enable_movie_items);
 }
 
 void OnScreenDisplayPane::AddDescriptions()
@@ -144,13 +77,6 @@ void OnScreenDisplayPane::AddDescriptions()
       QT_TR_NOOP("Shows on-screen display messages over the render window. These messages "
                  "disappear after several seconds."
                  "<br><br><dolphin_emphasis>If unsure, leave this checked.</dolphin_emphasis>");
-  static constexpr char TR_ADAPTER_WARNING_DESCRIPTION[] = QT_TR_NOOP(
-      "This setting makes Dolphin warn and show a message when inputs are being read at a reduced "
-      "rate when an adapter problem is detected."
-      " This should only occur when your adapter returns something other than LIBUSB_SUCCESS."
-      " Before turning this off, try reinstalling drivers and switching USB ports."
-      "<br><br><dolphin_emphasis>If unsure, leave this checked.</dolphin_emphasis>");
-
   static const char TR_OSD_FONT_SIZE_DESCRIPTION[] = QT_TR_NOOP(
       "Changes the font size of the On-Screen Display. Affects features such as performance "
       "statistics, frame counter, and netplay chat."
@@ -234,30 +160,47 @@ void OnScreenDisplayPane::AddDescriptions()
                  "product of width and height.<br><br><dolphin_emphasis>If unsure, leave this "
                  "unchecked.</dolphin_emphasis>");
 
-  m_enable_osd->SetDescription(tr(TR_ENABLE_OSD_DESCRIPTION));
-  m_checkbox_adapter_warning->SetDescription(tr(TR_ADAPTER_WARNING_DESCRIPTION));
-  m_font_size->SetDescription(tr(TR_OSD_FONT_SIZE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showMessagesCheckBox, QString{},
+                               tr(TR_ENABLE_OSD_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->fontSizeSpinBox, tr("Font Size"),
+                               tr(TR_OSD_FONT_SIZE_DESCRIPTION));
 
-  m_show_fps->SetDescription(tr(TR_SHOW_FPS_DESCRIPTION));
-  m_show_ftimes->SetDescription(tr(TR_SHOW_FTIMES_DESCRIPTION));
-  m_show_vps->SetDescription(tr(TR_SHOW_VPS_DESCRIPTION));
-  m_show_vtimes->SetDescription(tr(TR_SHOW_VTIMES_DESCRIPTION));
-  m_show_graph->SetDescription(tr(TR_SHOW_GRAPHS_DESCRIPTION));
-  m_show_speed->SetDescription(tr(TR_SHOW_SPEED_DESCRIPTION));
-  m_perf_sample_window->SetDescription(tr(TR_PERF_SAMP_WINDOW_DESCRIPTION));
-  m_speed_colors->SetDescription(tr(TR_SHOW_SPEED_COLORS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showFpsCheckBox, QString{}, tr(TR_SHOW_FPS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showFrameTimesCheckBox, QString{},
+                               tr(TR_SHOW_FTIMES_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showVpsCheckBox, QString{}, tr(TR_SHOW_VPS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showVblankTimesCheckBox, QString{},
+                               tr(TR_SHOW_VTIMES_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showGraphsCheckBox, QString{}, tr(TR_SHOW_GRAPHS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showSpeedCheckBox, QString{}, tr(TR_SHOW_SPEED_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->performanceSampleWindowSpinBox,
+                               tr("Performance Sample Window (ms)"),
+                               tr(TR_PERF_SAMP_WINDOW_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showSpeedColorsCheckBox, QString{},
+                               tr(TR_SHOW_SPEED_COLORS_DESCRIPTION));
 
-  m_show_ping->SetDescription(tr(TR_SHOW_NETPLAY_PING_DESCRIPTION));
-  m_show_chat->SetDescription(tr(TR_SHOW_NETPLAY_MESSAGES_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showNetplayPingCheckBox, QString{},
+                               tr(TR_SHOW_NETPLAY_PING_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showNetplayChatCheckBox, QString{},
+                               tr(TR_SHOW_NETPLAY_MESSAGES_DESCRIPTION));
 
-  m_movie_window->SetDescription(tr(TR_MOVIE_WINDOW_DESCRIPTION));
-  m_rerecord_counter->SetDescription(tr(TR_RERECORD_COUNTER_DESCRIPTION));
-  m_lag_counter->SetDescription(tr(TR_LAG_COUNTER_DESCRIPTION));
-  m_frame_counter->SetDescription(tr(TR_FRAME_COUNTER_DESCRIPTION));
-  m_input_display->SetDescription(tr(TR_INPUT_DISPLAY_DESCRIPTION));
-  m_system_clock->SetDescription(tr(TR_SYSTEM_CLOCK_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showMovieWindowCheckBox, QString{},
+                               tr(TR_MOVIE_WINDOW_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showRerecordCounterCheckBox, QString{},
+                               tr(TR_RERECORD_COUNTER_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showLagCounterCheckBox, QString{},
+                               tr(TR_LAG_COUNTER_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showFrameCounterCheckBox, QString{},
+                               tr(TR_FRAME_COUNTER_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showInputDisplayCheckBox, QString{},
+                               tr(TR_INPUT_DISPLAY_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showSystemClockCheckBox, QString{},
+                               tr(TR_SYSTEM_CLOCK_DESCRIPTION));
 
-  m_show_statistics->SetDescription(tr(TR_SHOW_STATS_DESCRIPTION));
-  m_show_proj_statistics->SetDescription(tr(TR_SHOW_PROJ_STATS_DESCRIPTION));
-  m_show_internal_resolution->SetDescription(tr(TR_SHOW_INTERNAL_RESOLUTION_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showStatisticsCheckBox, QString{},
+                               tr(TR_SHOW_STATS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showProjectionStatisticsCheckBox, QString{},
+                               tr(TR_SHOW_PROJ_STATS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->showXfbResolutionCheckBox, QString{},
+                               tr(TR_SHOW_INTERNAL_RESOLUTION_DESCRIPTION));
 }

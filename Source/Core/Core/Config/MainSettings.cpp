@@ -449,6 +449,8 @@ const Info<std::string> MAIN_INTERFACE_LANGUAGE{{System::Main, "Interface", "Lan
 const Info<bool> MAIN_SHOW_ACTIVE_TITLE{{System::Main, "Interface", "ShowActiveTitle"}, true};
 const Info<bool> MAIN_USE_BUILT_IN_TITLE_DATABASE{
     {System::Main, "Interface", "UseBuiltinTitleDatabase"}, true};
+const Info<bool> MAIN_USE_CLASSIC_DOLPHIN_UI{
+    {System::Main, "Interface", "UseClassicDolphinUI"}, false};
 const Info<std::string> MAIN_THEME_NAME{{System::Main, "Interface", "ThemeName"},
                                         DEFAULT_THEME_DIR};
 const Info<bool> MAIN_PAUSE_ON_FOCUS_LOST{{System::Main, "Interface", "PauseOnFocusLost"}, false};

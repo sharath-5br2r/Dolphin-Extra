@@ -5,7 +5,6 @@
 
 #include <QComboBox>
 #include <QFormLayout>
-#include <QGridLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QPushButton>
@@ -19,6 +18,8 @@
 #include "InputCommon/ControllerEmu/ControlGroup/Attachments.h"
 #include "InputCommon/InputConfig.h"
 
+#include "ui_MappingGridPage.h"
+
 WiimoteEmuGeneral::WiimoteEmuGeneral(MappingWindow* window, WiimoteEmuExtension* extension)
     : MappingWidget(window), m_extension_widget(extension)
 {
@@ -28,16 +29,18 @@ WiimoteEmuGeneral::WiimoteEmuGeneral(MappingWindow* window, WiimoteEmuExtension*
 
 void WiimoteEmuGeneral::CreateMainLayout()
 {
-  auto* layout = new QGridLayout;
+  Ui::MappingGridPage ui;
+  ui.setupUi(this);
 
-  layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Buttons"),
                      Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Buttons)),
       0, 0, -1, 1);
-  layout->addWidget(CreateGroupBox(tr("D-Pad"), Wiimote::GetWiimoteGroup(
-                                                    GetPort(), WiimoteEmu::WiimoteGroup::DPad)),
-                    0, 1, -1, 1);
-  layout->addWidget(
+  ui.groupLayout->addWidget(
+      CreateGroupBox(tr("D-Pad"),
+                     Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::DPad)),
+      0, 1, -1, 1);
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Hotkeys"),
                      Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Hotkeys)),
       0, 2, -1, 1);
@@ -67,17 +70,16 @@ void WiimoteEmuGeneral::CreateMainLayout()
   m_configure_ext_button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   ext_layout->insertRow(1, m_configure_ext_button);
 
-  layout->addWidget(extension, 0, 3);
-  layout->addWidget(CreateGroupBox(tr("Rumble"), Wiimote::GetWiimoteGroup(
-                                                     GetPort(), WiimoteEmu::WiimoteGroup::Rumble)),
-                    1, 3);
+  ui.groupLayout->addWidget(extension, 0, 3);
+  ui.groupLayout->addWidget(
+      CreateGroupBox(tr("Rumble"),
+                     Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Rumble)),
+      1, 3);
 
-  layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Options"),
                      Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Options)),
       2, 3);
-
-  setLayout(layout);
 }
 
 void WiimoteEmuGeneral::Connect()

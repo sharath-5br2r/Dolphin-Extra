@@ -382,6 +382,7 @@ void DolphinAnalytics::MakePerGameBuilder()
                   std::to_underlying(Config::Get(Config::GFX_ENHANCE_MAX_ANISOTROPY)));
   builder.AddData("cfg-gfx-vsync", Config::Get(Config::GFX_VSYNC));
   builder.AddData("cfg-gfx-aspect-ratio", static_cast<int>(Config::Get(Config::GFX_ASPECT_RATIO)));
+  builder.AddData("cfg-gfx-integer-scaling", Config::Get(Config::GFX_INTEGER_SCALING));
   builder.AddData("cfg-gfx-efb-access", Config::Get(Config::GFX_HACK_EFB_ACCESS_ENABLE));
   builder.AddData("cfg-gfx-efb-copy-format-changes",
                   Config::Get(Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES));

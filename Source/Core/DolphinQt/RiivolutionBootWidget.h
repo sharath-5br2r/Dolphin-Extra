@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -10,6 +11,11 @@
 
 #include "Common/CommonTypes.h"
 #include "DiscIO/RiivolutionParser.h"
+
+namespace Ui
+{
+class RiivolutionBootWidget;
+}
 
 #ifdef USE_RETRO_ACHIEVEMENTS
 class HardcoreWarningWidget;
@@ -65,5 +71,6 @@ private:
   std::vector<DiscWithRoot> m_discs;
   std::vector<DiscIO::Riivolution::Patch> m_patches;
 
+  std::unique_ptr<Ui::RiivolutionBootWidget> m_ui;
   QVBoxLayout* m_patch_section_layout;
 };

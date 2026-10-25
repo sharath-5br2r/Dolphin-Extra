@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "Common/Assert.h"
+#include "Common/BigPicture/PresentationState.h"
 #include "Common/BlockingLoop.h"
 #include "Common/ChunkFile.h"
 #include "Common/Event.h"
@@ -23,6 +24,7 @@
 #include "Core/System.h"
 
 #include "VideoCommon/AsyncRequests.h"
+#include "VideoCommon/BigPicture/Runtime.h"
 #include "VideoCommon/CPMemory.h"
 #include "VideoCommon/CommandProcessor.h"
 #include "VideoCommon/DataReader.h"
@@ -76,19 +78,28 @@ void FifoManager::DoState(PointerWrap& p)
 
 void FifoManager::PauseAndLock()
 {
+  BigPicture::GetPresentationState().Suspend();
   SyncGPU(SyncGPUReason::Other);
   EmulatorState(false);
 
-  if (!m_system.IsDualCoreMode() || m_use_deterministic_gpu_thread)
+  if (!m_system.IsDualCoreMode())
     return;
 
+  // Deterministic RunGpu() does not wake the owner for AsyncRequests. A pause can leave a
+  // final accepted swap queued even when the loop reports idle. Drain it with guest FIFO
+  // processing disabled, before granting exclusive graphics access.
+  m_gpu_mainloop.Wakeup();
   m_gpu_mainloop.WaitYield(std::chrono::milliseconds(100), Host_YieldToUI);
 }
 
 void FifoManager::RestoreState(const bool was_running)
 {
+  BigPicture::GetPresentationState().Resume();
   if (was_running)
     EmulatorState(true);
+  if (BigPicture::GetPresentationState().GetWaitMilliseconds(
+          BigPicture::PresentationState::Clock::now(), 0) != 0)
+    WakeupForUI();
 }
 
 void FifoManager::Init()
@@ -292,14 +303,17 @@ void FifoManager::ResetVideoBuffer()
 // Purpose: Keep the Core HW updated about the CPU-GPU distance
 void FifoManager::RunGpuLoop()
 {
-  m_gpu_mainloop.Run(
+  m_gpu_mainloop.RunWithTimeout(
       [this] {
         // Run events from the CPU thread.
         AsyncRequests::GetInstance()->PullEvents();
 
         // Do nothing while paused
         if (!m_emu_running_state.IsSet())
+        {
+          VideoCommon::BigPicture::PresentPaused();
           return;
+        }
 
         if (m_use_deterministic_gpu_thread)
         {
@@ -392,7 +406,16 @@ void FifoManager::RunGpuLoop()
           g_framebuffer_manager->RefreshPeekCache();
         }
       },
-      100);
+      [] {
+        return BigPicture::GetPresentationState().GetWaitMilliseconds(
+            BigPicture::PresentationState::Clock::now(), 100);
+      });
+}
+
+void FifoManager::WakeupForUI()
+{
+  m_gpu_mainloop.AllowSleep();
+  m_gpu_mainloop.Wakeup();
 }
 
 void FifoManager::FlushGpu()

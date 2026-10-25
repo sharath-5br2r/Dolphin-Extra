@@ -6,7 +6,6 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
-#include <QGridLayout>
 #include <QLabel>
 #include <QSignalBlocker>
 
@@ -15,42 +14,40 @@
 
 #include "DolphinQt/Settings.h"
 
-PadMappingDialog::PadMappingDialog(QWidget* parent) : QDialog(parent)
-{
-  setWindowTitle(tr("Assign Controllers"));
+#include "ui_PadMappingDialog.h"
 
-  CreateWidgets();
+PadMappingDialog::PadMappingDialog(QWidget* parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::PadMappingDialog>())
+{
+  m_ui->setupUi(this);
+  m_gc_boxes = {m_ui->gcBox1, m_ui->gcBox2, m_ui->gcBox3, m_ui->gcBox4};
+  m_gba_boxes = {m_ui->gbaBox1, m_ui->gbaBox2, m_ui->gbaBox3, m_ui->gbaBox4};
+  m_wii_boxes = {m_ui->wiiBox1, m_ui->wiiBox2, m_ui->wiiBox3, m_ui->wiiBox4};
+
+  const std::array gc_labels = {m_ui->gcPort1Label, m_ui->gcPort2Label, m_ui->gcPort3Label,
+                                m_ui->gcPort4Label};
+  const std::array wii_labels = {m_ui->wiiRemote1Label, m_ui->wiiRemote2Label,
+                                 m_ui->wiiRemote3Label, m_ui->wiiRemote4Label};
+  for (size_t i = 0; i < m_gc_boxes.size(); ++i)
+  {
+    gc_labels[i]->setText(tr("GC Port %1").arg(i + 1));
+    m_gba_boxes[i]->setText(tr("GBA Port %1").arg(i + 1));
+    wii_labels[i]->setText(tr("Wii Remote %1").arg(i + 1));
+  }
+
+#ifndef HAS_LIBMGBA
+  for (QCheckBox* checkbox : m_gba_boxes)
+    checkbox->hide();
+#endif
+
   ConnectWidgets();
 }
 
-void PadMappingDialog::CreateWidgets()
-{
-  m_main_layout = new QGridLayout;
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Ok);
-
-  for (unsigned int i = 0; i < m_wii_boxes.size(); i++)
-  {
-    m_gc_boxes[i] = new QComboBox;
-    m_gba_boxes[i] = new QCheckBox(tr("GBA Port %1").arg(i + 1));
-    m_wii_boxes[i] = new QComboBox;
-
-    m_main_layout->addWidget(new QLabel(tr("GC Port %1").arg(i + 1)), 0, i);
-    m_main_layout->addWidget(m_gc_boxes[i], 1, i);
-#ifdef HAS_LIBMGBA
-    m_main_layout->addWidget(m_gba_boxes[i], 2, i);
-#endif
-    m_main_layout->addWidget(new QLabel(tr("Wii Remote %1").arg(i + 1)), 3, i);
-    m_main_layout->addWidget(m_wii_boxes[i], 4, i);
-  }
-
-  m_main_layout->addWidget(m_button_box, 5, 0, 1, -1);
-
-  setLayout(m_main_layout);
-}
+PadMappingDialog::~PadMappingDialog() = default;
 
 void PadMappingDialog::ConnectWidgets()
 {
-  connect(m_button_box, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
   for (const auto& combo_group : {m_gc_boxes, m_wii_boxes})
   {
     for (const auto& combo : combo_group)

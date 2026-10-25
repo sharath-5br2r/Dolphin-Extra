@@ -1,6 +1,8 @@
 add_library(uicommon
   AutoUpdate.cpp
   AutoUpdate.h
+  BigPicture/Controller.cpp
+  BigPicture/Controller.h
   CommandLineParse.cpp
   CommandLineParse.h
   DiscordPresence.cpp

@@ -5,8 +5,6 @@
 
 #include "DolphinQt/Config/Mapping/MappingWidget.h"
 
-class QHBoxLayout;
-
 class HotkeyStatesOther final : public MappingWidget
 {
   Q_OBJECT

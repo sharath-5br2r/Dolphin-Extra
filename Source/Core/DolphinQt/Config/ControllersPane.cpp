@@ -3,27 +3,29 @@
 
 #include "DolphinQt/Config/ControllersPane.h"
 
-#include <QVBoxLayout>
+#include <memory>
 
 #include "DolphinQt/Config/CommonControllersWidget.h"
 #include "DolphinQt/Config/GamecubeControllersWidget.h"
 #include "DolphinQt/Config/WiimoteControllersWidget.h"
 
-ControllersPane::ControllersPane()
+#include "ui_ControllersPane.h"
+
+ControllersPane::ControllersPane() : m_ui{std::make_unique<Ui::ControllersPane>()}
 {
-  CreateMainLayout();
+  m_ui->setupUi(this);
+  CreateSections();
 }
 
-void ControllersPane::CreateMainLayout()
-{
-  auto* const layout = new QVBoxLayout{this};
+ControllersPane::~ControllersPane() = default;
 
+void ControllersPane::CreateSections()
+{
   auto* const gamecube_controllers = new GamecubeControllersWidget(this);
   m_wiimote_controllers = new WiimoteControllersWidget(this);
   auto* const common = new CommonControllersWidget(this);
 
-  layout->addWidget(gamecube_controllers);
-  layout->addWidget(m_wiimote_controllers);
-  layout->addWidget(common);
-  layout->addStretch(1);
+  m_ui->gamecubeLayout->addWidget(gamecube_controllers);
+  m_ui->wiimoteLayout->addWidget(m_wiimote_controllers);
+  m_ui->commonLayout->addWidget(common);
 }

@@ -14,6 +14,11 @@
 #include "Common/EnumMap.h"
 #include "Core/HW/EXI/EXI.h"
 
+namespace Ui
+{
+class GCMemcardManager;
+}
+
 namespace Memcard
 {
 class GCMemcard;
@@ -25,7 +30,6 @@ enum class SavefileFormat;
 
 class QAction;
 class QDialogButtonBox;
-class QGroupBox;
 class QLabel;
 class QLineEdit;
 class QMenu;
@@ -76,6 +80,7 @@ private:
   IconAnimationData GetIconFromSaveFile(int file_index, ExpansionInterface::Slot slot);
 
   // Actions
+  std::unique_ptr<Ui::GCMemcardManager> m_ui;
   QPushButton* m_select_button;
   QPushButton* m_copy_button;
   QToolButton* m_export_button;
@@ -93,7 +98,6 @@ private:
 
   SlotEnumMap<std::map<u8, IconAnimationData>> m_slot_active_icons;
   SlotEnumMap<std::unique_ptr<Memcard::GCMemcard>> m_slot_memcard;
-  SlotEnumMap<QGroupBox*> m_slot_group;
   SlotEnumMap<QLineEdit*> m_slot_file_edit;
   SlotEnumMap<QPushButton*> m_slot_open_button;
   SlotEnumMap<QPushButton*> m_slot_create_button;

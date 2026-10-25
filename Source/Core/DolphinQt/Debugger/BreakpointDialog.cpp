@@ -6,19 +6,18 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QDialogButtonBox>
-#include <QGridLayout>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRadioButton>
-#include <QVBoxLayout>
 
 #include "Core/PowerPC/BreakPoints.h"
 #include "Core/PowerPC/Expression.h"
 #include "DolphinQt/Debugger/BreakpointWidget.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
+
+#include "ui_BreakpointDialog.h"
 
 BreakpointDialog::BreakpointDialog(BreakpointWidget* parent)
     : QDialog(parent), m_parent(parent), m_open_mode(OpenMode::New)
@@ -86,110 +85,46 @@ BreakpointDialog::BreakpointDialog(BreakpointWidget* parent, const TMemCheck* me
 
 void BreakpointDialog::CreateWidgets()
 {
-  m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel |
-                                   QDialogButtonBox::Help);
+  Ui::BreakpointDialog ui;
+  ui.setupUi(this);
+  m_buttons = ui.buttonBox;
+
   auto* type_group = new QButtonGroup(this);
-
-  // Instruction BP
-  auto* instruction_widget = new QWidget;
-  auto* instruction_layout = new QGridLayout;
-
-  m_instruction_bp = new QRadioButton(tr("Instruction Breakpoint"));
+  m_instruction_bp = ui.instructionBreakpointRadio;
   type_group->addButton(m_instruction_bp);
-  m_instruction_box = new QGroupBox;
-  m_instruction_address = new QLineEdit;
+  m_instruction_box = ui.instructionBox;
+  m_instruction_address = ui.instructionAddressEdit;
 
-  auto* instruction_data_layout = new QHBoxLayout;
-  m_instruction_box->setLayout(instruction_data_layout);
-  instruction_data_layout->addWidget(new QLabel(tr("Address:")));
-  instruction_data_layout->addWidget(m_instruction_address);
-
-  instruction_layout->addWidget(m_instruction_bp, 0, 0, 1, 1);
-  instruction_layout->addWidget(m_instruction_box, 1, 0, 1, 2);
-  instruction_widget->setLayout(instruction_layout);
-
-  // Memory BP
-  auto* memory_widget = new QWidget;
-  auto* memory_layout = new QGridLayout;
-
-  m_memory_bp = new QRadioButton(tr("Memory Breakpoint"));
+  m_memory_bp = ui.memoryBreakpointRadio;
   type_group->addButton(m_memory_bp);
-  m_memory_box = new QGroupBox;
+  m_memory_box = ui.memoryBox;
   auto* memory_type_group = new QButtonGroup(this);
-  m_memory_use_address = new QRadioButton(tr("Address"));
-  m_memory_use_address->setChecked(true);
+  m_memory_use_address = ui.memoryUseAddressRadio;
   memory_type_group->addButton(m_memory_use_address);
-  // i18n: A range of memory addresses
-  m_memory_use_range = new QRadioButton(tr("Range"));
+  m_memory_use_range = ui.memoryUseRangeRadio;
   memory_type_group->addButton(m_memory_use_range);
-  m_memory_address_from = new QLineEdit;
-  m_memory_address_to = new QLineEdit;
-  m_memory_address_from_label = new QLabel;  // Set by OnAddressTypeChanged
-  m_memory_address_to_label = new QLabel(tr("To:"));
-  // i18n: This is a selectable condition when adding a breakpoint
-  m_memory_on_read = new QRadioButton(tr("Read"));
-  // i18n: This is a selectable condition when adding a breakpoint
-  m_memory_on_write = new QRadioButton(tr("Write"));
-  // i18n: This is a selectable condition when adding a breakpoint
-  m_memory_on_read_and_write = new QRadioButton(tr("Read or Write"));
-  m_memory_on_write->setChecked(true);
-  // i18n: This is a selectable action when adding a breakpoint
-  m_do_log = new QRadioButton(tr("Write to Log"));
-  // i18n: This is a selectable action when adding a breakpoint
-  m_do_break = new QRadioButton(tr("Break"));
-  // i18n: This is a selectable action when adding a breakpoint
-  m_do_log_and_break = new QRadioButton(tr("Write to Log and Break"));
-  m_do_log_and_break->setChecked(true);
+  m_memory_address_from = ui.memoryAddressFromEdit;
+  m_memory_address_to = ui.memoryAddressToEdit;
+  m_memory_address_from_label = ui.memoryAddressFromLabel;
+  m_memory_address_to_label = ui.memoryAddressToLabel;
 
-  auto* memory_data_layout = new QGridLayout;
-  m_memory_box->setLayout(memory_data_layout);
-  memory_data_layout->addWidget(m_memory_use_address, 0, 0);
-  memory_data_layout->addWidget(m_memory_use_range, 0, 3);
-  memory_data_layout->addWidget(m_memory_address_from_label, 1, 0);
-  memory_data_layout->addWidget(m_memory_address_from, 1, 1);
-  memory_data_layout->addWidget(m_memory_address_to_label, 1, 2);
-  memory_data_layout->addWidget(m_memory_address_to, 1, 3);
+  auto* memory_condition_group = new QButtonGroup(this);
+  m_memory_on_read = ui.memoryOnReadRadio;
+  m_memory_on_write = ui.memoryOnWriteRadio;
+  m_memory_on_read_and_write = ui.memoryOnReadWriteRadio;
+  memory_condition_group->addButton(m_memory_on_read);
+  memory_condition_group->addButton(m_memory_on_write);
+  memory_condition_group->addButton(m_memory_on_read_and_write);
 
-  // i18n: If a condition is set for a breakpoint, the condition becoming true is a prerequisite for
-  // triggering the breakpoint.
-  QGroupBox* condition_box = new QGroupBox(tr("Condition"));
-  auto* condition_layout = new QHBoxLayout;
-  condition_box->setLayout(condition_layout);
+  auto* action_group = new QButtonGroup(this);
+  m_do_log = ui.writeLogRadio;
+  m_do_break = ui.breakRadio;
+  m_do_log_and_break = ui.writeLogAndBreakRadio;
+  action_group->addButton(m_do_log);
+  action_group->addButton(m_do_break);
+  action_group->addButton(m_do_log_and_break);
 
-  memory_data_layout->addWidget(condition_box, 2, 0, 1, -1);
-  condition_layout->addWidget(m_memory_on_read);
-  condition_layout->addWidget(m_memory_on_write);
-  condition_layout->addWidget(m_memory_on_read_and_write);
-
-  memory_layout->addWidget(m_memory_bp, 0, 0);
-  memory_layout->addWidget(m_memory_box, 1, 0);
-  memory_widget->setLayout(memory_layout);
-
-  QGroupBox* action_box = new QGroupBox(tr("Action"));
-
-  QHBoxLayout* conditional_layout = new QHBoxLayout;
-  m_conditional = new QLineEdit();
-  // i18n: If a condition is set for a breakpoint, the condition becoming true is a prerequisite for
-  // triggering the breakpoint.
-  conditional_layout->addWidget(new QLabel(tr("Condition:")));
-  conditional_layout->addWidget(m_conditional);
-
-  auto* action_layout = new QHBoxLayout;
-  action_layout->addWidget(m_do_log);
-  action_layout->addWidget(m_do_break);
-  action_layout->addWidget(m_do_log_and_break);
-
-  auto* action_vlayout = new QVBoxLayout;
-  action_vlayout->addLayout(conditional_layout);
-  action_vlayout->addLayout(action_layout);
-
-  action_box->setLayout(action_vlayout);
-
-  auto* layout = new QVBoxLayout;
-  layout->addWidget(instruction_widget);
-  layout->addWidget(memory_widget);
-  layout->addWidget(action_box);
-  layout->addWidget(m_buttons);
+  m_conditional = ui.conditionalEdit;
 
   switch (m_open_mode)
   {
@@ -198,20 +133,18 @@ void BreakpointDialog::CreateWidgets()
     m_instruction_address->setFocus();
     break;
   case OpenMode::EditBreakPoint:
-    memory_widget->setVisible(false);
+    ui.memoryWidget->setVisible(false);
     m_instruction_bp->setChecked(true);
     m_instruction_address->setEnabled(false);
     m_instruction_address->setFocus();
     break;
   case OpenMode::EditMemCheck:
-    instruction_widget->setVisible(false);
+    ui.instructionWidget->setVisible(false);
     m_memory_bp->setChecked(true);
     m_memory_address_from->setEnabled(false);
     m_memory_address_to->setFocus();
     break;
   }
-
-  setLayout(layout);
 }
 
 void BreakpointDialog::ConnectWidgets()

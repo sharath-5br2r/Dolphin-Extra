@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BranchWatchDialog</class>
+ <widget class="QDialog" name="BranchWatchDialog">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QMenuBar" name="menuBar">
+     <property name="nativeMenuBar">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolBar" name="controlToolBar"/>
+   </item>
+   <item>
+    <widget class="QTableView" name="tableView">
+     <property name="contextMenuPolicy">
+      <enum>Qt::CustomContextMenu</enum>
+     </property>
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::ExtendedSelection</enum>
+     </property>
+     <property name="selectionBehavior">
+      <enum>QAbstractItemView::SelectRows</enum>
+     </property>
+     <property name="sortingEnabled">
+      <bool>true</bool>
+     </property>
+     <property name="cornerButtonEnabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QStatusBar" name="statusBar">
+     <property name="sizeGripEnabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+  <widget class="QGroupBox" name="toolControlsGroup">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>320</width>
+     <height>100</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Tool Controls</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+   <layout class="QGridLayout" name="toolControlsLayout">
+    <item row="0" column="0">
+     <widget class="QPushButton" name="startPauseButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>Start Branch Watch</string>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QPushButton" name="clearWatchButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>Clear Branch Watch</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QPushButton" name="pathWasTakenButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>Code Path Was Taken</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QPushButton" name="pathNotTakenButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>Code Path Not Taken</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="toolBarSpacer" native="true">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>20</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="branchTypeGroup">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>310</width>
+     <height>110</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Branch Type</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+   <layout class="QGridLayout" name="branchTypeLayout">
+    <item row="0" column="0">
+     <widget class="QCheckBox" name="branchBCheckBox">
+      <property name="toolTip">
+       <string>Branch</string>
+      </property>
+      <property name="text">
+       <string notr="true">b</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QCheckBox" name="branchBlCheckBox">
+      <property name="toolTip">
+       <string>Branch (LR saved)</string>
+      </property>
+      <property name="text">
+       <string notr="true">bl</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="2">
+     <widget class="QCheckBox" name="branchBcCheckBox">
+      <property name="toolTip">
+       <string>Branch Conditional</string>
+      </property>
+      <property name="text">
+       <string notr="true">bc</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="3">
+     <widget class="QCheckBox" name="branchBclCheckBox">
+      <property name="toolTip">
+       <string>Branch Conditional (LR saved)</string>
+      </property>
+      <property name="text">
+       <string notr="true">bcl</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QCheckBox" name="branchBlrCheckBox">
+      <property name="toolTip">
+       <string>Branch to Link Register</string>
+      </property>
+      <property name="text">
+       <string notr="true">blr</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QCheckBox" name="branchBlrlCheckBox">
+      <property name="toolTip">
+       <string>Branch to Link Register (LR saved)</string>
+      </property>
+      <property name="text">
+       <string notr="true">blrl</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="2">
+     <widget class="QCheckBox" name="branchBclrCheckBox">
+      <property name="toolTip">
+       <string>Branch Conditional to Link Register</string>
+      </property>
+      <property name="text">
+       <string notr="true">bclr</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="3">
+     <widget class="QCheckBox" name="branchBclrlCheckBox">
+      <property name="toolTip">
+       <string>Branch Conditional to Link Register (LR saved)</string>
+      </property>
+      <property name="text">
+       <string notr="true">bclrl</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QCheckBox" name="branchBctrCheckBox">
+      <property name="toolTip">
+       <string>Branch to Count Register</string>
+      </property>
+      <property name="text">
+       <string notr="true">bctr</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QCheckBox" name="branchBctrlCheckBox">
+      <property name="toolTip">
+       <string>Branch to Count Register (LR saved)</string>
+      </property>
+      <property name="text">
+       <string notr="true">bctrl</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="2">
+     <widget class="QCheckBox" name="branchBcctrCheckBox">
+      <property name="toolTip">
+       <string>Branch Conditional to Count Register</string>
+      </property>
+      <property name="text">
+       <string notr="true">bcctr</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="3">
+     <widget class="QCheckBox" name="branchBcctrlCheckBox">
+      <property name="toolTip">
+       <string>Branch Conditional to Count Register (LR saved)</string>
+      </property>
+      <property name="text">
+       <string notr="true">bcctrl</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QGroupBox" name="originDestinationGroup">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>360</width>
+     <height>110</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Origin and Destination</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+   <layout class="QGridLayout" name="originDestinationLayout">
+    <item row="0" column="0">
+     <widget class="QLineEdit" name="originSymbolEdit">
+      <property name="placeholderText">
+       <string>Origin Symbol</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLineEdit" name="originMinEdit">
+      <property name="maxLength">
+       <number>8</number>
+      </property>
+      <property name="placeholderText">
+       <string>Origin Min</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLineEdit" name="originMaxEdit">
+      <property name="maxLength">
+       <number>8</number>
+      </property>
+      <property name="placeholderText">
+       <string>Origin Max</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QLineEdit" name="destinationSymbolEdit">
+      <property name="placeholderText">
+       <string>Destination Symbol</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QLineEdit" name="destinationMinEdit">
+      <property name="maxLength">
+       <number>8</number>
+      </property>
+      <property name="placeholderText">
+       <string>Destination Min</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QLineEdit" name="destinationMaxEdit">
+      <property name="maxLength">
+       <number>8</number>
+      </property>
+      <property name="placeholderText">
+       <string>Destination Max</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QGroupBox" name="conditionGroup">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>120</width>
+     <height>100</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Condition</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+   <layout class="QVBoxLayout" name="conditionLayout">
+    <property name="alignment">
+     <set>Qt::AlignHCenter</set>
+    </property>
+    <item>
+     <widget class="QCheckBox" name="conditionTrueCheckBox">
+      <property name="toolTip">
+       <string>This will also filter unconditional branches.
+To filter for or against unconditional branches,
+use the Branch Type filter options.</string>
+      </property>
+      <property name="text">
+       <string>true</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="conditionFalseCheckBox">
+      <property name="text">
+       <string>false</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QGroupBox" name="miscControlsGroup">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>220</width>
+     <height>130</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Misc. Controls</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
+   </property>
+   <layout class="QVBoxLayout" name="miscControlsLayout">
+    <item>
+     <widget class="QPushButton" name="wasOverwrittenButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>Branch Was Overwritten</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="notOverwrittenButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="text">
+       <string>Branch Not Overwritten</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="wipeRecentHitsButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="text">
+       <string>Wipe Recent Hits</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

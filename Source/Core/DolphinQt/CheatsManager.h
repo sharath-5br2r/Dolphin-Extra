@@ -15,6 +15,11 @@
 #include "DolphinQt/GameList/GameListModel.h"
 #include "VideoCommon/VideoEvents.h"
 
+namespace Ui
+{
+class CheatsManager;
+}
+
 class ARCodeWidget;
 class GeckoCodeWidget;
 class CheatSearchFactoryWidget;
@@ -67,6 +72,7 @@ private:
 
   Core::System& m_system;
 
+  std::unique_ptr<Ui::CheatsManager> m_ui;
   QDialogButtonBox* m_button_box;
   PartiallyClosableTabWidget* m_tab_widget = nullptr;
 

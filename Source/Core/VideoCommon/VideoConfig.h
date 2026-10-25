@@ -183,6 +183,9 @@ struct BackendInfo
   bool bSupportsGLLayerInFS = true;
   bool bSupportsHDROutput = false;
   bool bSupportsUnrestrictedDepthRange = false;
+  // AbstractTexture::GenerateMipmaps() actually fills the chain on this backend. When false,
+  // VideoCommon falls back to MipChainBuilder's draw-based path.
+  bool bSupportsGPUMipGeneration = false;
 };
 
 extern BackendInfo g_backend_info;
@@ -201,6 +204,7 @@ struct VideoConfig final
   bool bVSyncActive = false;
   bool bWidescreenHack = false;
   AspectMode aspect_mode{};
+  bool bIntegerScaling = false;
   int custom_aspect_width = 1;
   int custom_aspect_height = 1;
   AspectMode suggested_aspect_mode{};
@@ -352,6 +356,7 @@ struct VideoConfig final
 
   // Loading custom drivers on Android
   std::string customDriverLibraryName;
+  std::string customDriverPackage;
 
   // Vertex loader
   VertexLoaderType vertex_loader_type;

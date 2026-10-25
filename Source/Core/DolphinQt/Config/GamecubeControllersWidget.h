@@ -6,11 +6,9 @@
 #include <QWidget>
 
 #include <array>
+#include <memory>
 
 class QComboBox;
-class QHBoxLayout;
-class QGridLayout;
-class QGroupBox;
 class QPushButton;
 
 namespace Core
@@ -18,11 +16,17 @@ namespace Core
 enum class State;
 }
 
+namespace Ui
+{
+class GamecubeControllersWidget;
+}
+
 class GamecubeControllersWidget final : public QWidget
 {
   Q_OBJECT
 public:
   explicit GamecubeControllersWidget(QWidget* parent);
+  ~GamecubeControllersWidget() override;
 
 private:
   void LoadSettings(Core::State state);
@@ -31,13 +35,10 @@ private:
   void OnGCTypeChanged(size_t index);
   void OnGCPadConfigure(size_t index);
 
-  void CreateLayout();
+  void InitializeControls();
   void ConnectWidgets();
 
-  // Gamecube
-  QGroupBox* m_gc_box;
-  QGridLayout* m_gc_layout;
+  std::unique_ptr<Ui::GamecubeControllersWidget> m_ui;
   std::array<QComboBox*, 4> m_gc_controller_boxes;
   std::array<QPushButton*, 4> m_gc_buttons;
-  std::array<QHBoxLayout*, 4> m_gc_groups;
 };

@@ -45,6 +45,7 @@ public:
   std::unique_ptr<AbstractPipeline> CreatePipeline(const AbstractPipelineConfig& config,
                                                    const void* cache_data = nullptr,
                                                    size_t cache_data_length = 0) override;
+  std::unique_ptr<VideoCommon::LibrashaderRuntime> CreateLibrashaderRuntime() override;
 
   void Flush() override;
   void WaitForGPUIdle() override;

@@ -3,12 +3,7 @@
 
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
 
-#include <QDialogButtonBox>
-#include <QEvent>
-#include <QGroupBox>
-#include <QLabel>
-#include <QTabWidget>
-#include <QVBoxLayout>
+#include <memory>
 
 #include "Common/Config/Config.h"
 #include "Core/Config/MainSettings.h"
@@ -23,26 +18,27 @@
 
 #include "VideoCommon/VideoBackendBase.h"
 
+#include "ui_GraphicsPane.h"
+
 GraphicsPane::GraphicsPane(MainWindow* main_window, Config::Layer* config_layer)
-    : m_main_window(main_window), m_config_layer{config_layer}
+    : m_ui{std::make_unique<Ui::GraphicsPane>()}, m_main_window(main_window),
+      m_config_layer{config_layer}
 {
-  CreateMainLayout();
+  m_ui->setupUi(this);
+  CreatePages();
 
   OnBackendChanged(QString::fromStdString(Config::Get(Config::MAIN_GFX_BACKEND)));
 }
+
+GraphicsPane::~GraphicsPane() = default;
 
 Config::Layer* GraphicsPane::GetConfigLayer()
 {
   return m_config_layer;
 }
 
-void GraphicsPane::CreateMainLayout()
+void GraphicsPane::CreatePages()
 {
-  auto* const main_layout = new QVBoxLayout{this};
-  auto* const tab_widget = new QTabWidget;
-
-  main_layout->addWidget(tab_widget);
-
   auto* const general_widget = new GeneralWidget(this);
   auto* const enhancements_widget = new EnhancementsWidget(this);
   auto* const hacks_widget = new HacksWidget(this);
@@ -55,10 +51,10 @@ void GraphicsPane::CreateMainLayout()
   QWidget* const wrapped_hacks = GetWrappedWidget(hacks_widget);
   QWidget* const wrapped_advanced = GetWrappedWidget(advanced_widget);
 
-  tab_widget->addTab(wrapped_general, tr("General"));
-  tab_widget->addTab(wrapped_enhancements, tr("Enhancements"));
-  tab_widget->addTab(wrapped_hacks, tr("Hacks"));
-  tab_widget->addTab(wrapped_advanced, tr("Advanced"));
+  m_ui->generalLayout->addWidget(wrapped_general);
+  m_ui->enhancementsLayout->addWidget(wrapped_enhancements);
+  m_ui->hacksLayout->addWidget(wrapped_hacks);
+  m_ui->advancedLayout->addWidget(wrapped_advanced);
 }
 
 void GraphicsPane::OnBackendChanged(const QString& backend_name)

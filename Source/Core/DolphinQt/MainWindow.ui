@@ -1,0 +1,841 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="acceptDrops">
+   <bool>true</bool>
+  </property>
+  <property name="unifiedTitleAndToolBarOnMac">
+   <bool>true</bool>
+  </property>
+  <widget class="QStackedWidget" name="mainStack">
+   <property name="currentIndex">
+    <number>0</number>
+   </property>
+   <widget class="QWidget" name="gameListPage">
+    <layout class="QVBoxLayout" name="gameListLayout">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionFileOpen"/>
+    <addaction name="separator"/>
+    <addaction name="actionFileChangeDisc"/>
+    <addaction name="actionFileEjectDisc"/>
+    <addaction name="separator"/>
+    <addaction name="actionFileOpenUserFolder"/>
+    <addaction name="actionFileFoldersSeparator"/>
+    <addaction name="actionFileExit"/>
+   </widget>
+   <widget class="QMenu" name="menuEmulation">
+    <property name="title">
+     <string>&amp;Emulation</string>
+    </property>
+    <widget class="QMenu" name="menuStateLoad">
+     <property name="title">
+      <string>&amp;Load State</string>
+     </property>
+     <widget class="QMenu" name="menuStateLoadSlots">
+      <property name="title">
+       <string>Load State from Slot</string>
+      </property>
+     </widget>
+     <addaction name="actionStateLoadFile"/>
+     <addaction name="actionStateLoadSelectedSlot"/>
+     <addaction name="menuStateLoadSlots"/>
+     <addaction name="actionStateLoadUndo"/>
+    </widget>
+    <widget class="QMenu" name="menuStateSave">
+     <property name="title">
+      <string>Sa&amp;ve State</string>
+     </property>
+     <widget class="QMenu" name="menuStateSaveSlots">
+      <property name="title">
+       <string>Save State to Slot</string>
+      </property>
+     </widget>
+     <addaction name="actionStateSaveFile"/>
+     <addaction name="actionStateSaveSelectedSlot"/>
+     <addaction name="actionStateSaveOldestSlot"/>
+     <addaction name="menuStateSaveSlots"/>
+     <addaction name="actionStateSaveUndo"/>
+    </widget>
+    <widget class="QMenu" name="menuStateSlot">
+     <property name="title">
+      <string>Select State Slot</string>
+     </property>
+    </widget>
+    <addaction name="actionEmulationPlay"/>
+    <addaction name="actionEmulationPause"/>
+    <addaction name="actionEmulationStop"/>
+    <addaction name="actionEmulationReset"/>
+    <addaction name="actionEmulationFullscreen"/>
+    <addaction name="actionEmulationFrameAdvance"/>
+    <addaction name="actionEmulationScreenshot"/>
+    <addaction name="separator"/>
+    <addaction name="menuStateLoad"/>
+    <addaction name="menuStateSave"/>
+    <addaction name="menuStateSlot"/>
+   </widget>
+   <widget class="QtUtils::NonAutodismissibleMenu" name="menuMovie">
+    <property name="title">
+     <string>&amp;Movie</string>
+    </property>
+    <addaction name="actionMovieStartRecording"/>
+    <addaction name="actionMoviePlayRecording"/>
+    <addaction name="actionMovieStopRecording"/>
+    <addaction name="actionMovieExportRecording"/>
+    <addaction name="actionMovieReadOnly"/>
+    <addaction name="actionMovieTasInput"/>
+    <addaction name="separator"/>
+    <addaction name="actionMoviePauseAtEnd"/>
+    <addaction name="actionMovieEnableWindow"/>
+    <addaction name="actionMovieConfigureWindow"/>
+    <addaction name="separator"/>
+    <addaction name="actionMovieDumpFrames"/>
+    <addaction name="actionMovieDumpAudio"/>
+   </widget>
+   <widget class="QtUtils::NonAutodismissibleMenu" name="menuOptions">
+    <property name="title">
+     <string>&amp;Options</string>
+    </property>
+    <addaction name="actionOptionsConfiguration"/>
+    <addaction name="separator"/>
+    <addaction name="actionOptionsGraphics"/>
+    <addaction name="actionOptionsAudio"/>
+    <addaction name="actionOptionsControllers"/>
+    <addaction name="actionOptionsHotkeys"/>
+    <addaction name="actionOptionsFreeLook"/>
+    <addaction name="separator"/>
+   </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>&amp;Tools</string>
+    </property>
+    <widget class="QMenu" name="menuEmulatedUsbDevices">
+     <property name="title">
+      <string>&amp;Emulated USB Devices</string>
+     </property>
+     <addaction name="actionToolsSkylandersPortal"/>
+     <addaction name="actionToolsInfinityBase"/>
+     <addaction name="actionToolsWiiSpeak"/>
+     <addaction name="actionToolsLogitechMicrophone"/>
+    </widget>
+    <widget class="QMenu" name="menuGameCubeMainMenu">
+     <property name="title">
+      <string>Load &amp;GameCube Main Menu</string>
+     </property>
+     <addaction name="actionToolsGameCubeNtscJ"/>
+     <addaction name="actionToolsGameCubeNtscU"/>
+     <addaction name="actionToolsGameCubePal"/>
+     <addaction name="actionToolsGameCubeTriforce"/>
+    </widget>
+    <widget class="QMenu" name="menuManageNand">
+     <property name="title">
+      <string>Manage &amp;NAND</string>
+     </property>
+     <addaction name="actionToolsImportNandBackup"/>
+     <addaction name="actionToolsCheckNand"/>
+     <addaction name="actionToolsExtractCertificates"/>
+    </widget>
+    <widget class="QMenu" name="menuOnlineUpdate">
+     <property name="title">
+      <string>Perform Online System &amp;Update</string>
+     </property>
+     <addaction name="actionToolsUpdateCurrentRegion"/>
+     <addaction name="separator"/>
+     <addaction name="actionToolsUpdateEurope"/>
+     <addaction name="actionToolsUpdateJapan"/>
+     <addaction name="actionToolsUpdateKorea"/>
+     <addaction name="actionToolsUpdateUnitedStates"/>
+    </widget>
+    <widget class="QtUtils::NonAutodismissibleMenu" name="menuConnectWiiRemotes">
+     <property name="title">
+      <string>&amp;Connect Wii Remotes</string>
+     </property>
+    </widget>
+    <addaction name="actionToolsResourcePackManager"/>
+    <addaction name="actionToolsCheatsManager"/>
+    <addaction name="actionToolsFifoPlayer"/>
+    <addaction name="menuEmulatedUsbDevices"/>
+    <addaction name="separator"/>
+    <addaction name="actionToolsStartNetPlay"/>
+    <addaction name="actionToolsBrowseNetPlay"/>
+    <addaction name="separator"/>
+    <addaction name="menuGameCubeMainMenu"/>
+    <addaction name="actionToolsMemoryCardManager"/>
+    <addaction name="separator"/>
+    <addaction name="actionToolsBootSystemMenu"/>
+    <addaction name="actionToolsInstallWad"/>
+    <addaction name="menuManageNand"/>
+    <addaction name="menuOnlineUpdate"/>
+    <addaction name="separator"/>
+    <addaction name="actionToolsImportWiiSave"/>
+    <addaction name="actionToolsImportWiiSaves"/>
+    <addaction name="actionToolsExportWiiSaves"/>
+    <addaction name="separator"/>
+    <addaction name="menuConnectWiiRemotes"/>
+   </widget>
+   <widget class="QtUtils::NonAutodismissibleMenu" name="menuView">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <widget class="QtUtils::NonAutodismissibleMenu" name="menuListColumns">
+     <property name="title">
+      <string>List Columns</string>
+     </property>
+    </widget>
+    <widget class="QtUtils::NonAutodismissibleMenu" name="menuShowPlatforms">
+     <property name="title">
+      <string>Show Platforms</string>
+     </property>
+    </widget>
+    <widget class="QtUtils::NonAutodismissibleMenu" name="menuShowRegions">
+     <property name="title">
+      <string>Show Regions</string>
+     </property>
+     <addaction name="actionViewShowAllRegions"/>
+     <addaction name="actionViewHideAllRegions"/>
+     <addaction name="separator"/>
+    </widget>
+    <addaction name="actionViewBigPicture"/>
+    <addaction name="separator"/>
+    <addaction name="actionViewShowLog"/>
+    <addaction name="actionViewShowLogConfiguration"/>
+    <addaction name="actionViewShowToolbar"/>
+    <addaction name="actionViewLockWidgets"/>
+    <addaction name="separator"/>
+    <addaction name="actionViewAfterDebuggerSeparator"/>
+    <addaction name="actionViewList"/>
+    <addaction name="actionViewGrid"/>
+    <addaction name="separator"/>
+    <addaction name="menuListColumns"/>
+    <addaction name="separator"/>
+    <addaction name="menuShowPlatforms"/>
+    <addaction name="menuShowRegions"/>
+    <addaction name="separator"/>
+    <addaction name="actionViewShowGameCount"/>
+    <addaction name="separator"/>
+    <addaction name="actionViewPurgeGameListCache"/>
+    <addaction name="separator"/>
+    <addaction name="actionViewSearch"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="actionHelpWebsite"/>
+    <addaction name="actionHelpDocumentation"/>
+    <addaction name="actionHelpGitHub"/>
+    <addaction name="actionHelpBugTracker"/>
+    <addaction name="actionHelpAbout"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuEmulation"/>
+   <addaction name="menuMovie"/>
+   <addaction name="menuOptions"/>
+   <addaction name="menuTools"/>
+   <addaction name="menuView"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="GameCount" name="statusBar"/>
+  <widget class="QToolBar" name="toolbar">
+   <property name="windowTitle">
+    <string>Toolbar</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>32</width>
+     <height>32</height>
+    </size>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonStyle::ToolButtonTextUnderIcon</enum>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionToolbarStep"/>
+   <addaction name="actionToolbarStepOver"/>
+   <addaction name="actionToolbarStepOut"/>
+   <addaction name="actionToolbarSkip"/>
+   <addaction name="actionToolbarShowPC"/>
+   <addaction name="actionToolbarSetPC"/>
+   <addaction name="actionToolbarOpen"/>
+   <addaction name="actionToolbarRefresh"/>
+   <addaction name="separator"/>
+   <addaction name="actionToolbarPlayPause"/>
+   <addaction name="actionToolbarStop"/>
+   <addaction name="actionToolbarFullScreen"/>
+   <addaction name="actionToolbarScreenShot"/>
+   <addaction name="separator"/>
+   <addaction name="actionToolbarSettings"/>
+   <addaction name="actionToolbarGraphics"/>
+   <addaction name="actionToolbarControllers"/>
+  </widget>
+  <action name="actionFileOpen">
+   <property name="text">
+    <string>&amp;Open...</string>
+   </property>
+  </action>
+  <action name="actionFileChangeDisc">
+   <property name="text">
+    <string>Change &amp;Disc...</string>
+   </property>
+  </action>
+  <action name="actionFileEjectDisc">
+   <property name="text">
+    <string>&amp;Eject Disc</string>
+   </property>
+  </action>
+  <action name="actionFileOpenUserFolder">
+   <property name="text">
+    <string>Open &amp;User Folder</string>
+   </property>
+  </action>
+  <action name="actionFileFoldersSeparator">
+   <property name="separator">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionFileExit">
+   <property name="text">
+    <string>E&amp;xit</string>
+   </property>
+  </action>
+  <action name="actionEmulationPlay">
+   <property name="text">
+    <string>&amp;Play</string>
+   </property>
+  </action>
+  <action name="actionEmulationPause">
+   <property name="text">
+    <string>&amp;Pause</string>
+   </property>
+  </action>
+  <action name="actionEmulationStop">
+   <property name="text">
+    <string>&amp;Stop</string>
+   </property>
+  </action>
+  <action name="actionEmulationReset">
+   <property name="text">
+    <string>&amp;Reset</string>
+   </property>
+  </action>
+  <action name="actionEmulationFullscreen">
+   <property name="text">
+    <string>Toggle &amp;Fullscreen</string>
+   </property>
+  </action>
+  <action name="actionEmulationFrameAdvance">
+   <property name="text">
+    <string>&amp;Frame Advance</string>
+   </property>
+  </action>
+  <action name="actionEmulationScreenshot">
+   <property name="text">
+    <string>Take Screenshot</string>
+   </property>
+  </action>
+  <action name="actionStateLoadFile">
+   <property name="text">
+    <string>Load State from File</string>
+   </property>
+  </action>
+  <action name="actionStateLoadSelectedSlot">
+   <property name="text">
+    <string>Load State from Selected Slot</string>
+   </property>
+  </action>
+  <action name="actionStateLoadUndo">
+   <property name="text">
+    <string>Undo Load State</string>
+   </property>
+  </action>
+  <action name="actionStateSaveFile">
+   <property name="text">
+    <string>Save State to File</string>
+   </property>
+  </action>
+  <action name="actionStateSaveSelectedSlot">
+   <property name="text">
+    <string>Save State to Selected Slot</string>
+   </property>
+  </action>
+  <action name="actionStateSaveOldestSlot">
+   <property name="text">
+    <string>Save State to Oldest Slot</string>
+   </property>
+  </action>
+  <action name="actionStateSaveUndo">
+   <property name="text">
+    <string>Undo Save State</string>
+   </property>
+  </action>
+  <action name="actionMovieStartRecording">
+   <property name="text">
+    <string>Start Re&amp;cording Input</string>
+   </property>
+  </action>
+  <action name="actionMoviePlayRecording">
+   <property name="text">
+    <string>P&amp;lay Input Recording...</string>
+   </property>
+  </action>
+  <action name="actionMovieStopRecording">
+   <property name="text">
+    <string>Stop Playing/Recording Input</string>
+   </property>
+  </action>
+  <action name="actionMovieExportRecording">
+   <property name="text">
+    <string>Export Recording...</string>
+   </property>
+  </action>
+  <action name="actionMovieReadOnly">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Read-Only Mode</string>
+   </property>
+  </action>
+  <action name="actionMovieTasInput">
+   <property name="text">
+    <string>TAS Input</string>
+   </property>
+  </action>
+  <action name="actionMoviePauseAtEnd">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Pause at End of Movie</string>
+   </property>
+  </action>
+  <action name="actionMovieEnableWindow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Enable Movie Window</string>
+   </property>
+  </action>
+  <action name="actionMovieConfigureWindow">
+   <property name="text">
+    <string>Customize Movie Window</string>
+   </property>
+  </action>
+  <action name="actionMovieDumpFrames">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Dump Frames</string>
+   </property>
+  </action>
+  <action name="actionMovieDumpAudio">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Dump Audio</string>
+   </property>
+  </action>
+  <action name="actionOptionsConfiguration">
+   <property name="text">
+    <string>Co&amp;nfiguration</string>
+   </property>
+  </action>
+  <action name="actionOptionsGraphics">
+   <property name="text">
+    <string>&amp;Graphics Settings</string>
+   </property>
+  </action>
+  <action name="actionOptionsAudio">
+   <property name="text">
+    <string>&amp;Audio Settings</string>
+   </property>
+  </action>
+  <action name="actionOptionsControllers">
+   <property name="text">
+    <string>&amp;Controller Settings</string>
+   </property>
+  </action>
+  <action name="actionOptionsHotkeys">
+   <property name="text">
+    <string>&amp;Hotkey Settings</string>
+   </property>
+  </action>
+  <action name="actionOptionsFreeLook">
+   <property name="text">
+    <string>&amp;Free Look Settings</string>
+   </property>
+  </action>
+  <action name="actionToolsResourcePackManager">
+   <property name="text">
+    <string>&amp;Resource Pack Manager</string>
+   </property>
+  </action>
+  <action name="actionToolsCheatsManager">
+   <property name="text">
+    <string>&amp;Cheats Manager</string>
+   </property>
+  </action>
+  <action name="actionToolsFifoPlayer">
+   <property name="text">
+    <string>&amp;FIFO Player</string>
+   </property>
+  </action>
+  <action name="actionToolsSkylandersPortal">
+   <property name="text">
+    <string>&amp;Skylanders Portal</string>
+   </property>
+  </action>
+  <action name="actionToolsInfinityBase">
+   <property name="text">
+    <string>&amp;Infinity Base</string>
+   </property>
+  </action>
+  <action name="actionToolsWiiSpeak">
+   <property name="text">
+    <string>&amp;Wii Speak</string>
+   </property>
+  </action>
+  <action name="actionToolsLogitechMicrophone">
+   <property name="text">
+    <string>&amp;Logitech USB Microphone</string>
+   </property>
+  </action>
+  <action name="actionToolsStartNetPlay">
+   <property name="text">
+    <string>Start &amp;NetPlay...</string>
+   </property>
+  </action>
+  <action name="actionToolsBrowseNetPlay">
+   <property name="text">
+    <string>Browse &amp;NetPlay Sessions....</string>
+   </property>
+  </action>
+  <action name="actionToolsGameCubeNtscJ">
+   <property name="text">
+    <string>NTSC-&amp;J</string>
+   </property>
+  </action>
+  <action name="actionToolsGameCubeNtscU">
+   <property name="text">
+    <string>NTSC-&amp;U</string>
+   </property>
+  </action>
+  <action name="actionToolsGameCubePal">
+   <property name="text">
+    <string>&amp;PAL</string>
+   </property>
+  </action>
+  <action name="actionToolsGameCubeTriforce">
+   <property name="text">
+    <string>&amp;Triforce</string>
+   </property>
+  </action>
+  <action name="actionToolsMemoryCardManager">
+   <property name="text">
+    <string>&amp;Memory Card Manager</string>
+   </property>
+  </action>
+  <action name="actionToolsBootSystemMenu"/>
+  <action name="actionToolsInstallWad">
+   <property name="text">
+    <string>Install &amp;WAD...</string>
+   </property>
+  </action>
+  <action name="actionToolsImportNandBackup">
+   <property name="text">
+    <string>Import &amp;BootMii NAND Backup...</string>
+   </property>
+  </action>
+  <action name="actionToolsCheckNand">
+   <property name="text">
+    <string>Check &amp;NAND...</string>
+   </property>
+  </action>
+  <action name="actionToolsExtractCertificates">
+   <property name="text">
+    <string>Extract &amp;Certificates from NAND</string>
+   </property>
+  </action>
+  <action name="actionToolsUpdateCurrentRegion">
+   <property name="text">
+    <string>&amp;Current Region</string>
+   </property>
+  </action>
+  <action name="actionToolsUpdateEurope">
+   <property name="text">
+    <string>&amp;Europe</string>
+   </property>
+  </action>
+  <action name="actionToolsUpdateJapan">
+   <property name="text">
+    <string>&amp;Japan</string>
+   </property>
+  </action>
+  <action name="actionToolsUpdateKorea">
+   <property name="text">
+    <string>&amp;Korea</string>
+   </property>
+  </action>
+  <action name="actionToolsUpdateUnitedStates">
+   <property name="text">
+    <string>&amp;United States</string>
+   </property>
+  </action>
+  <action name="actionToolsImportWiiSave">
+   <property name="text">
+    <string>Import &amp;Wii Save...</string>
+   </property>
+  </action>
+  <action name="actionToolsImportWiiSaves">
+   <property name="text">
+    <string>Import &amp;Wii Saves...</string>
+   </property>
+  </action>
+  <action name="actionToolsExportWiiSaves">
+   <property name="text">
+    <string>Export All &amp;Wii Saves</string>
+   </property>
+  </action>
+  <action name="actionViewBigPicture">
+   <property name="text">
+    <string>Big Picture</string>
+   </property>
+  </action>
+  <action name="actionViewShowLog">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show &amp;Log</string>
+   </property>
+  </action>
+  <action name="actionViewShowLogConfiguration">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Log &amp;Configuration</string>
+   </property>
+  </action>
+  <action name="actionViewShowToolbar">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show &amp;Toolbar</string>
+   </property>
+  </action>
+  <action name="actionViewLockWidgets">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Lock Widgets In Place</string>
+   </property>
+  </action>
+  <action name="actionViewAfterDebuggerSeparator">
+   <property name="separator">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionViewList">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>List View</string>
+   </property>
+  </action>
+  <action name="actionViewGrid">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Grid View</string>
+   </property>
+  </action>
+  <action name="actionViewShowAllRegions">
+   <property name="text">
+    <string>Show All</string>
+   </property>
+  </action>
+  <action name="actionViewHideAllRegions">
+   <property name="text">
+    <string>Hide All</string>
+   </property>
+  </action>
+  <action name="actionViewShowGameCount">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Game Count</string>
+   </property>
+  </action>
+  <action name="actionViewPurgeGameListCache">
+   <property name="text">
+    <string>Purge Game List Cache</string>
+   </property>
+  </action>
+  <action name="actionViewSearch">
+   <property name="text">
+    <string>Search</string>
+   </property>
+  </action>
+  <action name="actionHelpWebsite">
+   <property name="text">
+    <string>&amp;Website</string>
+   </property>
+  </action>
+  <action name="actionHelpDocumentation">
+   <property name="text">
+    <string>Online &amp;Documentation</string>
+   </property>
+  </action>
+  <action name="actionHelpGitHub">
+   <property name="text">
+    <string>&amp;GitHub Repository</string>
+   </property>
+  </action>
+  <action name="actionHelpBugTracker">
+   <property name="text">
+    <string>&amp;Bug Tracker</string>
+   </property>
+  </action>
+  <action name="actionHelpAbout">
+   <property name="text">
+    <string>&amp;About</string>
+   </property>
+  </action>
+  <action name="actionToolbarStep">
+   <property name="text">
+    <string extracomment="Here, &quot;Step&quot; is a verb. This feature is used for going through code step by step.">Step</string>
+   </property>
+  </action>
+  <action name="actionToolbarStepOver">
+   <property name="text">
+    <string extracomment="Here, &quot;Step&quot; is a verb. This feature is used for going through code step by step.">Step Over</string>
+   </property>
+  </action>
+  <action name="actionToolbarStepOut">
+   <property name="text">
+    <string extracomment="Here, &quot;Step&quot; is a verb. This feature is used for going through code step by step.">Step Out</string>
+   </property>
+  </action>
+  <action name="actionToolbarSkip">
+   <property name="text">
+    <string>Skip</string>
+   </property>
+  </action>
+  <action name="actionToolbarShowPC">
+   <property name="text">
+    <string extracomment="PC is an acronym for program counter, not personal computer.">Show PC</string>
+   </property>
+  </action>
+  <action name="actionToolbarSetPC">
+   <property name="text">
+    <string extracomment="PC is an acronym for program counter, not personal computer.">Set PC</string>
+   </property>
+  </action>
+  <action name="actionToolbarOpen">
+   <property name="text">
+    <string>Open</string>
+   </property>
+  </action>
+  <action name="actionToolbarRefresh">
+   <property name="text">
+    <string>Refresh</string>
+   </property>
+  </action>
+  <action name="actionToolbarPlayPause">
+   <property name="text">
+    <string>Play</string>
+   </property>
+  </action>
+  <action name="actionToolbarStop">
+   <property name="text">
+    <string>Stop</string>
+   </property>
+  </action>
+  <action name="actionToolbarFullScreen">
+   <property name="text">
+    <string>FullScr</string>
+   </property>
+  </action>
+  <action name="actionToolbarScreenShot">
+   <property name="text">
+    <string>ScrShot</string>
+   </property>
+  </action>
+  <action name="actionToolbarSettings">
+   <property name="text">
+    <string>Config</string>
+   </property>
+  </action>
+  <action name="actionToolbarGraphics">
+   <property name="text">
+    <string>Graphics</string>
+   </property>
+  </action>
+  <action name="actionToolbarControllers">
+   <property name="text">
+    <string>Controllers</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>GameCount</class>
+   <extends>QStatusBar</extends>
+   <header location="global">DolphinQt/GameCount.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QtUtils::NonAutodismissibleMenu</class>
+   <extends>QMenu</extends>
+   <header location="global">DolphinQt/QtUtils/NonAutodismissibleMenu.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

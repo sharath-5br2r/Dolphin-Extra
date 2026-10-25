@@ -13,6 +13,7 @@
 #if defined(__APPLE__)
 #include "Common/FileUtil.h"
 #elif defined(ANDROID) && _M_ARM_64
+#include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
 
 #include "VideoCommon/VideoConfig.h"
@@ -62,8 +63,14 @@ static bool OpenVulkanLibrary(bool force_system_library)
     std::string tmp_dir = File::GetGpuDriverDirectory(D_GPU_DRIVERS_TMP);
     std::string hook_dir = File::GetGpuDriverDirectory(D_GPU_DRIVERS_HOOKS);
     std::string file_redirect_dir = File::GetGpuDriverDirectory(D_GPU_DRIVERS_FILE_REDIRECT);
-    std::string driver_dir = File::GetGpuDriverDirectory(D_GPU_DRIVERS_EXTRACTED);
-    INFO_LOG_FMT(HOST_GPU, "Loading driver: {}", driver_lib_name);
+    // Drivers installed by the driver manager live in Installed/<package>/; an empty package
+    // means the legacy single-slot Extracted/ directory.
+    const std::string& driver_package = g_Config.customDriverPackage;
+    std::string driver_dir =
+        driver_package.empty() ?
+            File::GetGpuDriverDirectory(D_GPU_DRIVERS_EXTRACTED) :
+            File::GetGpuDriverDirectory(D_GPU_DRIVERS_INSTALLED) + driver_package + DIR_SEP;
+    INFO_LOG_FMT(HOST_GPU, "Loading driver: {} from {}", driver_lib_name, driver_dir);
 
     s_vulkan_module = adrenotools_open_libvulkan(
         RTLD_NOW, ADRENOTOOLS_DRIVER_FILE_REDIRECT | ADRENOTOOLS_DRIVER_CUSTOM, tmp_dir.c_str(),

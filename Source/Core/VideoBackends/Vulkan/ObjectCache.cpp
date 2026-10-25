@@ -144,18 +144,19 @@ bool ObjectCache::CreateDescriptorSetLayouts()
        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
   }};
 
-  // Utility samplers aren't dynamically indexed.
-  static const std::array<VkDescriptorSetLayoutBinding, 9> utility_sampler_bindings{{
-      {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {7, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-      {8, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-  }};
+  // Utility samplers aren't dynamically indexed: NUM_UTILITY_PIXEL_SAMPLERS combined image
+  // samplers (bindings 0..N-1) followed by one texel buffer at binding N. Built from the
+  // constant so the layout always matches TEXEL_BUFFER_BINDING in the shader headers.
+  std::array<VkDescriptorSetLayoutBinding, NUM_UTILITY_PIXEL_SAMPLERS + 1>
+      utility_sampler_bindings{};
+  for (u32 i = 0; i < NUM_UTILITY_PIXEL_SAMPLERS; i++)
+  {
+    utility_sampler_bindings[i] = {i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                                   VK_SHADER_STAGE_FRAGMENT_BIT};
+  }
+  utility_sampler_bindings[NUM_UTILITY_PIXEL_SAMPLERS] = {
+      NUM_UTILITY_PIXEL_SAMPLERS, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1,
+      VK_SHADER_STAGE_FRAGMENT_BIT};
 
   static const std::array<VkDescriptorSetLayoutBinding, 19> compute_set_bindings{{
       {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_COMPUTE_BIT},

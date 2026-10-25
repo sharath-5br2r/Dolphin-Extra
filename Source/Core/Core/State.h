@@ -89,6 +89,15 @@ std::string GetInfoStringOfSlot(u32 slot, bool translate = true);
 // Returns when the savestate in the given slot was created, or 0 if the slot is empty.
 u64 GetUnixTimeOfSlot(u32 slot);
 
+struct SlotInfo
+{
+  bool exists = false;
+  bool readable = false;
+  std::string description;
+};
+// A single locked metadata read for menu snapshots. This does not validate the state payload.
+SlotInfo GetSlotInfo(u32 slot);
+
 // These don't happen instantly - they get scheduled as events.
 // ...But only if we're not in the main CPU thread.
 //    If we're in the main CPU thread then they run immediately instead.

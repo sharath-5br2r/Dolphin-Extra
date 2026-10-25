@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>IOWindow</class>
+ <widget class="QDialog" name="IOWindow">
+  <layout class="QVBoxLayout" name="mainLayout" stretch="0,2,1,0,0">
+   <item>
+    <widget class="QComboBox" name="devicesComboBox"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="optionsLayout" stretch="8,1">
+     <item>
+      <widget class="QTableWidget" name="optionTableWidget">
+       <property name="tabKeyNavigation">
+        <bool>false</bool>
+       </property>
+       <property name="editTriggers">
+        <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+       </property>
+       <attribute name="horizontalHeaderVisible">
+        <bool>false</bool>
+       </attribute>
+       <attribute name="verticalHeaderVisible">
+        <bool>false</bool>
+       </attribute>
+      </widget>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="actionLayout">
+       <item>
+        <widget class="QPushButton" name="selectButton">
+         <property name="text">
+          <string notr="true"/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="detectButton">
+         <property name="text">
+          <string>Detect Input</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="testButton">
+         <property name="text">
+          <string>Test Output</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="variablesComboLayout"/>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="operatorsComboLayout"/>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="functionsComboLayout"/>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="scalarLayout">
+         <item>
+          <widget class="QLabel" name="scalarLabel">
+           <property name="text">
+            <string extracomment="Controller input values are multiplied by this percentage value.">Multiplier</string>
+           </property>
+           <property name="buddy">
+            <cstring>scalarSpinBox</cstring>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="scalarSpinBox"/>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QPlainTextEdit" name="expressionPlainTextEdit"/>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="parseTextLayout">
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+    </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>devicesComboBox</tabstop>
+  <tabstop>optionTableWidget</tabstop>
+  <tabstop>selectButton</tabstop>
+  <tabstop>detectButton</tabstop>
+  <tabstop>testButton</tabstop>
+  <tabstop>scalarSpinBox</tabstop>
+  <tabstop>expressionPlainTextEdit</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

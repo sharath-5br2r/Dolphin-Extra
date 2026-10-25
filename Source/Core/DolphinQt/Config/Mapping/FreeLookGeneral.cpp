@@ -3,11 +3,10 @@
 
 #include "DolphinQt/Config/Mapping/FreeLookGeneral.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-
 #include "Core/FreeLookManager.h"
 #include "InputCommon/InputConfig.h"
+
+#include "ui_MappingGridPage.h"
 
 FreeLookGeneral::FreeLookGeneral(MappingWindow* window) : MappingWidget(window)
 {
@@ -16,19 +15,19 @@ FreeLookGeneral::FreeLookGeneral(MappingWindow* window) : MappingWidget(window)
 
 void FreeLookGeneral::CreateMainLayout()
 {
-  auto* layout = new QGridLayout;
+  Ui::MappingGridPage ui;
+  ui.setupUi(this);
 
-  layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Move"), FreeLook::GetInputGroup(GetPort(), FreeLookGroup::Move)), 0, 0);
-  layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Speed"), FreeLook::GetInputGroup(GetPort(), FreeLookGroup::Speed)), 0, 1);
-  layout->addWidget(CreateGroupBox(tr("Field of View"),
-                                   FreeLook::GetInputGroup(GetPort(), FreeLookGroup::FieldOfView)),
-                    0, 2);
-  layout->addWidget(
+  ui.groupLayout->addWidget(
+      CreateGroupBox(tr("Field of View"),
+                     FreeLook::GetInputGroup(GetPort(), FreeLookGroup::FieldOfView)),
+      0, 2);
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Other"), FreeLook::GetInputGroup(GetPort(), FreeLookGroup::Other)), 0, 3);
-
-  setLayout(layout);
 }
 
 void FreeLookGeneral::LoadSettings()

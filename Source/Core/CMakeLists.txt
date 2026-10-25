@@ -86,3 +86,41 @@ if (APPLE AND ENABLE_QT)
       "${DOLPHIN_MAC_BUNDLE}")
   endif()
 endif()
+
+# Copy librashader.dll to the build output directory on Windows for all frontend targets.
+# Both dolphin-emu (Qt) and dolphin-nogui need the DLL, whatever backends are enabled: on Windows
+# librashader drives D3D11, D3D12 and OpenGL as well as Vulkan, so this is deliberately not gated
+# on ENABLE_VULKAN. It cannot be -- a build with Vulkan off would ship no DLL and then report
+# librashader as simply unavailable, which is a legitimate state and so would go unnoticed.
+# Neither frontend overrides RUNTIME_OUTPUT_DIRECTORY, so both land in the global
+# CMAKE_RUNTIME_OUTPUT_DIRECTORY (${CMAKE_BINARY_DIR}/Binaries, set in the root CMakeLists);
+# one copy into that directory therefore serves every frontend.
+#
+# This must not use add_custom_command(TARGET ...), which requires the target to have been
+# created in the *same* directory as the call: both frontends are created in subdirectories,
+# so that form fails configure with "TARGET '...' was not created in this directory".
+# if(TARGET) is global while add_custom_command(TARGET) is directory-scoped, so the guard
+# passes and the command then hard-errors.
+if(WIN32)
+  set(LIBRASHADER_DLL "${CMAKE_SOURCE_DIR}/Externals/librashader/lib/windows-x64/librashader.dll")
+  if(EXISTS "${LIBRASHADER_DLL}")
+    if(TARGET dolphin-emu OR TARGET dolphin-nogui)
+      add_custom_target(librashader-dll ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${LIBRASHADER_DLL}" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+        COMMENT "Copying librashader.dll to the runtime output directory")
+      # add_dependencies is not directory-scoped, so it may name targets from subdirectories.
+      foreach(frontend dolphin-emu dolphin-nogui)
+        if(TARGET ${frontend})
+          add_dependencies(${frontend} librashader-dll)
+        endif()
+      endforeach()
+    endif()
+    # Windows has no install(TARGETS ...) rule for these executables yet, but keep the install
+    # rule for when one is added.
+    install(FILES "${LIBRASHADER_DLL}" DESTINATION ${CMAKE_INSTALL_BINDIR})
+  else()
+    message(STATUS "librashader.dll not found; the librashader post-processing renderer will be unavailable.")
+  endif()
+endif()

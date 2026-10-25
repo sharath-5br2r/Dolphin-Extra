@@ -4,6 +4,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -15,14 +16,10 @@
 #include "Common/Flag.h"
 #include "UICommon/NetPlayIndex.h"
 
-class QCheckBox;
-class QComboBox;
-class QDialogButtonBox;
-class QLabel;
-class QLineEdit;
-class QPushButton;
-class QRadioButton;
-class QTableWidget;
+namespace Ui
+{
+class NetPlayBrowser;
+}
 
 class NetPlayBrowser : public QDialog
 {
@@ -38,7 +35,6 @@ signals:
   void UpdateListRequested(std::vector<NetPlaySession> sessions);
 
 private:
-  void CreateWidgets();
   void ConnectWidgets();
 
   void Refresh();
@@ -53,20 +49,6 @@ private:
   void SaveSettings() const;
   void RestoreSettings();
 
-  QComboBox* m_region_combo;
-  QLabel* m_status_label;
-  QPushButton* m_button_refresh;
-  QTableWidget* m_table_widget;
-  QDialogButtonBox* m_button_box;
-  QLineEdit* m_edit_name;
-  QLineEdit* m_edit_game_id;
-  QCheckBox* m_check_hide_incompatible;
-  QCheckBox* m_check_hide_ingame;
-
-  QRadioButton* m_radio_all;
-  QRadioButton* m_radio_private;
-  QRadioButton* m_radio_public;
-
   std::vector<NetPlaySession> m_sessions;
 
   std::thread m_refresh_thread;
@@ -74,6 +56,7 @@ private:
   std::mutex m_refresh_filters_mutex;
   Common::Flag m_refresh_run;
   Common::Event m_refresh_event;
+  std::unique_ptr<Ui::NetPlayBrowser> m_ui;
 };
 
 Q_DECLARE_METATYPE(std::vector<NetPlaySession>)

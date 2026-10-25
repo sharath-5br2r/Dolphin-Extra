@@ -6,14 +6,12 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
-#include <QGridLayout>
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QUrl>
-#include <QVBoxLayout>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -33,6 +31,8 @@
 #include "Core/System.h"
 #include "DolphinQt/Host.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_NetworkWidget.h"
 
 namespace
 {
@@ -240,13 +240,32 @@ void NetworkWidget::showEvent(QShowEvent*)
 void NetworkWidget::CreateWidgets()
 {
   auto* widget = new QWidget;
-  auto* layout = new QVBoxLayout;
-  widget->setLayout(layout);
-  layout->addWidget(CreateSocketTableGroup());
-  layout->addWidget(CreateSSLContextGroup());
-  layout->addWidget(CreateDumpOptionsGroup());
-  layout->addWidget(CreateSecurityOptionsGroup());
-  layout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding));
+  Ui::NetworkWidget ui;
+  ui.setupUi(widget);
+  m_socket_table = ui.socketTable;
+  m_ssl_table = ui.sslTable;
+  m_dump_format_combo = ui.dumpFormatCombo;
+  m_dump_ssl_read_checkbox = ui.dumpSslReadCheckBox;
+  m_dump_ssl_write_checkbox = ui.dumpSslWriteCheckBox;
+  m_dump_root_ca_checkbox = ui.dumpRootCaCheckBox;
+  m_dump_peer_cert_checkbox = ui.dumpPeerCertCheckBox;
+  m_verify_certificates_checkbox = ui.verifyCertificatesCheckBox;
+  m_dump_bba_checkbox = ui.dumpBbaCheckBox;
+  m_open_dump_folder = ui.openDumpFolderButton;
+
+  // i18n: FD stands for file descriptor (and in this case refers to sockets, not regular files)
+  const QStringList socket_headers{tr("FD"),       tr("Domain"), tr("Type"),        tr("State"),
+                                   tr("Blocking"), tr("Name"),   tr("Redirections")};
+  m_socket_table->setColumnCount(static_cast<int>(socket_headers.size()));
+  m_socket_table->setHorizontalHeaderLabels(socket_headers);
+  m_socket_table->verticalHeader()->hide();
+
+  const QStringList ssl_headers{tr("ID"),    tr("Domain"), tr("Type"),
+                                tr("State"), tr("Name"),   tr("Hostname")};
+  m_ssl_table->setColumnCount(static_cast<int>(ssl_headers.size()));
+  m_ssl_table->setHorizontalHeaderLabels(ssl_headers);
+  m_ssl_table->verticalHeader()->hide();
+
   setWidget(widget);
 
   Update();
@@ -415,118 +434,6 @@ void NetworkWidget::Update()
     return FormatComboId::None;
   }());
   m_dump_format_combo->setCurrentIndex(combo_index);
-}
-
-QGroupBox* NetworkWidget::CreateSocketTableGroup()
-{
-  auto* const socket_table_group = new QGroupBox(tr("Socket table"));
-  auto* const socket_table_layout = new QGridLayout;
-  socket_table_group->setLayout(socket_table_layout);
-
-  m_socket_table = new QTableWidget();
-  // i18n: FD stands for file descriptor (and in this case refers to sockets, not regular files)
-  QStringList header{tr("FD"),       tr("Domain"), tr("Type"),        tr("State"),
-                     tr("Blocking"), tr("Name"),   tr("Redirections")};
-  m_socket_table->setColumnCount(static_cast<int>(header.size()));
-
-  m_socket_table->setHorizontalHeaderLabels(header);
-  m_socket_table->setTabKeyNavigation(false);
-  m_socket_table->verticalHeader()->setVisible(false);
-  m_socket_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_socket_table->setSelectionMode(QAbstractItemView::NoSelection);
-  m_socket_table->setWordWrap(false);
-
-  socket_table_layout->addWidget(m_socket_table, 0, 0);
-  socket_table_layout->setSpacing(1);
-  return socket_table_group;
-}
-
-QGroupBox* NetworkWidget::CreateSSLContextGroup()
-{
-  auto* const ssl_context_group = new QGroupBox(tr("SSL context"));
-  auto* const ssl_context_layout = new QGridLayout;
-  ssl_context_group->setLayout(ssl_context_layout);
-
-  m_ssl_table = new QTableWidget();
-  QStringList header{tr("ID"), tr("Domain"), tr("Type"), tr("State"), tr("Name"), tr("Hostname")};
-  m_ssl_table->setColumnCount(static_cast<int>(header.size()));
-
-  m_ssl_table->setHorizontalHeaderLabels(header);
-  m_ssl_table->setTabKeyNavigation(false);
-  m_ssl_table->verticalHeader()->setVisible(false);
-  m_ssl_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_ssl_table->setSelectionMode(QAbstractItemView::NoSelection);
-  m_ssl_table->setWordWrap(false);
-
-  ssl_context_layout->addWidget(m_ssl_table, 0, 0);
-  ssl_context_layout->setSpacing(1);
-  return ssl_context_group;
-}
-
-QGroupBox* NetworkWidget::CreateDumpOptionsGroup()
-{
-  auto* const dump_options_group = new QGroupBox(tr("Dump options"));
-  auto* const dump_options_layout = new QVBoxLayout;
-  dump_options_group->setLayout(dump_options_layout);
-
-  m_dump_format_combo = CreateDumpFormatCombo();
-  m_dump_format_combo->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-  m_dump_ssl_read_checkbox = new QCheckBox(tr("Dump decrypted SSL reads"));
-  m_dump_ssl_write_checkbox = new QCheckBox(tr("Dump decrypted SSL writes"));
-  // i18n: CA stands for certificate authority
-  m_dump_root_ca_checkbox = new QCheckBox(tr("Dump root CA certificates"));
-  m_dump_peer_cert_checkbox = new QCheckBox(tr("Dump peer certificates"));
-  m_dump_bba_checkbox = new QCheckBox(tr("Dump GameCube BBA traffic"));
-  m_open_dump_folder = new QPushButton(tr("Open dump folder"));
-  m_open_dump_folder->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-  auto* const combo_label = new QLabel(tr("Network dump format:"));
-  combo_label->setBuddy(m_dump_format_combo);
-  auto* const combo_layout = new QHBoxLayout;
-  combo_layout->addWidget(combo_label);
-  const int combo_label_space =
-      combo_label->fontMetrics().boundingRect(QStringLiteral("__")).width();
-  combo_layout->addItem(new QSpacerItem(combo_label_space, 0));
-  combo_layout->addWidget(m_dump_format_combo);
-  combo_layout->addStretch();
-  dump_options_layout->addLayout(combo_layout);
-
-  dump_options_layout->addWidget(m_dump_ssl_read_checkbox);
-  dump_options_layout->addWidget(m_dump_ssl_write_checkbox);
-  dump_options_layout->addWidget(m_dump_root_ca_checkbox);
-  dump_options_layout->addWidget(m_dump_peer_cert_checkbox);
-  dump_options_layout->addWidget(m_dump_bba_checkbox);
-  dump_options_layout->addWidget(m_open_dump_folder);
-
-  dump_options_layout->setSpacing(1);
-  return dump_options_group;
-}
-
-QGroupBox* NetworkWidget::CreateSecurityOptionsGroup()
-{
-  auto* const security_options_group = new QGroupBox(tr("Security options"));
-  auto* const security_options_layout = new QVBoxLayout;
-  security_options_group->setLayout(security_options_layout);
-
-  m_verify_certificates_checkbox = new QCheckBox(tr("Verify certificates"));
-  security_options_layout->addWidget(m_verify_certificates_checkbox);
-
-  security_options_layout->setSpacing(1);
-  return security_options_group;
-}
-
-QComboBox* NetworkWidget::CreateDumpFormatCombo()
-{
-  auto* combo = new QComboBox();
-
-  combo->insertItem(int(FormatComboId::None), tr("None"));
-  // i18n: PCAP is a file format
-  combo->insertItem(int(FormatComboId::PCAP), tr("PCAP"));
-  combo->insertItem(int(FormatComboId::BinarySSL), tr("Binary SSL"));
-  combo->insertItem(int(FormatComboId::BinarySSLRead), tr("Binary SSL (read)"));
-  combo->insertItem(int(FormatComboId::BinarySSLWrite), tr("Binary SSL (write)"));
-
-  return combo;
 }
 
 void NetworkWidget::OnDumpFormatComboChanged(int index)

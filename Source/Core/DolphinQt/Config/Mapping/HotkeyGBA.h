@@ -5,8 +5,6 @@
 
 #include "DolphinQt/Config/Mapping/MappingWidget.h"
 
-class QHBoxLayout;
-
 class HotkeyGBA final : public MappingWidget
 {
   Q_OBJECT
@@ -19,7 +17,4 @@ private:
   void LoadSettings() override;
   void SaveSettings() override;
   void CreateMainLayout();
-
-  // Main
-  QHBoxLayout* m_main_layout;
 };

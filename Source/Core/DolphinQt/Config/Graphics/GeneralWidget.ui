@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GeneralWidget</class>
+ <widget class="QWidget" name="GeneralWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>680</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="basicGroup">
+     <property name="title">
+      <string>Basic</string>
+     </property>
+     <layout class="QGridLayout" name="basicLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="backendLabel">
+        <property name="text">
+         <string>Backend:</string>
+        </property>
+        <property name="buddy">
+         <cstring>backendComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1" colspan="2">
+       <widget class="QComboBox" name="backendComboBox"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="adapterLabel">
+        <property name="text">
+         <string>Adapter:</string>
+        </property>
+        <property name="buddy">
+         <cstring>adapterComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1" colspan="2">
+       <widget class="QComboBox" name="adapterComboBox"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="aspectRatioLabel">
+        <property name="text">
+         <string>Aspect Ratio:</string>
+        </property>
+        <property name="buddy">
+         <cstring>aspectRatioComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <widget class="QComboBox" name="aspectRatioComboBox">
+        <item>
+         <property name="text">
+          <string>Auto</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Force 16:9</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Force 4:3</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Stretch to Window</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Custom</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Custom (Stretch)</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="customAspectRatioLabel">
+        <property name="text">
+         <string>Custom Aspect Ratio:</string>
+        </property>
+        <property name="buddy">
+         <cstring>customAspectWidthSpinBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QSpinBox" name="customAspectWidthSpinBox">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>10000</number>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QSpinBox" name="customAspectHeightSpinBox">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>10000</number>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="3">
+       <layout class="QGridLayout" name="basicOptionsLayout">
+        <item row="0" column="0">
+         <widget class="QCheckBox" name="vsyncCheckBox">
+          <property name="text">
+           <string>V-Sync</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QCheckBox" name="fullscreenCheckBox">
+          <property name="text">
+           <string>Start in Fullscreen</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="precisionFrameTimingCheckBox">
+          <property name="text">
+           <string>Precision Frame Timing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="integerScalingCheckBox">
+          <property name="text">
+           <string>Integer Scaling</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="otherGroup">
+     <property name="title">
+      <string>Other</string>
+     </property>
+     <layout class="QGridLayout" name="otherLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="renderToMainWindowCheckBox">
+        <property name="text">
+         <string>Render to Main Window</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="autoAdjustWindowSizeCheckBox">
+        <property name="text">
+         <string>Auto-Adjust Window Size</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="shaderCompilationGroup">
+     <property name="title">
+      <string>Shader Compilation</string>
+     </property>
+     <layout class="QGridLayout" name="shaderCompilationLayout">
+      <item row="0" column="0">
+       <widget class="QRadioButton" name="specializedShaderRadioButton">
+        <property name="text">
+         <string>Specialized (Default)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QRadioButton" name="exclusiveUbershadersRadioButton">
+        <property name="text">
+         <string>Exclusive Ubershaders</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QRadioButton" name="hybridUbershadersRadioButton">
+        <property name="text">
+         <string>Hybrid Ubershaders</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QRadioButton" name="skipDrawingRadioButton">
+        <property name="text">
+         <string>Skip Drawing</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="waitForShadersCheckBox">
+        <property name="text">
+         <string>Compile Shaders Before Starting</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>backendComboBox</tabstop>
+  <tabstop>adapterComboBox</tabstop>
+  <tabstop>aspectRatioComboBox</tabstop>
+  <tabstop>customAspectWidthSpinBox</tabstop>
+  <tabstop>customAspectHeightSpinBox</tabstop>
+  <tabstop>vsyncCheckBox</tabstop>
+  <tabstop>fullscreenCheckBox</tabstop>
+  <tabstop>precisionFrameTimingCheckBox</tabstop>
+  <tabstop>integerScalingCheckBox</tabstop>
+  <tabstop>renderToMainWindowCheckBox</tabstop>
+  <tabstop>autoAdjustWindowSizeCheckBox</tabstop>
+  <tabstop>specializedShaderRadioButton</tabstop>
+  <tabstop>exclusiveUbershadersRadioButton</tabstop>
+  <tabstop>hybridUbershadersRadioButton</tabstop>
+  <tabstop>skipDrawingRadioButton</tabstop>
+  <tabstop>waitForShadersCheckBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

@@ -107,6 +107,10 @@ std::unique_ptr<optparse::OptionParser> CreateParser(ParserOptions options)
 
   if (options == ParserOptions::IncludeGUIOptions)
   {
+    parser->add_option("--big-picture")
+        .dest("big_picture")
+        .action("store_true")
+        .help("Start in Big Picture mode (cannot be combined with --batch)");
     parser->add_option("-d", "--debugger")
         .action("store_true")
         .help("Show the debugger pane and additional View menu options");
@@ -142,6 +146,8 @@ static void AddConfigLayer(const optparse::Values& options)
 optparse::Values& ParseArguments(optparse::OptionParser* parser, int argc, char** argv)
 {
   optparse::Values& options = parser->parse_args(argc, argv);
+  if (options.is_set("big_picture") && options.is_set("batch"))
+    parser->error("--big-picture cannot be combined with --batch");
   AddConfigLayer(options);
   return options;
 }
@@ -150,6 +156,8 @@ optparse::Values& ParseArguments(optparse::OptionParser* parser,
                                  const std::vector<std::string>& arguments)
 {
   optparse::Values& options = parser->parse_args(arguments);
+  if (options.is_set("big_picture") && options.is_set("batch"))
+    parser->error("--big-picture cannot be combined with --batch");
   AddConfigLayer(options);
   return options;
 }

@@ -4,51 +4,40 @@
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinQt/Achievements/AchievementProgressWidget.h"
 
-#include <QGroupBox>
 #include <QLabel>
-#include <QLineEdit>
-#include <QProgressBar>
 #include <QString>
-#include <QVBoxLayout>
 
 #include "Core/AchievementManager.h"
 
 #include "DolphinQt/Achievements/AchievementBox.h"
 #include "DolphinQt/QtUtils/ClearLayoutRecursively.h"
 
-AchievementProgressWidget::AchievementProgressWidget(QWidget* parent) : QWidget(parent)
+#include "ui_AchievementProgressWidget.h"
+
+AchievementProgressWidget::AchievementProgressWidget(QWidget* parent)
+    : QWidget(parent), m_ui(std::make_unique<Ui::AchievementProgressWidget>())
 {
-  m_common_box = new QGroupBox();
-  m_common_layout = new QVBoxLayout();
-
-  m_common_box->setLayout(m_common_layout);
-
-  auto* layout = new QVBoxLayout;
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setAlignment(Qt::AlignTop);
-  layout->addWidget(m_common_box);
-  layout->setSizeConstraint(QLayout::SetFixedSize);
-  setLayout(layout);
+  m_ui->setupUi(this);
 }
+
+AchievementProgressWidget::~AchievementProgressWidget() = default;
 
 void AchievementProgressWidget::UpdateData(bool clean_all)
 {
   if (clean_all)
   {
+    ClearLayoutRecursively(m_ui->commonLayout);
     m_achievement_boxes.clear();
-    ClearLayoutRecursively(m_common_layout);
   }
   else
   {
-    while (auto* item = m_common_layout->takeAt(0))
+    while (auto* item = m_ui->commonLayout->takeAt(0))
     {
       auto* widget = item->widget();
-      m_common_layout->removeWidget(widget);
+      m_ui->commonLayout->removeWidget(widget);
       if (std::strcmp(widget->metaObject()->className(), "QLabel") == 0)
-      {
         widget->deleteLater();
-        delete item;
-      }
+      delete item;
     }
   }
 
@@ -63,7 +52,7 @@ void AchievementProgressWidget::UpdateData(bool clean_all)
     return;
   for (u32 ix = 0; ix < achievement_list->num_buckets; ix++)
   {
-    m_common_layout->addWidget(new QLabel(tr(achievement_list->buckets[ix].label)));
+    m_ui->commonLayout->addWidget(new QLabel(tr(achievement_list->buckets[ix].label)));
     for (u32 jx = 0; jx < achievement_list->buckets[ix].num_achievements; jx++)
     {
       auto* achievement = achievement_list->buckets[ix].achievements[jx];
@@ -71,13 +60,13 @@ void AchievementProgressWidget::UpdateData(bool clean_all)
       if (box_itr != m_achievement_boxes.end() && box_itr->first == achievement->id)
       {
         box_itr->second->UpdateProgress();
-        m_common_layout->addWidget(box_itr->second.get());
+        m_ui->commonLayout->addWidget(box_itr->second.get());
       }
       else
       {
         const auto new_box_itr = m_achievement_boxes.try_emplace(
             box_itr, achievement->id, std::make_shared<AchievementBox>(this, achievement));
-        m_common_layout->addWidget(new_box_itr->second.get());
+        m_ui->commonLayout->addWidget(new_box_itr->second.get());
       }
     }
   }

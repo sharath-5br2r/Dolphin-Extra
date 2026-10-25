@@ -18,7 +18,9 @@
 #include "VideoCommon/FrameDumper.h"
 #include "VideoCommon/FramebufferManager.h"
 #include "VideoCommon/OnScreenUI.h"
-#include "VideoCommon/PostProcessing.h"
+#include "VideoCommon/PostProcessing/IPostProcessor.h"
+#include "VideoCommon/PostProcessing/MultipassPostProcessing.h"
+#include "VideoCommon/PresentationScaling.h"
 #include "VideoCommon/VertexManagerBase.h"
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/VideoEvents.h"
@@ -103,9 +105,10 @@ static float SourceAspectRatioToPMWide(float aspect)
   return (69.0f / 40.0f);
 }
 
-
-Presenter::Presenter()
+Presenter::Presenter(bool ui_only) : m_ui_only(ui_only)
 {
+  if (m_ui_only)
+    return;
   auto& video_events = GetVideoEvents();
 
   m_config_changed =
@@ -131,9 +134,22 @@ bool Presenter::Initialize()
   {
     SetBackbuffer(g_gfx->GetSurfaceInfo());
 
-    m_post_processor = std::make_unique<VideoCommon::PostProcessing>();
+    m_post_processor = g_gfx->CreatePostProcessor();
     if (!m_post_processor->Initialize(m_backbuffer_format))
-      return false;
+    {
+      // The renderer is no longer a user-facing choice, so a post-processor that cannot initialise
+      // must not take video initialisation down with it. Fall back once, to the engine that has no
+      // external dependency. Unreachable today: MultipassPostProcessing::Initialize always returns
+      // true, and LibrashaderPostProcessing::Initialize only rejects an unsupported runtime, which
+      // CreatePostProcessor() has already screened out. This guards against that changing -- and
+      // the message names only what we are retrying with, not what failed, because by then the
+      // built-in engine could be the thing that failed.
+      WARN_LOG_FMT(VIDEO, "Post-processing engine failed to initialise; retrying with the built-in "
+                          "engine.");
+      m_post_processor = std::make_unique<VideoCommon::MultipassPostProcessing>();
+      if (!m_post_processor->Initialize(m_backbuffer_format))
+        return false;
+    }
 
     m_onscreen_ui = std::make_unique<OnScreenUI>();
     if (!m_onscreen_ui->Initialize(m_backbuffer_width, m_backbuffer_height, m_backbuffer_scale))
@@ -145,6 +161,34 @@ bool Presenter::Initialize()
   }
 
   return true;
+}
+
+bool Presenter::InitializeUI()
+{
+  SetBackbuffer(g_gfx->GetSurfaceInfo());
+  if (g_gfx->IsHeadless() || m_backbuffer_width == 0 || m_backbuffer_height == 0)
+    return false;
+  m_onscreen_ui = std::make_unique<OnScreenUI>();
+  return m_onscreen_ui->Initialize(m_backbuffer_width, m_backbuffer_height, m_backbuffer_scale);
+}
+
+bool Presenter::PresentUI()
+{
+  // This owner has no EFB, XFB, VI, post processor, frame dumper or guest shader managers.
+  // BindBackbuffer services surface changes on the backend's owning thread.
+  const bool bound = g_gfx->BindBackbuffer({{0.025f, 0.035f, 0.055f, 1.0f}});
+  m_onscreen_ui->Finalize(false);
+  if (bound)
+    m_onscreen_ui->DrawImGui();
+  g_gfx->PresentBackbuffer();
+  m_onscreen_ui->BeginImGuiFrame(m_backbuffer_width, m_backbuffer_height);
+  return bound;
+}
+
+void Presenter::SetUIScale(float scale)
+{
+  m_ui_scale = scale;
+  SetBackbuffer(g_gfx->GetSurfaceInfo());
 }
 
 bool Presenter::FetchXFB(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u64 ticks)
@@ -342,7 +386,8 @@ void Presenter::SetBackbuffer(int backbuffer_width, int backbuffer_height)
       (m_backbuffer_width != backbuffer_width || m_backbuffer_height != backbuffer_height);
   m_backbuffer_width = backbuffer_width;
   m_backbuffer_height = backbuffer_height;
-  UpdateDrawRectangle();
+  if (!m_ui_only)
+    UpdateDrawRectangle();
 
   OnBackbufferSet(size_changed, is_first);
 }
@@ -354,16 +399,18 @@ void Presenter::SetBackbuffer(SurfaceInfo info)
       (m_backbuffer_width != (int)info.width || m_backbuffer_height != (int)info.height);
   m_backbuffer_width = info.width;
   m_backbuffer_height = info.height;
-  m_backbuffer_scale = info.scale;
+  m_backbuffer_scale = m_ui_only && m_ui_scale > 0 ? m_ui_scale : info.scale;
   m_backbuffer_format = info.format;
   if (m_onscreen_ui)
-    m_onscreen_ui->SetScale(info.scale);
+    m_onscreen_ui->SetScale(m_backbuffer_scale);
 
   OnBackbufferSet(size_changed, is_first);
 }
 
 void Presenter::OnBackbufferSet(bool size_changed, bool is_first_set)
 {
+  if (m_ui_only)
+    return;
   UpdateDrawRectangle();
 
   // Automatically update the resolution scale if the window size changed,
@@ -831,6 +878,22 @@ void Presenter::UpdateDrawRectangle()
     int_draw_height = rect.GetHeight();
   }
 
+  if (g_ActiveConfig.bIntegerScaling && m_xfb_entry)
+  {
+    const MathUtil::Rectangle<int> source_rect = AdjustForCustomCrop(m_xfb_rect);
+    int source_width = source_rect.GetWidth();
+    int source_height = source_rect.GetHeight();
+    if (g_ActiveConfig.stereo_per_eye_resolution_full)
+    {
+      if (g_ActiveConfig.stereo_mode == StereoMode::SideBySide)
+        source_width *= 2;
+      else if (g_ActiveConfig.stereo_mode == StereoMode::TopAndBottom)
+        source_height *= 2;
+    }
+    std::tie(int_draw_width, int_draw_height) =
+        ApplyIntegerScaling(int_draw_width, int_draw_height, source_width, source_height);
+  }
+
   m_target_rectangle.left = static_cast<int>(std::round(win_width / 2.0 - int_draw_width / 2.0));
   m_target_rectangle.top = static_cast<int>(std::round(win_height / 2.0 - int_draw_height / 2.0));
   m_target_rectangle.right = m_target_rectangle.left + int_draw_width;
@@ -895,17 +958,20 @@ std::tuple<int, int> Presenter::CalculateOutputDimensions(int width, int height,
 
 void Presenter::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
                                   const AbstractTexture* source_texture,
-                                  const MathUtil::Rectangle<int>& source_rc)
+                                  const MathUtil::Rectangle<int>& source_rc, u32 native_width,
+                                  u32 native_height)
 {
   if (g_ActiveConfig.stereo_mode == StereoMode::QuadBuffer &&
       g_backend_info.bUsesExplictQuadBuffering)
   {
     // Quad-buffered stereo is annoying on GL.
     g_gfx->SelectLeftBuffer();
-    m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, 0);
+    m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, 0, native_width,
+                                      native_height);
 
     g_gfx->SelectRightBuffer();
-    m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, 1);
+    m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, 1, native_width,
+                                      native_height);
 
     g_gfx->SelectMainBuffer();
   }
@@ -914,14 +980,17 @@ void Presenter::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
   {
     const auto [left_rc, right_rc] = ConvertStereoRectangle(target_rc);
 
-    m_post_processor->BlitFromTexture(left_rc, source_rc, source_texture, 0);
-    m_post_processor->BlitFromTexture(right_rc, source_rc, source_texture, 1);
+    m_post_processor->BlitFromTexture(left_rc, source_rc, source_texture, 0, native_width,
+                                      native_height);
+    m_post_processor->BlitFromTexture(right_rc, source_rc, source_texture, 1, native_width,
+                                      native_height);
   }
   // Every other case will be treated the same (stereo or not).
   // If there's multiple source layers, they should all be copied.
   else
   {
-    m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture);
+    m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, -1, native_width,
+                                      native_height);
   }
 }
 
@@ -966,7 +1035,8 @@ void Presenter::Present(PresentInfo* present_info)
     MathUtil::Rectangle<int> render_source_rc = AdjustForCustomCrop(m_xfb_rect);
     AdjustRectanglesToFitBounds(&render_target_rc, &render_source_rc, m_backbuffer_width,
                                 m_backbuffer_height);
-    RenderXFBToScreen(render_target_rc, m_xfb_entry->texture.get(), render_source_rc);
+    RenderXFBToScreen(render_target_rc, m_xfb_entry->texture.get(), render_source_rc,
+                      m_xfb_entry->native_width, m_xfb_entry->native_height);
   }
 
   if (m_onscreen_ui)

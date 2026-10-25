@@ -9,7 +9,7 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 
-class ConfigBool;
+class QCheckBox;
 class QComboBox;
 
 class LogitechMicWindow final : public QWidget
@@ -26,6 +26,6 @@ private:
   void OnEmulationStateChanged(Core::State state);
   void OnInputDeviceChange(std::size_t index);
 
-  std::array<ConfigBool*, Config::EMULATED_LOGITECH_MIC_COUNT> m_mic_enabled_checkboxes;
+  std::array<QCheckBox*, Config::EMULATED_LOGITECH_MIC_COUNT> m_mic_enabled_checkboxes;
   std::array<QComboBox*, 4> m_mic_device_comboboxes;
 };

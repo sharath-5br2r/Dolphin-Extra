@@ -8,7 +8,6 @@
 class QCheckBox;
 class QCloseEvent;
 class QComboBox;
-class QGroupBox;
 class QPushButton;
 class QShowEvent;
 class QTableWidget;
@@ -37,12 +36,6 @@ private:
   void UpdateWiiSocketTable(Core::System& system);
   void UpdateTriforceSocketTable();
   void Update();
-
-  QGroupBox* CreateSocketTableGroup();
-  QGroupBox* CreateSSLContextGroup();
-  QGroupBox* CreateDumpOptionsGroup();
-  QGroupBox* CreateSecurityOptionsGroup();
-  QComboBox* CreateDumpFormatCombo();
 
   void OnDumpFormatComboChanged(int index);
 

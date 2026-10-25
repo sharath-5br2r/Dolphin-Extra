@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AdvancedWidget</class>
+ <widget class="QWidget" name="AdvancedWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>680</width>
+    <height>920</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="debuggingGroup">
+     <property name="title">
+      <string>Debugging</string>
+     </property>
+     <layout class="QGridLayout" name="debuggingLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="wireframeCheckBox">
+        <property name="text">
+         <string>Enable Wireframe</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="textureFormatOverlayCheckBox">
+        <property name="text">
+         <string>Texture Format Overlay</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="apiValidationCheckBox">
+        <property name="text">
+         <string>Enable API Validation Layers</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="logRenderTimeCheckBox">
+        <property name="text">
+         <string>Log Render Time to File</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="utilityGroup">
+     <property name="title">
+      <string>Utility</string>
+     </property>
+     <layout class="QGridLayout" name="utilityLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="loadCustomTexturesCheckBox">
+        <property name="text">
+         <string>Load Custom Textures</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="prefetchCustomTexturesCheckBox">
+        <property name="text">
+         <string>Prefetch Custom Textures</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="disableVramCopiesCheckBox">
+        <property name="text">
+         <string>Disable EFB VRAM Copies</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="enableGraphicsModsCheckBox">
+        <property name="text">
+         <string>Enable Graphics Mods</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="dumpEfbTargetCheckBox">
+        <property name="text">
+         <string>Dump EFB Target</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="dumpXfbTargetCheckBox">
+        <property name="text">
+         <string>Dump XFB Target</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="textureDumpingGroup">
+     <property name="title">
+      <string>Texture Dumping</string>
+     </property>
+     <layout class="QGridLayout" name="textureDumpingLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="dumpTexturesCheckBox">
+        <property name="text">
+         <string>Enable</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="dumpBaseTexturesCheckBox">
+        <property name="text">
+         <string>Dump Base Textures</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="dumpMipTexturesCheckBox">
+        <property name="text">
+         <string>Dump Mip Maps</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="frameDumpingGroup">
+     <property name="title">
+      <string>Frame Dumping</string>
+     </property>
+     <layout class="QGridLayout" name="frameDumpingLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="resolutionTypeLabel">
+        <property name="text">
+         <string>Resolution Type:</string>
+        </property>
+        <property name="buddy">
+         <cstring>resolutionTypeComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="resolutionTypeComboBox">
+        <item>
+         <property name="text">
+          <string>Window Resolution</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Aspect Ratio Corrected Internal Resolution</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Raw Internal Resolution</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="losslessCodecCheckBox">
+        <property name="text">
+         <string>Use Lossless Codec (Ut Video)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="bitrateLabel">
+        <property name="text">
+         <string>Bitrate (kbps):</string>
+        </property>
+        <property name="buddy">
+         <cstring>bitrateSpinBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QSpinBox" name="bitrateSpinBox">
+        <property name="maximum">
+         <number>1000000</number>
+        </property>
+        <property name="singleStep">
+         <number>1000</number>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="pngCompressionLabel">
+        <property name="text">
+         <string>PNG Compression Level:</string>
+        </property>
+        <property name="buddy">
+         <cstring>pngCompressionSpinBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QSpinBox" name="pngCompressionSpinBox">
+        <property name="maximum">
+         <number>9</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="cropGroup">
+     <property name="title">
+      <string>Crop</string>
+     </property>
+     <layout class="QVBoxLayout" name="cropLayout">
+      <item>
+       <widget class="QCheckBox" name="cropToAspectRatioCheckBox">
+        <property name="text">
+         <string>To Aspect Ratio</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="customCropCheckBox">
+        <property name="text">
+         <string>Custom</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="customCropGroup">
+        <property name="title">
+         <string>Custom</string>
+        </property>
+        <layout class="QGridLayout" name="customCropLayout">
+         <item row="0" column="0">
+          <widget class="QLabel" name="cropLeftLabel">
+           <property name="text">
+            <string>Left</string>
+           </property>
+           <property name="buddy">
+            <cstring>cropLeftSpinBox</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QSpinBox" name="cropLeftSpinBox">
+           <property name="maximum">
+            <number>640</number>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QLabel" name="cropTopLabel">
+           <property name="text">
+            <string>Top</string>
+           </property>
+           <property name="buddy">
+            <cstring>cropTopSpinBox</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QSpinBox" name="cropTopSpinBox">
+           <property name="maximum">
+            <number>528</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="cropRightLabel">
+           <property name="text">
+            <string>Right</string>
+           </property>
+           <property name="buddy">
+            <cstring>cropRightSpinBox</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="cropRightSpinBox">
+           <property name="maximum">
+            <number>640</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QLabel" name="cropBottomLabel">
+           <property name="text">
+            <string>Bottom</string>
+           </property>
+           <property name="buddy">
+            <cstring>cropBottomSpinBox</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QSpinBox" name="cropBottomSpinBox">
+           <property name="maximum">
+            <number>528</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="miscGroup">
+     <property name="title">
+      <string>Misc</string>
+     </property>
+     <layout class="QGridLayout" name="miscLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="backendMultithreadingCheckBox">
+        <property name="text">
+         <string>Backend Multithreading</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="progressiveScanCheckBox">
+        <property name="text">
+         <string>Enable Progressive Scan</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="cpuCullCheckBox">
+        <property name="text">
+         <string>Cull Vertices on the CPU</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="preferVsExpansionCheckBox">
+        <property name="text">
+         <string extracomment="VS is short for vertex shaders.">Prefer VS for Point/Line Expansion</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QCheckBox" name="borderlessFullscreenCheckBox">
+        <property name="text">
+         <string>Borderless Fullscreen</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="experimentalGroup">
+     <property name="title">
+      <string>Experimental</string>
+     </property>
+     <layout class="QGridLayout" name="experimentalLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="deferEfbInvalidationCheckBox">
+        <property name="text">
+         <string>Defer EFB Cache Invalidation</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="manualTextureSamplingCheckBox">
+        <property name="text">
+         <string>Manual Texture Sampling</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>wireframeCheckBox</tabstop>
+  <tabstop>textureFormatOverlayCheckBox</tabstop>
+  <tabstop>apiValidationCheckBox</tabstop>
+  <tabstop>logRenderTimeCheckBox</tabstop>
+  <tabstop>loadCustomTexturesCheckBox</tabstop>
+  <tabstop>prefetchCustomTexturesCheckBox</tabstop>
+  <tabstop>disableVramCopiesCheckBox</tabstop>
+  <tabstop>enableGraphicsModsCheckBox</tabstop>
+  <tabstop>dumpEfbTargetCheckBox</tabstop>
+  <tabstop>dumpXfbTargetCheckBox</tabstop>
+  <tabstop>dumpTexturesCheckBox</tabstop>
+  <tabstop>dumpBaseTexturesCheckBox</tabstop>
+  <tabstop>dumpMipTexturesCheckBox</tabstop>
+  <tabstop>resolutionTypeComboBox</tabstop>
+  <tabstop>losslessCodecCheckBox</tabstop>
+  <tabstop>bitrateSpinBox</tabstop>
+  <tabstop>pngCompressionSpinBox</tabstop>
+  <tabstop>cropToAspectRatioCheckBox</tabstop>
+  <tabstop>customCropCheckBox</tabstop>
+  <tabstop>cropLeftSpinBox</tabstop>
+  <tabstop>cropTopSpinBox</tabstop>
+  <tabstop>cropRightSpinBox</tabstop>
+  <tabstop>cropBottomSpinBox</tabstop>
+  <tabstop>backendMultithreadingCheckBox</tabstop>
+  <tabstop>progressiveScanCheckBox</tabstop>
+  <tabstop>cpuCullCheckBox</tabstop>
+  <tabstop>preferVsExpansionCheckBox</tabstop>
+  <tabstop>borderlessFullscreenCheckBox</tabstop>
+  <tabstop>deferEfbInvalidationCheckBox</tabstop>
+  <tabstop>manualTextureSamplingCheckBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

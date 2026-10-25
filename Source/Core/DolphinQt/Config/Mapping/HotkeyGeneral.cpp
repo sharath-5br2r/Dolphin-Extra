@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyGeneral.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingGridPage.h"
 
 HotkeyGeneral::HotkeyGeneral(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,17 +14,16 @@ HotkeyGeneral::HotkeyGeneral(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyGeneral::CreateMainLayout()
 {
-  m_main_layout = new QGridLayout;
+  Ui::MappingGridPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("General"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GENERAL)), 0, 0, -1, 1);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Volume"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_VOLUME)), 0, 1);
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Emulation Speed"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_SPEED)), 1, 1);
-
-  setLayout(m_main_layout);
 }
 
 InputConfig* HotkeyGeneral::GetConfig()

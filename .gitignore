@@ -45,6 +45,8 @@ CMakeLists.txt.user
 /.vscode/
 # Ignore flatpak-builder's cache dir
 .flatpak-builder
+# Ignore the scratch tree update-source-strings.sh uses for .ui files
+/Languages/.ui-scratch/
 
 # clangd cache for Neovim
 .cache/clangd

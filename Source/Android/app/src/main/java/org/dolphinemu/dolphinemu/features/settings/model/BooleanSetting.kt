@@ -685,6 +685,12 @@ enum class BooleanSetting(
     SYSCONF_WIIMOTE_MOTOR(Settings.FILE_SYSCONF, "BT", "MOT", true),
     GFX_VSYNC(Settings.FILE_GFX, Settings.SECTION_GFX_HARDWARE, "VSync", false),
     GFX_WIDESCREEN_HACK(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "wideScreenHack", false),
+    GFX_INTEGER_SCALING(
+        Settings.FILE_GFX,
+        Settings.SECTION_GFX_SETTINGS,
+        "IntegerScaling",
+        false
+    ),
     GFX_CROP_TO_ASPECT_RATIO(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "Crop", false),
     GFX_CROP_CUSTOM(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "CropCustom", false),
     GFX_SHOW_FPS(Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "ShowFPS", false),

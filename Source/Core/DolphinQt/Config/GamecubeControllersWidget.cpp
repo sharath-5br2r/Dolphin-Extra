@@ -3,15 +3,13 @@
 
 #include "DolphinQt/Config/GamecubeControllersWidget.h"
 
-#include <QComboBox>
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QLabel>
-#include <QPushButton>
-#include <QVBoxLayout>
-
+#include <memory>
 #include <optional>
 #include <utility>
+
+#include <QComboBox>
+#include <QLabel>
+#include <QPushButton>
 
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
@@ -21,9 +19,10 @@
 
 #include "DolphinQt/Config/Mapping/GCPadWiiUConfigDialog.h"
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
-#include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_GamecubeControllersWidget.h"
 
 using SIDeviceName = std::pair<SerialInterface::SIDevices, const char*>;
 static constexpr std::array s_gc_types = {
@@ -57,9 +56,11 @@ static SerialInterface::SIDevices FromGCMenuIndex(const int menudevice)
   return s_gc_types[menudevice].first;
 }
 
-GamecubeControllersWidget::GamecubeControllersWidget(QWidget* parent) : QWidget(parent)
+GamecubeControllersWidget::GamecubeControllersWidget(QWidget* parent)
+    : QWidget(parent), m_ui{std::make_unique<Ui::GamecubeControllersWidget>()}
 {
-  CreateLayout();
+  m_ui->setupUi(this);
+  InitializeControls();
   ConnectWidgets();
 
   connect(&Settings::Instance(), &Settings::ConfigChanged, this,
@@ -69,36 +70,23 @@ GamecubeControllersWidget::GamecubeControllersWidget(QWidget* parent) : QWidget(
   LoadSettings(Core::GetState(Core::System::GetInstance()));
 }
 
-void GamecubeControllersWidget::CreateLayout()
-{
-  m_gc_box = new QGroupBox(tr("GameCube Controllers"));
-  m_gc_layout = new QGridLayout();
-  m_gc_layout->setVerticalSpacing(7);
-  m_gc_layout->setColumnStretch(1, 1);
+GamecubeControllersWidget::~GamecubeControllersWidget() = default;
 
-  for (size_t i = 0; i < m_gc_groups.size(); i++)
+void GamecubeControllersWidget::InitializeControls()
+{
+  const std::array labels{m_ui->port1Label, m_ui->port2Label, m_ui->port3Label, m_ui->port4Label};
+  m_gc_controller_boxes = {m_ui->port1ComboBox, m_ui->port2ComboBox, m_ui->port3ComboBox,
+                           m_ui->port4ComboBox};
+  m_gc_buttons = {m_ui->port1ConfigureButton, m_ui->port2ConfigureButton,
+                  m_ui->port3ConfigureButton, m_ui->port4ConfigureButton};
+
+  for (size_t i = 0; i < m_gc_controller_boxes.size(); ++i)
   {
-    auto* gc_label = new QLabel(tr("Port %1").arg(i + 1));
-    auto* gc_box = m_gc_controller_boxes[i] = new QComboBox();
-    auto* gc_button = m_gc_buttons[i] = new NonDefaultQPushButton(tr("Configure"));
+    labels[i]->setText(tr("Port %1").arg(i + 1));
 
     for (const auto& item : s_gc_types)
-    {
-      gc_box->addItem(tr(item.second));
-    }
-
-    int controller_row = m_gc_layout->rowCount();
-    m_gc_layout->addWidget(gc_label, controller_row, 0);
-    m_gc_layout->addWidget(gc_box, controller_row, 1);
-    m_gc_layout->addWidget(gc_button, controller_row, 2);
+      m_gc_controller_boxes[i]->addItem(tr(item.second));
   }
-  m_gc_box->setLayout(m_gc_layout);
-
-  auto* layout = new QVBoxLayout;
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setAlignment(Qt::AlignTop);
-  layout->addWidget(m_gc_box);
-  setLayout(layout);
 }
 
 void GamecubeControllersWidget::ConnectWidgets()
@@ -170,7 +158,7 @@ void GamecubeControllersWidget::OnGCPadConfigure(size_t index)
 void GamecubeControllersWidget::LoadSettings(Core::State state)
 {
   const bool running = state != Core::State::Uninitialized;
-  for (size_t i = 0; i < m_gc_groups.size(); i++)
+  for (size_t i = 0; i < m_gc_controller_boxes.size(); ++i)
   {
     const SerialInterface::SIDevices si_device =
         Config::Get(Config::GetInfoForSIDevice(static_cast<int>(i)));
@@ -189,7 +177,7 @@ void GamecubeControllersWidget::SaveSettings()
   {
     Config::ConfigChangeCallbackGuard config_guard;
 
-    for (size_t i = 0; i < m_gc_groups.size(); ++i)
+    for (size_t i = 0; i < m_gc_controller_boxes.size(); ++i)
     {
       const SerialInterface::SIDevices si_device =
           FromGCMenuIndex(m_gc_controller_boxes[i]->currentIndex());

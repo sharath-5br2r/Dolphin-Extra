@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyUSBEmu.h"
 
-#include <QGroupBox>
-#include <QHBoxLayout>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingHorizontalPage.h"
 
 HotkeyUSBEmu::HotkeyUSBEmu(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,12 +14,11 @@ HotkeyUSBEmu::HotkeyUSBEmu(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyUSBEmu::CreateMainLayout()
 {
-  m_main_layout = new QHBoxLayout();
+  Ui::MappingHorizontalPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("USB Device Emulation"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_USB_EMU)));
-
-  setLayout(m_main_layout);
 }
 
 InputConfig* HotkeyUSBEmu::GetConfig()

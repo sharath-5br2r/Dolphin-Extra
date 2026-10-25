@@ -36,6 +36,7 @@
 #include "Core/HW/GCMemcard/CloudSync.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
 #include "Core/HW/GCMemcard/GCMemcardUtils.h"
+#include "Core/HW/GCMemcard/MemcardSync.h"
 #include "Core/HW/Sram.h"
 #include "Core/NetPlayProto.h"
 
@@ -632,6 +633,8 @@ void GCMemcardDirectory::FlushToFile()
 {
   std::unique_lock l(m_write_mutex);
   Memcard::DEntry invalid;
+  // A save file was written or deleted: memory card sync uploads the change.
+  bool changed = false;
   for (Memcard::GCIFile& save : m_saves)
   {
     if (save.m_dirty)
@@ -674,6 +677,7 @@ void GCMemcardDirectory::FlushToFile()
           for (const Memcard::GCMBlock& block : save.m_save_data)
             gci.WriteBytes(block.m_block.data(), Memcard::BLOCK_SIZE);
 
+          changed = true;
           if (gci.IsGood())
           {
             Core::DisplayMessage("Wrote save contents to GCI Folder", 4000);
@@ -704,6 +708,7 @@ void GCMemcardDirectory::FlushToFile()
         if (File::Exists(deleted_name))
           File::Delete(deleted_name);
         File::Rename(old_name, deleted_name);
+        changed = true;
         save.m_filename.clear();
         save.m_save_data.clear();
         save.m_used_blocks.clear();
@@ -728,6 +733,9 @@ void GCMemcardDirectory::FlushToFile()
   File::IOFile hdrfile(m_save_directory + MC_HDR, "wb");
   hdrfile.WriteBytes(mc, BLOCK_SIZE * MC_FST_BLOCKS);
 #endif
+  // Every file above is closed by now. Queues the upload and returns at once.
+  if (changed)
+    MemcardSync::OnCardWritten(m_save_directory);
 }
 
 void GCMemcardDirectory::DoState(PointerWrap& p)

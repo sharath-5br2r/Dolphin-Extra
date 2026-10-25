@@ -9,7 +9,6 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QColorDialog>
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QMenu>
@@ -33,6 +32,8 @@
 #include "DolphinQt/Host.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_MemoryViewWidget.h"
 
 // "Most mouse types work in steps of 15 degrees, in which case the delta value is a multiple of
 // 120; i.e., 120 units * 1/8 = 15 degrees." (http://doc.qt.io/qt-5/qwheelevent.html#angleDelta)
@@ -199,11 +200,11 @@ private:
 MemoryViewWidget::MemoryViewWidget(Core::System& system, QWidget* parent)
     : QWidget(parent), m_system(system), m_ppc_symbol_db(m_system.GetPPCSymbolDB())
 {
-  auto* layout = new QHBoxLayout();
-  layout->setContentsMargins(0, 0, 0, 0);
+  Ui::MemoryViewWidget ui;
+  ui.setupUi(this);
 
   m_table = new MemoryViewTable(this);
-  layout->addWidget(m_table);
+  ui.mainLayout->addWidget(m_table);
 
   // Since the Memory View is infinitely long -- it wraps around -- we can't use a normal scroll
   // bar, so this initializes a custom one that is always centered but otherwise still behaves more
@@ -216,9 +217,7 @@ MemoryViewWidget::MemoryViewWidget(Core::System& system, QWidget* parent)
           &MemoryViewWidget::ScrollbarActionTriggered);
   connect(m_scrollbar, &QScrollBar::sliderReleased, this,
           &MemoryViewWidget::ScrollbarSliderReleased);
-  layout->addWidget(m_scrollbar);
-
-  this->setLayout(layout);
+  ui.mainLayout->addWidget(m_scrollbar);
 
   connect(&Settings::Instance(), &Settings::DebugFontChanged, this, &MemoryViewWidget::UpdateFont);
   connect(Host::GetInstance(), &Host::PPCSymbolsChanged, this,

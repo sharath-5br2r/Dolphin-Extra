@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyWii.h"
 
-#include <QGroupBox>
-#include <QHBoxLayout>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingHorizontalPage.h"
 
 HotkeyWii::HotkeyWii(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,11 +14,10 @@ HotkeyWii::HotkeyWii(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyWii::CreateMainLayout()
 {
-  m_main_layout = new QHBoxLayout();
+  Ui::MappingHorizontalPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(CreateGroupBox(tr("Wii"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_WII)));
-
-  setLayout(m_main_layout);
+  ui.groupLayout->addWidget(CreateGroupBox(tr("Wii"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_WII)));
 }
 
 InputConfig* HotkeyWii::GetConfig()

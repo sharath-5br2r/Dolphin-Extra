@@ -74,6 +74,7 @@ public:
   void RunGpuLoop();
   void ExitGpuLoop();
   void EmulatorState(bool running);
+  void WakeupForUI();
   void ResetVideoBuffer();
 
 private:

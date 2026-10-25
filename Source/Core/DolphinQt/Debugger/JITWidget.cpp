@@ -8,7 +8,6 @@
 #include <ranges>
 #include <utility>
 
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QMenu>
@@ -18,7 +17,6 @@
 #include <QSortFilterProxyModel>
 #include <QSplitter>
 #include <QTableView>
-#include <QVBoxLayout>
 
 #include <fmt/ostream.h>
 
@@ -37,7 +35,9 @@
 #include "DolphinQt/QtUtils/FromStdString.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Settings.h"
+
 #include "UICommon/UICommon.h"
+#include "ui_JITWidget.h"
 
 class JitBlockProxyModel final : public QSortFilterProxyModel
 {
@@ -519,7 +519,20 @@ JITWidget::JITWidget(Core::System& system, QWidget* parent) : QDockWidget(parent
   connect(settings, &Settings::JITVisibilityChanged, this, &JITWidget::OnVisibilityToggled);
   connect(settings, &Settings::DebugModeToggled, this, &JITWidget::OnDebugModeToggled);
 
-  m_table_view = new QTableView(nullptr);
+  auto* const main_widget = new QWidget;
+  Ui::JITWidget ui;
+  ui.setupUi(main_widget);
+  m_pm_address_covered_line_edit = ui.physicalAddressEdit;
+  m_clear_cache_button = ui.clearCacheButton;
+  m_toggle_profiling_button = ui.toggleProfilingButton;
+  m_wipe_profiling_button = ui.wipeProfilingButton;
+  m_table_view = ui.tableView;
+  m_ppc_asm_widget = ui.ppcAssemblyEdit;
+  m_host_near_asm_widget = ui.hostNearAssemblyEdit;
+  m_host_far_asm_widget = ui.hostFarAssemblyEdit;
+  m_table_splitter = ui.tableSplitter;
+  m_disasm_splitter = ui.disassemblySplitter;
+
   m_table_proxy = new JitBlockProxyModel(m_table_view);
   m_table_model = new JitBlockTableModel(m_system, m_system.GetJitInterface(),
                                          m_system.GetPPCSymbolDB(), m_table_proxy);
@@ -532,14 +545,8 @@ JITWidget::JITWidget(Core::System& system, QWidget* parent) : QDockWidget(parent
   m_table_proxy->setSortCaseSensitivity(Qt::CaseInsensitive);
 
   m_table_view->setModel(m_table_proxy);
-  m_table_view->setSortingEnabled(true);
   m_table_view->sortByColumn(Column::EffectiveAddress, Qt::AscendingOrder);
-  m_table_view->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  m_table_view->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table_view->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  m_table_view->setContextMenuPolicy(Qt::CustomContextMenu);
-  m_table_view->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_table_view->setCornerButtonEnabled(false);
   m_table_view->verticalHeader()->hide();
   connect(m_table_view, &QTableView::doubleClicked, this, &JITWidget::OnTableDoubleClicked);
   connect(m_table_view, &QTableView::customContextMenuRequested, this,
@@ -559,65 +566,44 @@ JITWidget::JITWidget(Core::System& system, QWidget* parent) : QDockWidget(parent
   connect(selection_model, &QItemSelectionModel::currentChanged, this,
           &JITWidget::OnTableCurrentChanged);
 
-  auto* const controls_layout = new QHBoxLayout(nullptr);
   const auto address_filter_routine = [&](QLineEdit* line_edit, const QString& placeholder_text,
                                           void (JitBlockProxyModel::*slot)(const QString&)) {
     line_edit->setPlaceholderText(placeholder_text);
     connect(line_edit, &QLineEdit::textChanged, m_table_proxy, slot);
-    controls_layout->addWidget(line_edit);
   };
   address_filter_routine(
-      new QLineEdit(nullptr), tr("Min Effective Address"),
+      ui.minEffectiveAddressEdit, tr("Min Effective Address"),
       &JitBlockProxyModel::OnAddressTextChanged<&JitBlockProxyModel::m_em_address_min>);
   address_filter_routine(
-      new QLineEdit(nullptr), tr("Max Effective Address"),
+      ui.maxEffectiveAddressEdit, tr("Max Effective Address"),
       &JitBlockProxyModel::OnAddressTextChanged<&JitBlockProxyModel::m_em_address_max>);
   address_filter_routine(
-      m_pm_address_covered_line_edit = new QLineEdit(nullptr), tr("Recompiles Physical Address"),
+      m_pm_address_covered_line_edit, tr("Recompiles Physical Address"),
       &JitBlockProxyModel::OnAddressTextChanged<&JitBlockProxyModel::m_pm_address_covered>);
 
-  auto* const symbol_name_line_edit = new QLineEdit(nullptr);
+  auto* const symbol_name_line_edit = ui.symbolNameEdit;
   symbol_name_line_edit->setPlaceholderText(tr("Symbol Name"));
   connect(symbol_name_line_edit, &QLineEdit::textChanged, m_table_model,
           &JitBlockTableModel::OnFilterSymbolTextChanged);
   connect(symbol_name_line_edit, &QLineEdit::textChanged, m_table_proxy,
           &JitBlockProxyModel::OnSymbolTextChanged);
-  controls_layout->addWidget(symbol_name_line_edit);
-
-  m_toggle_profiling_button = new QPushButton(nullptr);
-  m_toggle_profiling_button->setToolTip(
-      tr("Toggle software JIT block profiling (will clear the JIT cache)."));
-  m_toggle_profiling_button->setCheckable(true);
   connect(m_toggle_profiling_button, &QPushButton::toggled, this, &JITWidget::OnToggleProfiling);
-  controls_layout->addWidget(m_toggle_profiling_button);
 
-  m_clear_cache_button = new QPushButton(tr("Clear Cache"), nullptr);
   connect(m_clear_cache_button, &QPushButton::clicked, this, &JITWidget::OnClearCache);
-  controls_layout->addWidget(m_clear_cache_button);
 
-  m_wipe_profiling_button = new QPushButton(tr("Wipe Profiling"), nullptr);
-  m_wipe_profiling_button->setToolTip(tr("Re-initialize software JIT block profiling data."));
   connect(m_wipe_profiling_button, &QPushButton::clicked, this, &JITWidget::OnWipeProfiling);
-  controls_layout->addWidget(m_wipe_profiling_button);
 
-  m_disasm_splitter = new QSplitter(Qt::Horizontal, nullptr);
   const auto text_box_routine = [&](QPlainTextEdit* text_edit, const QString& placeholder_text) {
     text_edit->setWordWrapMode(QTextOption::NoWrap);
     text_edit->setPlaceholderText(placeholder_text);
-    text_edit->setReadOnly(true);
-    m_disasm_splitter->addWidget(text_edit);
   };
-  text_box_routine(m_ppc_asm_widget = new QPlainTextEdit(nullptr), tr("PPC Instruction Coverage"));
-  text_box_routine(m_host_near_asm_widget = new QPlainTextEdit(nullptr),
-                   tr("Host Near Code Cache"));
-  text_box_routine(m_host_far_asm_widget = new QPlainTextEdit(nullptr), tr("Host Far Code Cache"));
-
-  m_table_splitter = new QSplitter(Qt::Vertical, nullptr);
-  m_table_splitter->addWidget(m_table_view);
-  m_table_splitter->addWidget(m_disasm_splitter);
+  text_box_routine(m_ppc_asm_widget, tr("PPC Instruction Coverage"));
+  text_box_routine(m_host_near_asm_widget, tr("Host Near Code Cache"));
+  text_box_routine(m_host_far_asm_widget, tr("Host Far Code Cache"));
 
   m_status_bar = new ClickableStatusBar(nullptr);
   m_status_bar->setSizeGripEnabled(false);
+  ui.statusLayout->addWidget(m_status_bar);
   connect(m_status_bar, &ClickableStatusBar::pressed, this, &JITWidget::OnStatusBarPressed);
 
   m_table_context_menu = new QMenu(this);
@@ -664,15 +650,6 @@ JITWidget::JITWidget(Core::System& system, QWidget* parent) : QDockWidget(parent
     action->setCheckable(true);
   }
 
-  auto* const main_layout = new QVBoxLayout(nullptr);
-  main_layout->setContentsMargins(2, 2, 2, 2);
-  main_layout->setSpacing(0);
-  main_layout->addLayout(controls_layout);
-  main_layout->addWidget(m_table_splitter);
-  main_layout->addWidget(m_status_bar);
-
-  auto* const main_widget = new QWidget(nullptr);
-  main_widget->setLayout(main_layout);
   setWidget(main_widget);
 }
 

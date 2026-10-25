@@ -65,6 +65,18 @@ static bool WindowSystemTypeSupportsMetal(WindowSystemType type)
 
 bool Metal::VideoBackend::Initialize(const WindowSystemInfo& wsi)
 {
+  m_ui_only = false;
+  return InitializeInternal(wsi);
+}
+
+bool Metal::VideoBackend::InitializeUI(const WindowSystemInfo& wsi)
+{
+  m_ui_only = true;
+  return InitializeInternal(wsi);
+}
+
+bool Metal::VideoBackend::InitializeInternal(const WindowSystemInfo& wsi)
+{
   @autoreleasepool
   {
     const bool surface_ok = wsi.type == WindowSystemType::Headless || wsi.render_surface;
@@ -125,6 +137,9 @@ bool Metal::VideoBackend::Initialize(const WindowSystemInfo& wsi)
     ObjectCache::Initialize(std::move(adapter));
     g_state_tracker = std::make_unique<StateTracker>();
 
+    if (m_ui_only)
+      return InitializeUIShared(std::make_unique<Metal::Gfx>(std::move(layer)),
+                                std::make_unique<Metal::VertexManager>());
     return InitializeShared(
         std::make_unique<Metal::Gfx>(std::move(layer)), std::make_unique<Metal::VertexManager>(),
         std::make_unique<Metal::PerfQuery>(), std::make_unique<Metal::BoundingBox>());
@@ -137,6 +152,14 @@ void Metal::VideoBackend::Shutdown()
 
   g_state_tracker.reset();
   ObjectCache::Shutdown();
+}
+
+bool Metal::VideoBackend::PresentUI()
+{
+  @autoreleasepool
+  {
+    return VideoBackendBase::PresentUI();
+  }
 }
 
 void Metal::VideoBackend::InitBackendInfo(const WindowSystemInfo& wsi)

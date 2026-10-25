@@ -4,28 +4,26 @@
 #pragma once
 
 #ifdef USE_RETRO_ACHIEVEMENTS
+#include <memory>
+
 #include <QWidget>
 
-class QGroupBox;
-class QLabel;
-class QProgressBar;
+namespace Ui
+{
+class AchievementHeaderWidget;
+}
 
 class AchievementHeaderWidget final : public QWidget
 {
   Q_OBJECT
 public:
   explicit AchievementHeaderWidget(QWidget* parent);
+  ~AchievementHeaderWidget() override;
+
   void UpdateData();
 
 private:
-  QLabel* m_user_icon;
-  QLabel* m_game_icon;
-  QLabel* m_name;
-  QLabel* m_points;
-  QProgressBar* m_game_progress;
-  QLabel* m_progress_label;
-  QLabel* m_rich_presence;
-  QGroupBox* m_header_box;
+  std::unique_ptr<Ui::AchievementHeaderWidget> m_ui;
 };
 
 #endif  // USE_RETRO_ACHIEVEMENTS

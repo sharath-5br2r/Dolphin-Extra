@@ -16,6 +16,7 @@
 #include <QScreen>
 #include <QTimer>
 #include <QWindow>
+#include "Common/BigPicture/PresentationState.h"
 
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
@@ -23,12 +24,15 @@
 #include "Core/System.h"
 
 #include "DolphinQt/Host.h"
+#include "DolphinQt/QtUtils/ImGuiKeyEvent.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 
+#include "VideoCommon/BigPicture/Runtime.h"
+#include "VideoCommon/BigPicture/StandaloneSession.h"
 #include "VideoCommon/Present.h"
 
 #ifdef _WIN32
@@ -158,6 +162,11 @@ void RenderWidget::OnLockCursorChanged()
 // Calling this at any time will set the cursor (image) to the correct state
 void RenderWidget::UpdateCursor()
 {
+  if (BigPicture::GetPresentationState().IsModal())
+  {
+    setCursor(Qt::ArrowCursor);
+    return;
+  }
   if (!Settings::Instance().GetLockCursor())
   {
     // Only hide if the cursor is automatically locking (it will hide on lock).
@@ -178,6 +187,27 @@ void RenderWidget::UpdateCursor()
   }
 }
 
+void RenderWidget::RefreshInputCapture()
+{
+  const bool modal = BigPicture::GetPresentationState().IsModal();
+  if (modal == m_menu_cursor_open)
+    return;
+  if (modal && !m_menu_cursor_open)
+  {
+    m_menu_cursor_was_locked = m_cursor_locked;
+    SetCursorLocked(false);
+    m_mouse_timer->stop();
+  }
+  else if (!modal && m_menu_cursor_open)
+  {
+    if (m_menu_cursor_was_locked && isActiveWindow())
+      SetCursorLocked(true);
+    m_mouse_timer->start(MOUSE_HIDE_DELAY);
+  }
+  m_menu_cursor_open = modal;
+  UpdateCursor();
+}
+
 void RenderWidget::OnKeepOnTopChanged(bool top)
 {
   const bool was_visible = isVisible();
@@ -195,6 +225,8 @@ void RenderWidget::OnKeepOnTopChanged(bool top)
 
 void RenderWidget::HandleCursorTimer()
 {
+  if (BigPicture::GetPresentationState().IsModal())
+    return;
   if (!isActiveWindow())
     return;
   if ((!Settings::Instance().GetLockCursor() || m_cursor_locked) &&
@@ -218,6 +250,7 @@ void RenderWidget::showFullScreen()
 // Lock the cursor within the window/widget internal borders, including the aspect ratio if wanted
 void RenderWidget::SetCursorLocked(bool locked, bool follow_aspect_ratio)
 {
+  locked = locked && !BigPicture::GetPresentationState().IsModal();
   // It seems like QT doesn't scale the window frame correctly with some DPIs
   // so it might happen that the locked cursor can be on the frame of the window,
   // being able to resize it, but that is a minor problem.
@@ -365,8 +398,16 @@ bool RenderWidget::event(QEvent* event)
   case QEvent::KeyPress:
   {
     QKeyEvent* ke = static_cast<QKeyEvent*>(event);
-    if (ke->key() == Qt::Key_Escape)
-      emit EscapePressed();
+    if (ke->key() == Qt::Key_Escape && !ke->isAutoRepeat())
+    {
+      if (BigPicture::GetPresentationState().IsModal())
+      {
+        // The render owner consumes the queued Escape once, alongside controller Back.
+        return true;
+      }
+      if (!BigPicture::GetPresentationState().GetCapture().keyboard)
+        emit EscapePressed();
+    }
 
     // The render window might flicker on some platforms because Qt tries to change focus to a new
     // element when there is none (?) Handling this event before it reaches QWidget fixes the issue.
@@ -406,6 +447,7 @@ bool RenderWidget::event(QEvent* event)
     emit HandleChanged(reinterpret_cast<void*>(winId()));
     break;
   case QEvent::Show:
+    SetPresenterKeyMap();
     // Don't do if "stay on top" changed (or was true)
     if (Settings::Instance().GetLockCursor() &&
         Settings::Instance().GetCursorVisibility() != Config::ShowCursor::Constantly &&
@@ -421,7 +463,9 @@ bool RenderWidget::event(QEvent* event)
   // Note that this event in Windows is not always aligned to the window that is highlighted,
   // it's the window that has keyboard and mouse focus
   case QEvent::WindowActivate:
-    if (m_should_unpause_on_focus &&
+    BigPicture::GetPresentationState().SetFocused(true);
+    VideoCommon::BigPicture::Wakeup();
+    if (m_should_unpause_on_focus && !BigPicture::GetPresentationState().IsModal() &&
         Core::GetState(Core::System::GetInstance()) == Core::State::Paused)
     {
       Core::SetState(Core::System::GetInstance(), Core::State::Running);
@@ -444,11 +488,13 @@ bool RenderWidget::event(QEvent* event)
     emit FocusChanged(true);
     break;
   case QEvent::WindowDeactivate:
+    BigPicture::GetPresentationState().SetFocused(false);
     SetCursorLocked(false);
 
     UpdateCursor();
 
     if (Config::Get(Config::MAIN_PAUSE_ON_FOCUS_LOST) &&
+        !BigPicture::GetPresentationState().IsModal() &&
         Core::GetState(Core::System::GetInstance()) == Core::State::Running)
     {
       // If we are declared as the CPU or GPU thread, it means that the real CPU or GPU thread
@@ -498,6 +544,7 @@ bool RenderWidget::event(QEvent* event)
       m_last_window_height = height;
       m_last_window_scale = dpr;
       emit SizeChanged(width, height);
+      VideoCommon::BigPicture::ResizeStandaloneSurface(dpr);
     }
     break;
   }
@@ -521,35 +568,17 @@ bool RenderWidget::event(QEvent* event)
 
 void RenderWidget::PassEventToPresenter(const QEvent* event)
 {
-  if (!Core::IsRunning(Core::System::GetInstance()))
-    return;
+  auto& input = BigPicture::GetPresentationState();
+  const auto snapshot = input.GetSnapshot();
+  const auto generation = snapshot ? snapshot->generation : 0;
 
   switch (event->type())
   {
   case QEvent::KeyPress:
   case QEvent::KeyRelease:
   {
-    // As the imgui KeysDown array is only 512 elements wide, and some Qt keys which
-    // we need to track (e.g. alt) are above this value, we mask the lower 9 bits.
-    // Even masked, the key codes are still unique, so conflicts aren't an issue.
-    // The actual text input goes through AddInputCharactersUTF8().
     const QKeyEvent* key_event = static_cast<const QKeyEvent*>(event);
-    const bool is_down = event->type() == QEvent::KeyPress;
-    const u32 key = static_cast<u32>(key_event->key() & 0x1FF);
-
-    const char* chars = nullptr;
-    QByteArray utf8;
-
-    if (is_down)
-    {
-      utf8 = key_event->text().toUtf8();
-
-      if (utf8.size())
-        chars = utf8.constData();
-    }
-
-    // Pass the key onto Presenter (for the imgui UI)
-    g_presenter->SetKey(key, is_down, chars);
+    QtUtils::QueueImGuiKeyEvent(input, *key_event, generation);
   }
   break;
 
@@ -562,7 +591,7 @@ void RenderWidget::PassEventToPresenter(const QEvent* event)
     float x = static_cast<const QMouseEvent*>(event)->pos().x() * scale;
     float y = static_cast<const QMouseEvent*>(event)->pos().y() * scale;
 
-    g_presenter->SetMousePos(x, y);
+    input.Enqueue({BigPicture::InputEvent::Type::MousePosition, generation, 0, false, {}, x, y});
   }
   break;
 
@@ -570,13 +599,15 @@ void RenderWidget::PassEventToPresenter(const QEvent* event)
   case QEvent::MouseButtonRelease:
   {
     const u32 button_mask = static_cast<u32>(static_cast<const QMouseEvent*>(event)->buttons());
-    g_presenter->SetMousePress(button_mask);
+    input.Enqueue(
+        {BigPicture::InputEvent::Type::MouseButtons, generation, 0, false, {}, 0, 0, button_mask});
   }
   break;
 
   default:
     break;
   }
+  VideoCommon::BigPicture::Wakeup();
 }
 
 void RenderWidget::SetPresenterKeyMap()
@@ -590,5 +621,5 @@ void RenderWidget::SetPresenterKeyMap()
       Qt::Key_Z,
   };
 
-  g_presenter->SetKeyMap(key_map);
+  BigPicture::GetPresentationState().SetKeyMap({key_map.begin(), key_map.end()});
 }

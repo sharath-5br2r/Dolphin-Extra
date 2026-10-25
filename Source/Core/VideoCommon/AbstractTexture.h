@@ -36,6 +36,12 @@ public:
   // as a shader resource and sampled. For Vulkan, this transitions the image layout.
   virtual void FinishedRendering();
 
+  // Generates the mipmap chain for this texture from its level-0 contents (rendered or uploaded).
+  // Only meaningful for textures allocated with levels > 1. The base implementation is a no-op;
+  // backends that support GPU mip generation (currently Vulkan) override it. After the call the
+  // texture is left ready to be sampled.
+  virtual void GenerateMipmaps();
+
   u32 GetWidth() const { return m_config.width; }
   u32 GetHeight() const { return m_config.height; }
   u32 GetLevels() const { return m_config.levels; }

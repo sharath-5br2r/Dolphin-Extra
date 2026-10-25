@@ -11,7 +11,6 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QTableWidget>
-#include <QVBoxLayout>
 
 #include "Core/Core.h"
 #include "Core/PowerPC/MMU.h"
@@ -20,6 +19,8 @@
 #include "DolphinQt/Host.h"
 #include "DolphinQt/QtUtils/FromStdString.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_ThreadWidget.h"
 
 ThreadWidget::ThreadWidget(QWidget* parent) : QDockWidget(parent)
 {
@@ -71,23 +72,41 @@ void ThreadWidget::showEvent(QShowEvent* event)
 
 void ThreadWidget::CreateWidgets()
 {
-  m_state = new QGroupBox(tr("State"));
-
-  auto* state_layout = new QHBoxLayout;
-  m_state->setLayout(state_layout);
-  state_layout->addWidget(CreateContextGroup());
-  state_layout->addWidget(CreateActiveThreadQueueGroup());
-  state_layout->setContentsMargins(2, 2, 2, 2);
-  state_layout->setSpacing(1);
-
   auto* widget = new QWidget;
-  auto* layout = new QVBoxLayout;
-  widget->setLayout(layout);
-  layout->addWidget(m_state);
-  layout->addWidget(CreateThreadGroup());
-  layout->addWidget(CreateThreadContextGroup());
-  layout->addWidget(CreateThreadCallstackGroup());
-  layout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding));
+  Ui::ThreadWidget ui;
+  ui.setupUi(widget);
+  m_state = ui.stateGroup;
+  m_current_context = ui.currentContextEdit;
+  m_current_thread = ui.currentThreadEdit;
+  m_default_thread = ui.defaultThreadEdit;
+  m_queue_head = ui.queueHeadEdit;
+  m_queue_tail = ui.queueTailEdit;
+  m_thread_table = ui.threadTable;
+  m_context_table = ui.contextTable;
+  m_callstack_table = ui.callstackTable;
+
+  const QStringList thread_headers{
+      tr("Address"),
+      tr("State"),
+      tr("Detached"),
+      tr("Suspended"),
+      QStringLiteral("%1\n(%2)").arg(tr("Base priority"), tr("Effective priority")),
+      QStringLiteral("%1\n%2").arg(tr("Stack end"), tr("Stack start")),
+      tr("errno"),
+      tr("Specific")};
+  m_thread_table->setColumnCount(thread_headers.size());
+  m_thread_table->setHorizontalHeaderLabels(thread_headers);
+  m_thread_table->verticalHeader()->hide();
+
+  m_context_table->horizontalHeader()->hide();
+  m_context_table->verticalHeader()->hide();
+
+  const QStringList callstack_headers{tr("Address"), tr("Back Chain"), tr("LR Save"),
+                                      tr("Description")};
+  m_callstack_table->setColumnCount(callstack_headers.size());
+  m_callstack_table->setHorizontalHeaderLabels(callstack_headers);
+  m_callstack_table->verticalHeader()->hide();
+
   setWidget(widget);
 
   Update();
@@ -131,127 +150,6 @@ void ThreadWidget::ShowContextMenu(QTableWidget* table)
   menu->addAction(tr("View &memory"), this, [this, addr] { emit RequestViewInMemory(addr); });
   menu->addAction(tr("View &code"), this, [this, addr] { emit RequestViewInCode(addr); });
   menu->exec(QCursor::pos());
-}
-
-QLineEdit* ThreadWidget::CreateLineEdit() const
-{
-  QLineEdit* line_edit = new QLineEdit(QStringLiteral("00000000"));
-  line_edit->setReadOnly(true);
-  line_edit->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-  return line_edit;
-}
-
-QGroupBox* ThreadWidget::CreateContextGroup()
-{
-  QGroupBox* context_group = new QGroupBox(tr("Thread context"));
-  QGridLayout* context_layout = new QGridLayout;
-  context_layout->setColumnStretch(0, 1);
-  context_layout->setColumnStretch(1, 1);
-  context_group->setLayout(context_layout);
-  context_layout->addWidget(new QLabel(tr("Current context")), 0, 0);
-  m_current_context = CreateLineEdit();
-  context_layout->addWidget(m_current_context, 0, 1);
-  context_layout->addWidget(new QLabel(tr("Current thread")), 1, 0);
-  m_current_thread = CreateLineEdit();
-  context_layout->addWidget(m_current_thread, 1, 1);
-  context_layout->addWidget(new QLabel(tr("Default thread")), 2, 0);
-  m_default_thread = CreateLineEdit();
-  context_layout->addWidget(m_default_thread, 2, 1);
-  context_layout->setSpacing(1);
-  return context_group;
-}
-
-QGroupBox* ThreadWidget::CreateActiveThreadQueueGroup()
-{
-  QGroupBox* thread_queue_group = new QGroupBox(tr("Active thread queue"));
-  auto* thread_queue_layout = new QGridLayout;
-  thread_queue_layout->setColumnStretch(0, 1);
-  thread_queue_layout->setColumnStretch(1, 1);
-  thread_queue_group->setLayout(thread_queue_layout);
-  thread_queue_layout->addWidget(new QLabel(tr("Head")), 0, 0);
-  m_queue_head = CreateLineEdit();
-  thread_queue_layout->addWidget(m_queue_head, 0, 1);
-  thread_queue_layout->addWidget(new QLabel(tr("Tail")), 1, 0);
-  m_queue_tail = CreateLineEdit();
-  thread_queue_layout->addWidget(m_queue_tail, 1, 1);
-  thread_queue_layout->setSpacing(1);
-  return thread_queue_group;
-}
-
-QGroupBox* ThreadWidget::CreateThreadGroup()
-{
-  QGroupBox* thread_group = new QGroupBox(tr("Active threads"));
-  QGridLayout* thread_layout = new QGridLayout;
-  thread_group->setLayout(thread_layout);
-
-  m_thread_table = new QTableWidget();
-  QStringList header{tr("Address"),
-                     tr("State"),
-                     tr("Detached"),
-                     tr("Suspended"),
-                     QStringLiteral("%1\n(%2)").arg(tr("Base priority"), tr("Effective priority")),
-                     QStringLiteral("%1\n%2").arg(tr("Stack end"), tr("Stack start")),
-                     tr("errno"),
-                     tr("Specific")};
-  m_thread_table->setColumnCount(header.size());
-
-  m_thread_table->setHorizontalHeaderLabels(header);
-  m_thread_table->setTabKeyNavigation(false);
-  m_thread_table->verticalHeader()->setVisible(false);
-  m_thread_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_thread_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_thread_table->setSelectionMode(QAbstractItemView::SingleSelection);
-  m_thread_table->setWordWrap(false);
-
-  thread_layout->addWidget(m_thread_table, 0, 0);
-  thread_layout->setSpacing(1);
-  return thread_group;
-}
-
-QGroupBox* ThreadWidget::CreateThreadContextGroup()
-{
-  QGroupBox* thread_context_group = new QGroupBox(tr("Selected thread context"));
-  QGridLayout* thread_context_layout = new QGridLayout;
-  thread_context_group->setLayout(thread_context_layout);
-
-  m_context_table = new QTableWidget();
-  m_context_table->setColumnCount(8);  // GPR, FPR, PSF, (GQR+others)
-  m_context_table->setRowCount(32);
-  m_context_table->setTabKeyNavigation(false);
-  m_context_table->horizontalHeader()->setVisible(false);
-  m_context_table->verticalHeader()->setVisible(false);
-  m_context_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_context_table->setSelectionBehavior(QAbstractItemView::SelectItems);
-  m_context_table->setSelectionMode(QAbstractItemView::SingleSelection);
-  m_context_table->setContextMenuPolicy(Qt::CustomContextMenu);
-
-  thread_context_layout->addWidget(m_context_table, 0, 0);
-  thread_context_layout->setSpacing(1);
-  return thread_context_group;
-}
-
-QGroupBox* ThreadWidget::CreateThreadCallstackGroup()
-{
-  QGroupBox* thread_callstack_group = new QGroupBox(tr("Selected thread callstack"));
-  QGridLayout* thread_callstack_layout = new QGridLayout;
-  thread_callstack_group->setLayout(thread_callstack_layout);
-
-  m_callstack_table = new QTableWidget();
-  QStringList header{tr("Address"), tr("Back Chain"), tr("LR Save"), tr("Description")};
-  m_callstack_table->setColumnCount(header.size());
-
-  m_callstack_table->setHorizontalHeaderLabels(header);
-  m_callstack_table->setRowCount(0);
-  m_callstack_table->setTabKeyNavigation(false);
-  m_callstack_table->verticalHeader()->setVisible(false);
-  m_callstack_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  m_callstack_table->setSelectionBehavior(QAbstractItemView::SelectItems);
-  m_callstack_table->setSelectionMode(QAbstractItemView::SingleSelection);
-  m_callstack_table->setContextMenuPolicy(Qt::CustomContextMenu);
-
-  thread_callstack_layout->addWidget(m_callstack_table, 0, 0);
-  thread_callstack_layout->setSpacing(1);
-  return thread_callstack_group;
 }
 
 void ThreadWidget::Update()

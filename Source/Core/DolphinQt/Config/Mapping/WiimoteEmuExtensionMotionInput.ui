@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WiimoteEmuExtensionMotionInput</class>
+ <widget class="QWidget" name="WiimoteEmuExtensionMotionInput">
+  <layout class="QHBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QGroupBox" name="nunchukBox">
+     <property name="title">
+      <string>Nunchuk</string>
+     </property>
+     <layout class="QGridLayout" name="nunchukLayout">
+      <item row="0" column="0">
+       <layout class="QHBoxLayout" name="warningLayout" stretch="0,1,0">
+        <item>
+         <widget class="QLabel" name="warningIconLabel">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="warningLabel">
+          <property name="text">
+           <string>These controls are designed to interface directly with motion sensor hardware. They are not intended for mapping traditional buttons, triggers or axes. You might need to configure alternate input sources before using these controls.</string>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="alternateInputSourcesButton">
+          <property name="text">
+           <string>Alternate Input Sources</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

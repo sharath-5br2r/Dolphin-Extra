@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <queue>
 
@@ -102,6 +104,9 @@ public:
   // Adds a job to be executed during on the CPU thread. This should be combined with
   // PauseAndLock(), as while the CPU is in the run loop, it won't execute the function.
   void AddCPUThreadJob(Common::MoveOnlyFunction<void()> function);
+  void WakeupForUI();
+  std::uint64_t GetPauseRevision() const { return m_pause_revision.load(); }
+  void InvalidatePauseOwnership() { ++m_pause_revision; }
 
 private:
   void FlushStepSyncEventLocked();
@@ -135,6 +140,8 @@ private:
   // When m_state changes / m_state_paused_and_locked becomes false (for CPU Thread only)
   std::condition_variable m_state_cpu_cvar;
   bool m_state_cpu_thread_active = false;
+  bool m_ui_wakeup = false;
+  std::atomic<std::uint64_t> m_pause_revision{0};
   bool m_state_paused_and_locked = false;
   bool m_state_system_request_stepping = false;
   bool m_state_cpu_step_instruction = false;

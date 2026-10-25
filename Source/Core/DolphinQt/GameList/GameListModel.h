@@ -4,6 +4,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include <QAbstractTableModel>
@@ -15,6 +16,8 @@
 #include "Core/Core.h"
 #include "Core/TimePlayed.h"
 #include "Core/TitleDatabase.h"
+
+#include "DiscIO/Enums.h"
 
 #include "DolphinQt/GameList/GameTracker.h"
 
@@ -41,6 +44,8 @@ public:
   std::string GetNetPlayName(const UICommon::GameFile& game) const;
   bool ShouldDisplayGameListItem(int index) const;
   void SetSearchTerm(const QString& term);
+  void SetPlatformFilter(std::optional<DiscIO::Platform> platform);
+  void SetRegionFilter(std::optional<DiscIO::Region> region);
 
   // Using a custom sort role as it sometimes differs slightly from the default Qt::DisplayRole.
   static constexpr int SORT_ROLE = Qt::UserRole;
@@ -100,5 +105,7 @@ private:
   Core::TitleDatabase m_title_database;
   TimePlayed m_timer;
   QString m_term;
+  std::optional<DiscIO::Platform> m_platform_filter;
+  std::optional<DiscIO::Region> m_region_filter;
   float m_scale = 1.0;
 };

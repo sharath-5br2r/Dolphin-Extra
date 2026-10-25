@@ -3,18 +3,27 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QWidget>
 
 class WiimoteControllersWidget;
+
+namespace Ui
+{
+class ControllersPane;
+}
 
 class ControllersPane final : public QWidget
 {
   Q_OBJECT
 public:
   ControllersPane();
+  ~ControllersPane() override;
 
 private:
-  void CreateMainLayout();
+  void CreateSections();
 
+  std::unique_ptr<Ui::ControllersPane> m_ui;
   WiimoteControllersWidget* m_wiimote_controllers;
 };

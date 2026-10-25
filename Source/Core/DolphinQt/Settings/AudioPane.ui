@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AudioPane</class>
+ <widget class="QWidget" name="AudioPane">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>780</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="volumeGroup">
+     <property name="title">
+      <string>Volume</string>
+     </property>
+     <layout class="QHBoxLayout" name="volumeLayout">
+      <item>
+       <widget class="QSlider" name="volumeSlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="volumeValueLabel">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="mainColumnLayout">
+     <item>
+      <widget class="QGroupBox" name="dspGroup">
+       <property name="title">
+        <string>DSP Options</string>
+       </property>
+       <layout class="QGridLayout" name="dspLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="dspEngineLabel">
+          <property name="text">
+           <string>DSP Emulation Engine:</string>
+          </property>
+          <property name="buddy">
+           <cstring>dspEngineComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="dspEngineComboBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="backendGroup">
+       <property name="title">
+        <string>Backend Settings</string>
+       </property>
+       <layout class="QFormLayout" name="backendLayout">
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+        </property>
+        <property name="formAlignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="backendLabel">
+          <property name="text">
+           <string>Audio Backend:</string>
+          </property>
+          <property name="buddy">
+           <cstring>backendComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="backendComboBox"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="wasapiDeviceLabel">
+          <property name="text">
+           <string>Output Device:</string>
+          </property>
+          <property name="buddy">
+           <cstring>wasapiDeviceComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="wasapiDeviceComboBox"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="latencyLabel">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+          <property name="buddy">
+           <cstring>latencySlider</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSlider" name="latencySlider">
+          <property name="maximum">
+           <number>200</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="2">
+         <widget class="QCheckBox" name="dolbyProLogicCheckBox">
+          <property name="text">
+           <string>Dolby Pro Logic II Decoder</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="dolbyQualityLabel">
+          <property name="text">
+           <string>Decoding Quality:</string>
+          </property>
+          <property name="buddy">
+           <cstring>dolbyQualityComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QComboBox" name="dolbyQualityComboBox">
+          <item>
+           <property name="text">
+            <string>Lowest (Latency ~10 ms)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Low (Latency ~20 ms)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>High (Latency ~40 ms)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Highest (Latency ~80 ms)</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="playbackGroup">
+       <property name="title">
+        <string>Audio Playback Settings</string>
+       </property>
+       <layout class="QGridLayout" name="playbackLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="audioBufferSizeLabel">
+          <property name="text">
+           <string>Audio Buffer Size:</string>
+          </property>
+          <property name="buddy">
+           <cstring>audioBufferSizeSlider</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QSlider" name="audioBufferSizeSlider">
+          <property name="minimum">
+           <number>16</number>
+          </property>
+          <property name="maximum">
+           <number>512</number>
+          </property>
+          <property name="singleStep">
+           <number>8</number>
+          </property>
+          <property name="pageStep">
+           <number>8</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QLabel" name="audioBufferSizeValueLabel">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="3">
+         <widget class="QCheckBox" name="audioFillGapsCheckBox">
+          <property name="text">
+           <string>Fill Audio Gaps</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="3">
+         <widget class="QCheckBox" name="audioPreservePitchCheckBox">
+          <property name="text">
+           <string>Preserve Audio Pitch</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="3">
+         <widget class="QCheckBox" name="muteOnUnlimitedSpeedCheckBox">
+          <property name="text">
+           <string>Mute When Disabling Speed Limit</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="wiimoteRoutingGroup">
+       <property name="title">
+        <string>Wii Remote Audio Routing</string>
+       </property>
+       <layout class="QGridLayout" name="wiimoteRoutingLayout">
+        <item row="0" column="0" colspan="2">
+         <widget class="QCheckBox" name="wiimoteRoutingCheckBox">
+          <property name="text">
+           <string>Enable Wii Remote Audio Routing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="wiimote1CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="wiimote1DeviceComboBox"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QCheckBox" name="wiimote2CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="wiimote2DeviceComboBox"/>
+        </item>
+        <item row="3" column="0">
+         <widget class="QCheckBox" name="wiimote3CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QComboBox" name="wiimote3DeviceComboBox"/>
+        </item>
+        <item row="4" column="0">
+         <widget class="QCheckBox" name="wiimote4CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QComboBox" name="wiimote4DeviceComboBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="gbaRoutingGroup">
+       <property name="title">
+        <string>GBA Audio Routing</string>
+       </property>
+       <layout class="QGridLayout" name="gbaRoutingLayout">
+        <item row="0" column="0" colspan="2">
+         <widget class="QCheckBox" name="gbaRoutingCheckBox">
+          <property name="text">
+           <string>Enable GBA Audio Routing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="gba1CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="gba1DeviceComboBox"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QCheckBox" name="gba2CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="gba2DeviceComboBox"/>
+        </item>
+        <item row="3" column="0">
+         <widget class="QCheckBox" name="gba3CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QComboBox" name="gba3DeviceComboBox"/>
+        </item>
+        <item row="4" column="0">
+         <widget class="QCheckBox" name="gba4CheckBox">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QComboBox" name="gba4DeviceComboBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>volumeSlider</tabstop>
+  <tabstop>dspEngineComboBox</tabstop>
+  <tabstop>backendComboBox</tabstop>
+  <tabstop>wasapiDeviceComboBox</tabstop>
+  <tabstop>latencySlider</tabstop>
+  <tabstop>dolbyProLogicCheckBox</tabstop>
+  <tabstop>dolbyQualityComboBox</tabstop>
+  <tabstop>audioBufferSizeSlider</tabstop>
+  <tabstop>audioFillGapsCheckBox</tabstop>
+  <tabstop>audioPreservePitchCheckBox</tabstop>
+  <tabstop>muteOnUnlimitedSpeedCheckBox</tabstop>
+  <tabstop>wiimoteRoutingCheckBox</tabstop>
+  <tabstop>wiimote1CheckBox</tabstop>
+  <tabstop>wiimote1DeviceComboBox</tabstop>
+  <tabstop>wiimote2CheckBox</tabstop>
+  <tabstop>wiimote2DeviceComboBox</tabstop>
+  <tabstop>wiimote3CheckBox</tabstop>
+  <tabstop>wiimote3DeviceComboBox</tabstop>
+  <tabstop>wiimote4CheckBox</tabstop>
+  <tabstop>wiimote4DeviceComboBox</tabstop>
+  <tabstop>gbaRoutingCheckBox</tabstop>
+  <tabstop>gba1CheckBox</tabstop>
+  <tabstop>gba1DeviceComboBox</tabstop>
+  <tabstop>gba2CheckBox</tabstop>
+  <tabstop>gba2DeviceComboBox</tabstop>
+  <tabstop>gba3CheckBox</tabstop>
+  <tabstop>gba3DeviceComboBox</tabstop>
+  <tabstop>gba4CheckBox</tabstop>
+  <tabstop>gba4DeviceComboBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

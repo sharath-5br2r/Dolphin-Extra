@@ -106,6 +106,18 @@ void VideoBackend::FillBackendInfo()
 
 bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
 {
+  m_ui_only = false;
+  return InitializeInternal(wsi);
+}
+
+bool VideoBackend::InitializeUI(const WindowSystemInfo& wsi)
+{
+  m_ui_only = true;
+  return InitializeInternal(wsi);
+}
+
+bool VideoBackend::InitializeInternal(const WindowSystemInfo& wsi)
+{
   if (!DXContext::Create(g_Config.iAdapter, g_Config.bEnableValidationLayer))
   {
     PanicAlertFmtT("Failed to create D3D12 context");
@@ -135,6 +147,8 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
   // Create main wrapper instances.
   auto gfx = std::make_unique<DX12::Gfx>(std::move(swap_chain), wsi.render_surface_scale);
   auto vertex_manager = std::make_unique<DX12::VertexManager>();
+  if (m_ui_only)
+    return InitializeUIShared(std::move(gfx), std::move(vertex_manager));
   auto perf_query = std::make_unique<DX12::PerfQuery>();
   auto bounding_box = std::make_unique<DX12::D3D12BoundingBox>();
 

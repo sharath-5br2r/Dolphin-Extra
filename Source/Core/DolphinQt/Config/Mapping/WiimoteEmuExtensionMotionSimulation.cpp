@@ -3,49 +3,37 @@
 
 #include "DolphinQt/Config/Mapping/WiimoteEmuExtensionMotionSimulation.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
-
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/Extension/Nunchuk.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 
 #include "InputCommon/InputConfig.h"
 
+#include "ui_WiimoteEmuExtensionMotionSimulation.h"
+
 WiimoteEmuExtensionMotionSimulation::WiimoteEmuExtensionMotionSimulation(MappingWindow* window)
     : MappingWidget(window)
 {
-  CreateNunchukLayout();
   CreateMainLayout();
-}
-
-void WiimoteEmuExtensionMotionSimulation::CreateNunchukLayout()
-{
-  auto* layout = new QGridLayout();
-  m_nunchuk_box = new QGroupBox(tr("Nunchuk"), this);
-
-  layout->addWidget(CreateGroupBox(tr("Shake"), Wiimote::GetNunchukGroup(
-                                                    GetPort(), WiimoteEmu::NunchukGroup::Shake)),
-                    0, 0);
-  layout->addWidget(CreateGroupBox(tr("Tilt"), Wiimote::GetNunchukGroup(
-                                                   GetPort(), WiimoteEmu::NunchukGroup::Tilt)),
-                    0, 1);
-  layout->addWidget(CreateGroupBox(tr("Swing"), Wiimote::GetNunchukGroup(
-                                                    GetPort(), WiimoteEmu::NunchukGroup::Swing)),
-                    0, 2);
-
-  m_nunchuk_box->setLayout(layout);
 }
 
 void WiimoteEmuExtensionMotionSimulation::CreateMainLayout()
 {
-  m_main_layout = new QHBoxLayout();
+  Ui::WiimoteEmuExtensionMotionSimulation ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(m_nunchuk_box);
-
-  setLayout(m_main_layout);
+  ui.nunchukLayout->addWidget(
+      CreateGroupBox(tr("Shake"),
+                     Wiimote::GetNunchukGroup(GetPort(), WiimoteEmu::NunchukGroup::Shake)),
+      0, 0);
+  ui.nunchukLayout->addWidget(
+      CreateGroupBox(tr("Tilt"),
+                     Wiimote::GetNunchukGroup(GetPort(), WiimoteEmu::NunchukGroup::Tilt)),
+      0, 1);
+  ui.nunchukLayout->addWidget(
+      CreateGroupBox(tr("Swing"),
+                     Wiimote::GetNunchukGroup(GetPort(), WiimoteEmu::NunchukGroup::Swing)),
+      0, 2);
 }
 
 void WiimoteEmuExtensionMotionSimulation::LoadSettings()

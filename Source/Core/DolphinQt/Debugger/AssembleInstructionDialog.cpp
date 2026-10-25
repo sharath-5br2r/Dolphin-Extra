@@ -8,10 +8,11 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QVBoxLayout>
 
 #include "Common/Assembler/GekkoAssembler.h"
 #include "Common/StringUtil.h"
+
+#include "ui_AssembleInstructionDialog.h"
 
 namespace
 {
@@ -50,24 +51,18 @@ AssembleInstructionDialog::AssembleInstructionDialog(QWidget* parent, u32 addres
 
 void AssembleInstructionDialog::CreateWidgets()
 {
-  auto* layout = new QVBoxLayout;
-
-  m_input_edit = new QLineEdit;
-  m_error_loc_label = new QLabel;
-  m_error_line_label = new QLabel;
-  m_msg_label = new QLabel(tr("No input"));
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+  Ui::AssembleInstructionDialog ui;
+  ui.setupUi(this);
+  m_input_edit = ui.inputEdit;
+  m_error_loc_label = ui.errorLocationLabel;
+  m_error_line_label = ui.errorLineLabel;
+  m_msg_label = ui.messageLabel;
+  m_button_box = ui.buttonBox;
 
   m_error_line_label->setFont(QFont(QFontDatabase::systemFont(QFontDatabase::FixedFont).family()));
   m_input_edit->setFont(QFont(QFontDatabase::systemFont(QFontDatabase::FixedFont).family()));
-  layout->addWidget(m_error_loc_label);
-  layout->addWidget(m_input_edit);
-  layout->addWidget(m_error_line_label);
-  layout->addWidget(m_msg_label);
-  layout->addWidget(m_button_box);
   m_input_edit->setText(QStringLiteral(".4byte 0x%1").arg(m_code, 8, 16, QLatin1Char('0')));
 
-  setLayout(layout);
   OnEditChanged();
 }
 

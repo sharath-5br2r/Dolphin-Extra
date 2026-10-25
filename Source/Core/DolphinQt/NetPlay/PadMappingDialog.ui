@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PadMappingDialog</class>
+ <widget class="QDialog" name="PadMappingDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>700</width>
+    <height>230</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Assign Controllers</string>
+  </property>
+  <layout class="QGridLayout" name="rootLayout">
+   <item row="0" column="0">
+    <widget class="QLabel" name="gcPort1Label"/>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLabel" name="gcPort2Label"/>
+   </item>
+   <item row="0" column="2">
+    <widget class="QLabel" name="gcPort3Label"/>
+   </item>
+   <item row="0" column="3">
+    <widget class="QLabel" name="gcPort4Label"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QComboBox" name="gcBox1"/>
+   </item>
+   <item row="1" column="1">
+    <widget class="QComboBox" name="gcBox2"/>
+   </item>
+   <item row="1" column="2">
+    <widget class="QComboBox" name="gcBox3"/>
+   </item>
+   <item row="1" column="3">
+    <widget class="QComboBox" name="gcBox4"/>
+   </item>
+   <item row="2" column="0">
+    <widget class="QCheckBox" name="gbaBox1"/>
+   </item>
+   <item row="2" column="1">
+    <widget class="QCheckBox" name="gbaBox2"/>
+   </item>
+   <item row="2" column="2">
+    <widget class="QCheckBox" name="gbaBox3"/>
+   </item>
+   <item row="2" column="3">
+    <widget class="QCheckBox" name="gbaBox4"/>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="wiiRemote1Label"/>
+   </item>
+   <item row="3" column="1">
+    <widget class="QLabel" name="wiiRemote2Label"/>
+   </item>
+   <item row="3" column="2">
+    <widget class="QLabel" name="wiiRemote3Label"/>
+   </item>
+   <item row="3" column="3">
+    <widget class="QLabel" name="wiiRemote4Label"/>
+   </item>
+   <item row="4" column="0">
+    <widget class="QComboBox" name="wiiBox1"/>
+   </item>
+   <item row="4" column="1">
+    <widget class="QComboBox" name="wiiBox2"/>
+   </item>
+   <item row="4" column="2">
+    <widget class="QComboBox" name="wiiBox3"/>
+   </item>
+   <item row="4" column="3">
+    <widget class="QComboBox" name="wiiBox4"/>
+   </item>
+   <item row="5" column="0" colspan="4">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>gcBox1</tabstop>
+  <tabstop>gcBox2</tabstop>
+  <tabstop>gcBox3</tabstop>
+  <tabstop>gcBox4</tabstop>
+  <tabstop>gbaBox1</tabstop>
+  <tabstop>gbaBox2</tabstop>
+  <tabstop>gbaBox3</tabstop>
+  <tabstop>gbaBox4</tabstop>
+  <tabstop>wiiBox1</tabstop>
+  <tabstop>wiiBox2</tabstop>
+  <tabstop>wiiBox3</tabstop>
+  <tabstop>wiiBox4</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

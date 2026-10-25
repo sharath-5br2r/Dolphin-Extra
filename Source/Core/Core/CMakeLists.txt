@@ -33,6 +33,8 @@ add_library(core
   Config/GraphicsSettings.h
   Config/MainSettings.cpp
   Config/MainSettings.h
+  Config/MemoryCardSyncSettings.cpp
+  Config/MemoryCardSyncSettings.h
   Config/NetplaySettings.cpp
   Config/NetplaySettings.h
   Config/SessionSettings.cpp
@@ -239,6 +241,8 @@ add_library(core
   HW/GCMemcard/GCMemcardRaw.h
   HW/GCMemcard/GCMemcardUtils.cpp
   HW/GCMemcard/GCMemcardUtils.h
+  HW/GCMemcard/MemcardSync.cpp
+  HW/GCMemcard/MemcardSync.h
   HW/GCMemcard/RcloneUtils.cpp
   HW/GCMemcard/RcloneUtils.h
   HW/GCPad.cpp
@@ -853,6 +857,17 @@ endif()
 if(MSVC)
   # Add precompiled header
   target_link_libraries(core PRIVATE use_pch)
+endif()
+
+if(EMUSYNC_FOUND)
+  target_link_libraries(core PRIVATE emusync::emusync)
+  target_compile_definitions(core PRIVATE HAVE_EMUSYNC)
+  if(MSVC)
+    # Loaded the first time sync calls it: the tools and tests that link core never do, and need
+    # no emusync.dll next to them.
+    target_link_options(core INTERFACE /DELAYLOAD:emusync.dll)
+    target_link_libraries(core INTERFACE delayimp)
+  endif()
 endif()
 
 if(USE_RETRO_ACHIEVEMENTS)

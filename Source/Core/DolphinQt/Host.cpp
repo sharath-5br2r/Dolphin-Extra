@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "DolphinQt/Host.h"
+#include "Common/BigPicture/PresentationState.h"
 
 #include <functional>
 
@@ -9,8 +10,6 @@
 #include <QApplication>
 #include <QLocale>
 #include <QThread>
-
-#include <imgui.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -36,6 +35,7 @@
 #include "UICommon/DiscordPresence.h"
 
 #include "VideoCommon/AbstractGfx.h"
+#include "VideoCommon/BigPicture/StandaloneSession.h"
 #include "VideoCommon/Fifo.h"
 #include "VideoCommon/Present.h"
 #include "VideoCommon/VideoConfig.h"
@@ -64,6 +64,11 @@ void Host::SetRenderHandle(void* handle)
     return;
 
   m_render_handle = handle;
+  if (VideoCommon::BigPicture::ChangeStandaloneSurface(handle))
+  {
+    g_controller_interface.ChangeWindow(handle);
+    return;
+  }
   if (g_presenter)
   {
     g_presenter->ChangeSurface(handle);
@@ -137,6 +142,12 @@ bool Host::GetRenderFullFocus()
 void Host::SetRenderFocus(bool focus)
 {
   m_render_focus = focus;
+  if (VideoCommon::BigPicture::IsStandaloneActive())
+  {
+    if (m_render_fullscreen)
+      VideoCommon::BigPicture::SetStandaloneFullscreen(focus);
+    return;
+  }
   if (g_gfx && m_render_fullscreen && g_ActiveConfig.ExclusiveFullscreenEnabled())
   {
     RunWithGPUThreadInactive([focus] {
@@ -173,6 +184,8 @@ bool Host::GetRenderFullscreen()
 void Host::SetRenderFullscreen(bool fullscreen)
 {
   m_render_fullscreen = fullscreen;
+  if (VideoCommon::BigPicture::SetStandaloneFullscreen(fullscreen))
+    return;
 
   if (g_gfx && g_gfx->IsFullscreen() != fullscreen && g_ActiveConfig.ExclusiveFullscreenEnabled())
   {
@@ -187,6 +200,8 @@ void Host::SetTASInputFocus(const bool focus)
 
 void Host::ResizeSurface(int new_width, int new_height)
 {
+  if (VideoCommon::BigPicture::ResizeStandaloneSurface())
+    return;
   if (g_presenter)
     g_presenter->ResizeSurface();
 }
@@ -283,9 +298,7 @@ void Host_RequestRenderWindowSize(int w, int h)
 
 bool Host_UIBlocksControllerState()
 {
-  // TODO: Remove the Paused check once async presentation is implemented.
-  return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard &&
-         Core::GetState(Core::System::GetInstance()) != Core::State::Paused;
+  return BigPicture::GetPresentationState().GetCapture().keyboard;
 }
 
 void Host_TitleChanged()

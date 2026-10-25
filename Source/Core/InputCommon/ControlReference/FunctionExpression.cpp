@@ -9,6 +9,15 @@
 
 namespace ciface::ExpressionParser
 {
+bool FunctionExpression::IsAnyInputActive() const
+{
+  return std::ranges::any_of(m_args, [](const auto& input) { return input->IsAnyInputActive(); });
+}
+void FunctionExpression::ClearHotkeySuppressions()
+{
+  for (const auto& input : m_args)
+    input->ClearHotkeySuppressions();
+}
 using Clock = std::chrono::steady_clock;
 using FSec = std::chrono::duration<ControlState>;
 

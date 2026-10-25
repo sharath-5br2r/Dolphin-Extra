@@ -3,12 +3,11 @@
 
 #include "DolphinQt/Config/Mapping/GBAPadEmu.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-
 #include "Core/HW/GBAPad.h"
 #include "Core/HW/GBAPadEmu.h"
 #include "InputCommon/InputConfig.h"
+
+#include "ui_MappingGridPage.h"
 
 GBAPadEmu::GBAPadEmu(MappingWindow* window) : MappingWidget(window)
 {
@@ -17,16 +16,15 @@ GBAPadEmu::GBAPadEmu(MappingWindow* window) : MappingWidget(window)
 
 void GBAPadEmu::CreateMainLayout()
 {
-  auto* layout = new QGridLayout;
+  Ui::MappingGridPage ui;
+  ui.setupUi(this);
 
-  layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateControlsBox(tr("D-Pad"), Pad::GetGBAGroup(GetPort(), GBAPadGroup::DPad), 2), 0, 0, -1,
       1);
-  layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateControlsBox(tr("Buttons"), Pad::GetGBAGroup(GetPort(), GBAPadGroup::Buttons), 2), 0, 1,
       -1, 1);
-
-  setLayout(layout);
 }
 
 void GBAPadEmu::LoadSettings()

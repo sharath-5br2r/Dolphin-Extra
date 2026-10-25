@@ -27,6 +27,7 @@ public:
                           u32 layer, u32 level) override;
   void Load(u32 level, u32 width, u32 height, u32 row_length, const u8* buffer, size_t buffer_size,
             u32 layer) override;
+  void GenerateMipmaps() override;
 
   id<MTLTexture> GetMTLTexture() const { return m_tex; }
 

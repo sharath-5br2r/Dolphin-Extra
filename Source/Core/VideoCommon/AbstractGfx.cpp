@@ -3,12 +3,19 @@
 
 #include "VideoCommon/AbstractGfx.h"
 
+#include <utility>
+
 #include "Common/Assert.h"
 
 #include "VideoCommon/AbstractFramebuffer.h"
 #include "VideoCommon/AbstractTexture.h"
 #include "VideoCommon/BPFunctions.h"
 #include "VideoCommon/FramebufferManager.h"
+#include "VideoCommon/PostProcessing/IPostProcessor.h"
+#include "VideoCommon/PostProcessing/LibrashaderLoader.h"
+#include "VideoCommon/PostProcessing/LibrashaderPostProcessing.h"
+#include "VideoCommon/PostProcessing/LibrashaderRuntime.h"
+#include "VideoCommon/PostProcessing/MultipassPostProcessing.h"
 #include "VideoCommon/ShaderCache.h"
 #include "VideoCommon/VertexManagerBase.h"
 #include "VideoCommon/VideoConfig.h"
@@ -188,4 +195,38 @@ bool AbstractGfx::UseGeometryShaderForUI() const
   // instead drawing twice and the eye selected by glDrawBuffer() (see Presenter::RenderXFBToScreen)
   return g_ActiveConfig.stereo_mode == StereoMode::QuadBuffer &&
          !g_backend_info.bUsesExplictQuadBuffering;
+}
+
+std::unique_ptr<VideoCommon::LibrashaderRuntime> AbstractGfx::CreateLibrashaderRuntime()
+{
+  return nullptr;
+}
+
+std::unique_ptr<VideoCommon::IPostProcessor> AbstractGfx::CreatePostProcessor()
+{
+  // librashader is the engine of record where this backend has a runtime and that runtime says it
+  // can run here -- not merely "wherever the library loaded", which is wrong in both directions:
+  // Software and Null get the built-in executor from the null CreateLibrashaderRuntime() above even
+  // with the library perfectly usable, and a backend that does have a runtime still falls back when
+  // IsSupported() finds the library missing, a symbol unresolved, or an OpenGL context below
+  // librashader's floor. The built-in multipass executor is that fallback, and also the only engine
+  // on the platforms with no vendored binary -- Android x86_64 and Linux. Neither is
+  // user-selectable. Spec section 4.3 carries the full rule.
+  std::unique_ptr<VideoCommon::LibrashaderRuntime> runtime = CreateLibrashaderRuntime();
+  if (runtime && runtime->IsSupported())
+    return std::make_unique<VideoCommon::LibrashaderPostProcessing>(std::move(runtime));
+
+  const VideoCommon::Librashader::Availability& availability =
+      VideoCommon::Librashader::GetAvailability();
+  if (!availability.available)
+  {
+    INFO_LOG_FMT(VIDEO, "librashader unavailable ({}); using the built-in post-processor.",
+                 availability.reason);
+  }
+  else
+  {
+    INFO_LOG_FMT(VIDEO, "librashader loaded but this backend has no runtime; using the built-in "
+                        "post-processor.");
+  }
+  return std::make_unique<VideoCommon::MultipassPostProcessing>();
 }

@@ -11,14 +11,10 @@
 
 #include <QCheckBox>
 #include <QComboBox>
-#include <QFormLayout>
-#include <QGroupBox>
-#include <QLabel>
 #include <QList>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QString>
-#include <QVBoxLayout>
 
 #include "Common/Assert.h"
 #include "Common/Logging/Log.h"
@@ -33,18 +29,21 @@
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
 
+#include "ui_ConvertDialog.h"
+
 ConvertDialog::ConvertDialog(QList<std::shared_ptr<const UICommon::GameFile>> files,
                              QWidget* parent)
-    : QDialog(parent), m_files(std::move(files))
+    : QDialog(parent), m_ui(std::make_unique<Ui::ConvertDialog>()), m_files(std::move(files))
 {
   ASSERT(!m_files.empty());
 
-  setWindowTitle(tr("Convert"));
+  m_ui->setupUi(this);
+  m_format = m_ui->formatComboBox;
+  m_block_size = m_ui->blockSizeComboBox;
+  m_compression = m_ui->compressionComboBox;
+  m_compression_level = m_ui->compressionLevelComboBox;
+  m_scrub = m_ui->scrubCheckBox;
 
-  auto* const form_layout = new QFormLayout;
-  form_layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-
-  m_format = new QComboBox;
   m_format->addItem(QStringLiteral("ISO"), static_cast<int>(DiscIO::BlobType::PLAIN));
   m_format->addItem(QStringLiteral("GCZ"), static_cast<int>(DiscIO::BlobType::GCZ));
   m_format->addItem(QStringLiteral("WIA"), static_cast<int>(DiscIO::BlobType::WIA));
@@ -54,57 +53,17 @@ ConvertDialog::ConvertDialog(QList<std::shared_ptr<const UICommon::GameFile>> fi
   {
     m_format->setCurrentIndex(m_format->count() - 1);
   }
-  form_layout->addRow(tr("Format:"), m_format);
-
-  m_block_size = new QComboBox;
-  form_layout->addRow(tr("Block Size:"), m_block_size);
-
-  m_compression = new QComboBox;
-  form_layout->addRow(tr("Compression:"), m_compression);
-
-  m_compression_level = new QComboBox;
-  form_layout->addRow(tr("Compression Level:"), m_compression_level);
-
-  m_scrub = new QCheckBox;
-  form_layout->addRow(tr("Remove Junk Data (Irreversible):"), m_scrub);
-
-  auto* const convert_button = new QPushButton(tr("Convert..."));
-
-  auto* const info_text = new QLabel(
-      tr("ISO: A simple and robust format which is supported by many programs. It takes up more "
-         "space than any other format.\n\n"
-         "GCZ: A basic compressed format which is compatible with most versions of Dolphin and "
-         "some other programs. It can't efficiently compress junk data (unless removed) or "
-         "encrypted Wii data.\n\n"
-         "WIA: An advanced compressed format which is compatible with Dolphin 5.0-12188 and later, "
-         "and a few other programs. It can efficiently compress encrypted Wii data, but not junk "
-         "data (unless removed).\n\n"
-         "RVZ: An advanced compressed format which is compatible with Dolphin 5.0-12188 and later. "
-         "It can efficiently compress both junk data and encrypted Wii data."));
-  info_text->setWordWrap(true);
-  info_text->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-
-  auto* const options_group = new QGroupBox(tr("Options"));
-  auto* const options_layout = new QVBoxLayout{options_group};
-  options_layout->addLayout(form_layout);
-  options_layout->addWidget(convert_button);
-
-  auto* const info_group = new QGroupBox(tr("Info"));
-  auto* const info_layout = new QVBoxLayout{info_group};
-  info_layout->addWidget(info_text);
-
-  auto* const main_layout = new QVBoxLayout{this};
-  main_layout->addWidget(options_group);
-  main_layout->addWidget(info_group, 1);
 
   connect(m_format, &QComboBox::currentIndexChanged, this, &ConvertDialog::OnFormatChanged);
   connect(m_compression, &QComboBox::currentIndexChanged, this,
           &ConvertDialog::OnCompressionChanged);
-  connect(convert_button, &QPushButton::clicked, this, &ConvertDialog::Convert);
+  connect(m_ui->convertButton, &QPushButton::clicked, this, &ConvertDialog::Convert);
 
   OnFormatChanged();
   OnCompressionChanged();
 }
+
+ConvertDialog::~ConvertDialog() = default;
 
 void ConvertDialog::AddToBlockSizeComboBox(int size)
 {

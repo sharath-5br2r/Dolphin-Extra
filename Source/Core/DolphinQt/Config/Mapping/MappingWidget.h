@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <QGroupBox>
 #include <QString>
 #include <QWidget>
 
@@ -12,7 +13,6 @@ class MappingNumeric;
 class MappingWindow;
 class QFormLayout;
 class QPushButton;
-class QGroupBox;
 
 namespace ControllerEmu
 {

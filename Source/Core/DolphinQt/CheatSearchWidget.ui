@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CheatSearchWidget</class>
+ <widget class="QWidget" name="CheatSearchWidget">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QLabel" name="sessionInfoLabel">
+     <property name="text">
+      <string notr="true"/>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="instructionsLabel">
+     <property name="text">
+      <string extracomment="This label is followed by a dropdown where the user can select things like &quot;is equal to&quot; or &quot;is less than or equal to&quot;, followed by another dropdown where the user can select &quot;any value&quot;, &quot;last value&quot;, or &quot;this value:&quot;. These three UI elements are intended to form a sentence together. Because the UI elements can't be reordered by a translation, you may have to give up on the idea of having them form a sentence depending on the grammar of your target language.">Keep addresses where value in memory</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="valueLayout">
+     <item>
+      <widget class="QComboBox" name="compareTypeComboBox"/>
+     </item>
+     <item>
+      <widget class="QComboBox" name="valueSourceComboBox"/>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="givenValueLineEdit"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="parseValuesAsHexCheckBox">
+       <property name="text">
+        <string>Parse as Hex</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="buttonLayout">
+     <item>
+      <widget class="QPushButton" name="nextScanButton">
+       <property name="text">
+        <string>Search and Filter</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="refreshValuesButton">
+       <property name="text">
+        <string>Refresh Current Values</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="resetButton">
+       <property name="text">
+        <string>Reset Results</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="checkboxesLayout" stretch="1,2">
+     <item>
+      <widget class="QCheckBox" name="displayValuesInHexCheckBox">
+       <property name="text">
+        <string>Display values in Hex</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="autoupdateCurrentValuesCheckBox">
+       <property name="text">
+        <string>Automatically update Current Values</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="infoLabel1">
+     <property name="text">
+      <string>Waiting for first scan...</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="infoLabel2">
+     <property name="text">
+      <string notr="true"/>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="addressTableWidget">
+     <property name="contextMenuPolicy">
+      <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+     </property>
+     <property name="selectionBehavior">
+      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>compareTypeComboBox</tabstop>
+  <tabstop>valueSourceComboBox</tabstop>
+  <tabstop>givenValueLineEdit</tabstop>
+  <tabstop>parseValuesAsHexCheckBox</tabstop>
+  <tabstop>nextScanButton</tabstop>
+  <tabstop>refreshValuesButton</tabstop>
+  <tabstop>resetButton</tabstop>
+  <tabstop>displayValuesInHexCheckBox</tabstop>
+  <tabstop>autoupdateCurrentValuesCheckBox</tabstop>
+  <tabstop>addressTableWidget</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

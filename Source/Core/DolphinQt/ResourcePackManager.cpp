@@ -7,7 +7,6 @@
 
 #include <QDesktopServices>
 #include <QDialogButtonBox>
-#include <QGridLayout>
 #include <QHeaderView>
 #include <QPushButton>
 #include <QTableWidget>
@@ -15,50 +14,33 @@
 
 #include "Common/FileUtil.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
-#include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "UICommon/ResourcePack/Manager.h"
 #include "UICommon/ResourcePack/ResourcePack.h"
 
-ResourcePackManager::ResourcePackManager(QWidget* widget) : QDialog(widget)
+#include "ui_ResourcePackManager.h"
+
+ResourcePackManager::ResourcePackManager(QWidget* widget)
+    : QDialog(widget), m_ui(std::make_unique<Ui::ResourcePackManager>())
 {
   CreateWidgets();
   ConnectWidgets();
   RepopulateTable();
-
-  setWindowTitle(tr("Resource Pack Manager"));
-
-  resize(QSize(900, 600));
 }
+
+ResourcePackManager::~ResourcePackManager() = default;
 
 void ResourcePackManager::CreateWidgets()
 {
-  auto* layout = new QGridLayout;
+  m_ui->setupUi(this);
+  m_table_widget = m_ui->tableWidget;
+  m_open_directory_button = m_ui->openDirectoryButton;
+  m_change_button = m_ui->changeButton;
+  m_remove_button = m_ui->removeButton;
+  m_refresh_button = m_ui->refreshButton;
+  m_priority_up_button = m_ui->priorityUpButton;
+  m_priority_down_button = m_ui->priorityDownButton;
 
-  m_table_widget = new QTableWidget;
-  m_table_widget->setTabKeyNavigation(false);
-
-  m_open_directory_button = new NonDefaultQPushButton(tr("Open Directory..."));
-  m_change_button = new NonDefaultQPushButton(tr("Install"));
-  m_remove_button = new NonDefaultQPushButton(tr("Remove"));
-  m_refresh_button = new NonDefaultQPushButton(tr("Refresh"));
-  m_priority_up_button = new NonDefaultQPushButton(tr("Up"));
-  m_priority_down_button = new NonDefaultQPushButton(tr("Down"));
-
-  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok);
-
-  connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-
-  layout->addWidget(m_table_widget, 0, 0, 7, 1);
-  layout->addWidget(m_open_directory_button, 0, 1);
-  layout->addWidget(m_change_button, 1, 1);
-  layout->addWidget(m_remove_button, 2, 1);
-  layout->addWidget(m_refresh_button, 3, 1);
-  layout->addWidget(m_priority_up_button, 4, 1);
-  layout->addWidget(m_priority_down_button, 5, 1);
-
-  layout->addWidget(buttons, 7, 1, Qt::AlignRight);
-  setLayout(layout);
-  setLayout(layout);
+  connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
 }
 
 void ResourcePackManager::ConnectWidgets()

@@ -4,12 +4,8 @@
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinQt/Achievements/AchievementHeaderWidget.h"
 
-#include <QGroupBox>
-#include <QLabel>
-#include <QLineEdit>
-#include <QProgressBar>
+#include <QSizePolicy>
 #include <QString>
-#include <QVBoxLayout>
 
 #include <rcheevos/include/rc_client.h>
 
@@ -18,50 +14,19 @@
 
 #include "DolphinQt/QtUtils/FromStdString.h"
 
-AchievementHeaderWidget::AchievementHeaderWidget(QWidget* parent) : QWidget(parent)
+#include "ui_AchievementHeaderWidget.h"
+
+AchievementHeaderWidget::AchievementHeaderWidget(QWidget* parent)
+    : QWidget(parent), m_ui(std::make_unique<Ui::AchievementHeaderWidget>())
 {
-  m_user_icon = new QLabel();
-  m_game_icon = new QLabel();
-  m_name = new QLabel();
-  m_points = new QLabel();
-  m_game_progress = new QProgressBar();
-  m_progress_label = new QLabel();
-  m_rich_presence = new QLabel();
+  m_ui->setupUi(this);
 
-  m_name->setWordWrap(true);
-  m_points->setWordWrap(true);
-  m_rich_presence->setWordWrap(true);
-  QSizePolicy sp_retain = m_game_progress->sizePolicy();
+  QSizePolicy sp_retain = m_ui->gameProgress->sizePolicy();
   sp_retain.setRetainSizeWhenHidden(true);
-  m_game_progress->setSizePolicy(sp_retain);
-  m_game_progress->setTextVisible(false);
-  m_progress_label->setStyleSheet(QStringLiteral("background-color:transparent;"));
-  m_progress_label->setAlignment(Qt::AlignCenter);
-
-  QVBoxLayout* icon_col = new QVBoxLayout();
-  icon_col->addWidget(m_user_icon);
-  icon_col->addWidget(m_game_icon);
-  QVBoxLayout* text_col = new QVBoxLayout();
-  text_col->addWidget(m_name);
-  text_col->addWidget(m_points);
-  text_col->addWidget(m_game_progress);
-  text_col->addWidget(m_rich_presence);
-  QVBoxLayout* prog_layout = new QVBoxLayout(m_game_progress);
-  prog_layout->setContentsMargins(0, 0, 0, 0);
-  prog_layout->addWidget(m_progress_label);
-  QHBoxLayout* header_layout = new QHBoxLayout();
-  header_layout->addLayout(icon_col);
-  header_layout->addLayout(text_col);
-  m_header_box = new QGroupBox();
-  m_header_box->setLayout(header_layout);
-
-  QVBoxLayout* m_total = new QVBoxLayout();
-  m_total->addWidget(m_header_box);
-
-  m_total->setContentsMargins(0, 0, 0, 0);
-  m_total->setAlignment(Qt::AlignTop);
-  setLayout(m_total);
+  m_ui->gameProgress->setSizePolicy(sp_retain);
 }
+
+AchievementHeaderWidget::~AchievementHeaderWidget() = default;
 
 void AchievementHeaderWidget::UpdateData()
 {
@@ -69,33 +34,33 @@ void AchievementHeaderWidget::UpdateData()
   auto& instance = AchievementManager::GetInstance();
   if (!Config::Get(Config::RA_ENABLED) || !instance.HasAPIToken())
   {
-    m_header_box->setVisible(false);
+    m_ui->headerBox->setVisible(false);
     return;
   }
-  m_header_box->setVisible(true);
+  m_ui->headerBox->setVisible(true);
 
   QString user_name = QtUtils::FromStdString(instance.GetPlayerDisplayName());
   QString game_name = QtUtils::FromStdString(instance.GetGameDisplayName());
   const AchievementManager::Badge& player_badge = instance.GetPlayerBadge();
   const AchievementManager::Badge& game_badge = instance.GetGameBadge();
 
-  m_user_icon->setVisible(false);
-  m_user_icon->clear();
-  m_user_icon->setText({});
+  m_ui->userIcon->setVisible(false);
+  m_ui->userIcon->clear();
+  m_ui->userIcon->setText({});
   if (!player_badge.data.empty())
   {
     QImage i_user_icon(player_badge.data.data(), player_badge.width, player_badge.height,
                        QImage::Format_RGBA8888);
-    m_user_icon->setPixmap(QPixmap::fromImage(i_user_icon)
-                               .scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_ui->userIcon->setPixmap(QPixmap::fromImage(i_user_icon)
+                                  .scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
   }
-  m_user_icon->adjustSize();
-  m_user_icon->setStyleSheet(QStringLiteral("border: 4px solid transparent"));
-  m_user_icon->setVisible(true);
+  m_ui->userIcon->adjustSize();
+  m_ui->userIcon->setStyleSheet(QStringLiteral("border: 4px solid transparent"));
+  m_ui->userIcon->setVisible(true);
 
-  m_game_icon->setVisible(false);
-  m_game_icon->clear();
-  m_game_icon->setText({});
+  m_ui->gameIcon->setVisible(false);
+  m_ui->gameIcon->clear();
+  m_ui->gameIcon->setText({});
 
   if (instance.IsGameLoaded())
   {
@@ -105,47 +70,47 @@ void AchievementHeaderWidget::UpdateData()
     {
       QImage i_game_icon(game_badge.data.data(), game_badge.width, game_badge.height,
                          QImage::Format_RGBA8888);
-      m_game_icon->setPixmap(QPixmap::fromImage(i_game_icon)
-                                 .scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+      m_ui->gameIcon->setPixmap(QPixmap::fromImage(i_game_icon)
+                                    .scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
-    m_game_icon->adjustSize();
+    m_ui->gameIcon->adjustSize();
     std::string_view color = AchievementManager::GRAY;
     if (game_summary.num_core_achievements == game_summary.num_unlocked_achievements)
     {
       color = instance.IsHardcoreModeActive() ? AchievementManager::GOLD : AchievementManager::BLUE;
     }
-    m_game_icon->setStyleSheet(
+    m_ui->gameIcon->setStyleSheet(
         QStringLiteral("border: 4px solid %1").arg(QtUtils::FromStdString(color)));
-    m_game_icon->setVisible(true);
+    m_ui->gameIcon->setVisible(true);
 
-    m_name->setText(tr("%1 is playing %2").arg(user_name).arg(game_name));
-    m_points->setText(tr("%1 has unlocked %2/%3 achievements worth %4/%5 points")
-                          .arg(user_name)
-                          .arg(game_summary.num_unlocked_achievements)
-                          .arg(game_summary.num_core_achievements)
-                          .arg(game_summary.points_unlocked)
-                          .arg(game_summary.points_core));
+    m_ui->nameLabel->setText(tr("%1 is playing %2").arg(user_name).arg(game_name));
+    m_ui->pointsLabel->setText(tr("%1 has unlocked %2/%3 achievements worth %4/%5 points")
+                                   .arg(user_name)
+                                   .arg(game_summary.num_unlocked_achievements)
+                                   .arg(game_summary.num_core_achievements)
+                                   .arg(game_summary.points_unlocked)
+                                   .arg(game_summary.points_core));
 
     // This ensures that 0/0 renders as empty instead of full
-    m_game_progress->setRange(
+    m_ui->gameProgress->setRange(
         0, (game_summary.num_core_achievements == 0) ? 1 : game_summary.num_core_achievements);
-    m_game_progress->setVisible(true);
-    m_game_progress->setValue(game_summary.num_unlocked_achievements);
-    m_progress_label->setVisible(true);
-    m_progress_label->setText(tr("%1/%2")
-                                  .arg(game_summary.num_unlocked_achievements)
-                                  .arg(game_summary.num_core_achievements));
-    m_rich_presence->setText(QString::fromUtf8(instance.GetRichPresence().data()));
-    m_rich_presence->setVisible(true);
+    m_ui->gameProgress->setVisible(true);
+    m_ui->gameProgress->setValue(game_summary.num_unlocked_achievements);
+    m_ui->progressLabel->setVisible(true);
+    m_ui->progressLabel->setText(tr("%1/%2")
+                                     .arg(game_summary.num_unlocked_achievements)
+                                     .arg(game_summary.num_core_achievements));
+    m_ui->richPresenceLabel->setText(QString::fromUtf8(instance.GetRichPresence().data()));
+    m_ui->richPresenceLabel->setVisible(true);
   }
   else
   {
-    m_name->setText(user_name);
-    m_points->setText(tr("%1 points").arg(instance.GetPlayerScore()));
+    m_ui->nameLabel->setText(user_name);
+    m_ui->pointsLabel->setText(tr("%1 points").arg(instance.GetPlayerScore()));
 
-    m_game_progress->setVisible(false);
-    m_progress_label->setVisible(false);
-    m_rich_presence->setVisible(false);
+    m_ui->gameProgress->setVisible(false);
+    m_ui->progressLabel->setVisible(false);
+    m_ui->richPresenceLabel->setVisible(false);
   }
 }
 

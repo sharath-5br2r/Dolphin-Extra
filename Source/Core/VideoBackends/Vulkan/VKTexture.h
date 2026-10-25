@@ -49,6 +49,7 @@ public:
   void Load(u32 level, u32 width, u32 height, u32 row_length, const u8* buffer, size_t buffer_size,
             u32 layer) override;
   void FinishedRendering() override;
+  void GenerateMipmaps() override;
 
   VkImage GetImage() const { return m_image; }
   VkImageView GetView() const { return m_view; }

@@ -3,22 +3,23 @@
 
 #include "DolphinQt/Settings/GameCubePane.h"
 
+#include <array>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
+#include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QFormLayout>
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QVBoxLayout>
-
-#include <array>
-#include <utility>
+#include <QString>
+#include <QWidget>
 
 #include "Common/Assert.h"
 #include "Common/CommonPaths.h"
@@ -37,102 +38,156 @@
 #endif
 #include "Core/System.h"
 
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigChoice.h"
-#ifdef HAS_LIBMGBA
-#include "DolphinQt/Config/ConfigControls/ConfigText.h"
-#include "DolphinQt/Config/ConfigControls/ConfigUserPath.h"
-#endif
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
 #include "DolphinQt/GCMemcardManager.h"
 #include "DolphinQt/QtUtils/DolphinFileDialog.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
-#include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/Settings/BroadbandAdapterSettingsDialog.h"
 #include "DolphinQt/Settings/TriforcePane.h"
 
+#include "ui_GameCubePane.h"
+
 constexpr std::initializer_list<ExpansionInterface::Slot> GUI_SLOTS = {
     ExpansionInterface::Slot::A, ExpansionInterface::Slot::B, ExpansionInterface::Slot::SP1};
 
-GameCubePane::GameCubePane(MainWindow* main_window)
+namespace
 {
-  CreateWidgets();
+void SetUserPath(QLineEdit* line_edit, unsigned int dir_index,
+                 const Config::Info<std::string>& setting, const QString& path)
+{
+  const std::string value = path.toStdString();
+  line_edit->setText(path);
+  File::SetUserPath(dir_index, value);
+  Config::SetBaseOrCurrent(setting, value);
+}
+
+// The path a memory card slot uses for `device` (a raw memory card or a GCI folder), resolved for
+// PAL. The paths of the other regions follow the same pattern, so if the PAL paths of two slots
+// match, the others match too and vice versa.
+std::string GetEUPathForDevice(ExpansionInterface::Slot slot,
+                               ExpansionInterface::EXIDeviceType device)
+{
+  return device == ExpansionInterface::EXIDeviceType::MemoryCard ?
+             Config::GetMemcardPath(slot, DiscIO::Region::PAL) :
+             Config::GetGCIFolderPath(slot, DiscIO::Region::PAL);
+}
+
+// The other memory card slot, if it is set to `device` and that device uses `eu_path`. A path
+// stored for a device type the slot isn't set to is not in use.
+std::optional<ExpansionInterface::Slot> FindSlotUsingPath(ExpansionInterface::Slot slot,
+                                                          ExpansionInterface::EXIDeviceType device,
+                                                          const std::string& eu_path)
+{
+  for (ExpansionInterface::Slot other_slot : ExpansionInterface::MEMCARD_SLOTS)
+  {
+    if (other_slot != slot && Config::Get(Config::GetInfoForEXIDevice(other_slot)) == device &&
+        GetEUPathForDevice(other_slot, device) == eu_path)
+    {
+      return other_slot;
+    }
+  }
+  return std::nullopt;
+}
+
+// In GameCubePane's translation context, where these messages have always been.
+QString AlreadyUsedMessage(ExpansionInterface::EXIDeviceType device,
+                           ExpansionInterface::Slot other_slot)
+{
+  const QString slot_name = QString::fromStdString(fmt::to_string(other_slot));
+  if (device == ExpansionInterface::EXIDeviceType::MemoryCard)
+  {
+    return QCoreApplication::translate(
+               "GameCubePane",
+               "The same file can't be used in multiple slots; it is already used by %1.")
+        .arg(slot_name);
+  }
+  return QCoreApplication::translate(
+             "GameCubePane",
+             "The same folder can't be used in multiple slots; it is already used by %1.")
+      .arg(slot_name);
+}
+}  // namespace
+
+GameCubePane::GameCubePane(MainWindow* main_window) : m_ui(std::make_unique<Ui::GameCubePane>())
+{
+  m_ui->setupUi(this);
+  ConfigureWidgets();
+  PopulateDeviceChoices();
+  BindSettings();
   LoadSettings();
   ConnectWidgets();
 
   connect(this, &GameCubePane::ShowTriforceWindow, main_window, &MainWindow::ShowTriforceWindow);
 }
 
-void GameCubePane::CreateWidgets()
+GameCubePane::~GameCubePane() = default;
+
+void GameCubePane::ConfigureWidgets()
+{
+  m_slot_combos[ExpansionInterface::Slot::A] = m_ui->slotAComboBox;
+  m_slot_combos[ExpansionInterface::Slot::B] = m_ui->slotBComboBox;
+  m_slot_combos[ExpansionInterface::Slot::SP1] = m_ui->sp1ComboBox;
+  m_slot_buttons[ExpansionInterface::Slot::A] = m_ui->slotAConfigButton;
+  m_slot_buttons[ExpansionInterface::Slot::B] = m_ui->slotBConfigButton;
+  m_slot_buttons[ExpansionInterface::Slot::SP1] = m_ui->sp1ConfigButton;
+
+  m_memcard_path_labels[ExpansionInterface::Slot::A] = m_ui->slotAMemcardPathLabel;
+  m_memcard_path_labels[ExpansionInterface::Slot::B] = m_ui->slotBMemcardPathLabel;
+  m_memcard_paths[ExpansionInterface::Slot::A] = m_ui->slotAMemcardPathLineEdit;
+  m_memcard_paths[ExpansionInterface::Slot::B] = m_ui->slotBMemcardPathLineEdit;
+
+  m_agp_path_labels[ExpansionInterface::Slot::A] = m_ui->slotAAgpPathLabel;
+  m_agp_path_labels[ExpansionInterface::Slot::B] = m_ui->slotBAgpPathLabel;
+  m_agp_paths[ExpansionInterface::Slot::A] = m_ui->slotAAgpPathLineEdit;
+  m_agp_paths[ExpansionInterface::Slot::B] = m_ui->slotBAgpPathLineEdit;
+
+  m_gci_override_labels[ExpansionInterface::Slot::A] = m_ui->slotAGciOverrideLabel;
+  m_gci_override_labels[ExpansionInterface::Slot::B] = m_ui->slotBGciOverrideLabel;
+  m_gci_path_labels[ExpansionInterface::Slot::A] = m_ui->slotAGciPathLabel;
+  m_gci_path_labels[ExpansionInterface::Slot::B] = m_ui->slotBGciPathLabel;
+  m_gci_paths[ExpansionInterface::Slot::A] = m_ui->slotAGciPathLineEdit;
+  m_gci_paths[ExpansionInterface::Slot::B] = m_ui->slotBGciPathLineEdit;
+
+  m_gba_rom_edits = {m_ui->gbaRom1LineEdit, m_ui->gbaRom2LineEdit, m_ui->gbaRom3LineEdit,
+                     m_ui->gbaRom4LineEdit, m_ui->gbaRom5LineEdit};
+  m_gba_browse_roms = {m_ui->gbaRom1BrowseButton, m_ui->gbaRom2BrowseButton,
+                       m_ui->gbaRom3BrowseButton, m_ui->gbaRom4BrowseButton,
+                       m_ui->gbaRom5BrowseButton};
+  const std::array rom_labels{m_ui->gbaRom1Label, m_ui->gbaRom2Label, m_ui->gbaRom3Label,
+                              m_ui->gbaRom4Label, m_ui->gbaRom5Label};
+  for (size_t i = 0; i < rom_labels.size(); ++i)
+  {
+    rom_labels[i]->setText((i == Config::GBPLAYER_GBA_INDEX) ? tr("Game Boy Player ROM:") :
+                                                               tr("Port %1 ROM:").arg(i + 1));
+  }
+
+#ifndef HAS_LIBMGBA
+  m_ui->gbaGroup->hide();
+#endif
+}
+
+void GameCubePane::BindSettings()
+{
+  ConfigWidget::Bind(m_ui->skipMainMenuCheckBox, Config::MAIN_SKIP_IPL);
+  ConfigWidget::Bind(m_ui->systemLanguageComboBox, Config::MAIN_GC_LANGUAGE);
+
+#ifdef HAS_LIBMGBA
+  ConfigWidget::BindUserPath(m_ui->gbaBiosLineEdit, F_GBABIOS_IDX, Config::MAIN_GBA_BIOS_PATH);
+  for (size_t i = 0; i < m_gba_rom_edits.size(); ++i)
+    ConfigWidget::Bind(m_gba_rom_edits[i], Config::MAIN_GBA_ROM_PATHS[i]);
+  ConfigWidget::Bind(m_ui->gbaSaveInRomPathCheckBox, Config::MAIN_GBA_SAVES_IN_ROM_PATH);
+  ConfigWidget::BindUserPath(m_ui->gbaSavesLineEdit, D_GBASAVES_IDX, Config::MAIN_GBA_SAVES_PATH);
+  SaveRomPathChanged();
+#endif
+}
+
+void GameCubePane::PopulateDeviceChoices()
 {
   using ExpansionInterface::EXIDeviceType;
 
-  QVBoxLayout* layout = new QVBoxLayout(this);
-
-  // IPL Settings
-  QGroupBox* ipl_box = new QGroupBox(tr("IPL Settings"), this);
-  QVBoxLayout* ipl_box_layout = new QVBoxLayout(ipl_box);
-  ipl_box->setLayout(ipl_box_layout);
-
-  m_skip_main_menu = new ConfigBool(tr("Skip Main Menu"), Config::MAIN_SKIP_IPL);
-  ipl_box_layout->addWidget(m_skip_main_menu);
-
-  QFormLayout* ipl_language_layout = new QFormLayout;
-  ipl_language_layout->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
-  ipl_language_layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-  ipl_box_layout->addLayout(ipl_language_layout);
-
-  const QStringList language_list{tr("English"), tr("German"),  tr("French"),
-                                  tr("Spanish"), tr("Italian"), tr("Dutch")};
-
-  m_language_combo = new ConfigChoice(language_list, Config::MAIN_GC_LANGUAGE);
-  ipl_language_layout->addRow(tr("System Language:"), m_language_combo);
-
-  // Device Settings
-  QGroupBox* device_box = new QGroupBox(tr("Device Settings"), this);
-  QGridLayout* device_layout = new QGridLayout(device_box);
-  device_box->setLayout(device_layout);
-
-  for (ExpansionInterface::Slot slot : GUI_SLOTS)
-  {
-    m_slot_combos[slot] = new QComboBox(device_box);
-    m_slot_combos[slot]->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
-    m_slot_buttons[slot] = new NonDefaultQPushButton(tr("..."), device_box);
-    m_slot_buttons[slot]->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-  }
-
-  for (ExpansionInterface::Slot slot : ExpansionInterface::MEMCARD_SLOTS)
-  {
-    m_memcard_path_layouts[slot] = new QHBoxLayout();
-    m_memcard_path_labels[slot] = new QLabel(tr("Memory Card Path:"));
-    m_memcard_paths[slot] = new QLineEdit();
-    m_memcard_path_layouts[slot]->addWidget(m_memcard_path_labels[slot]);
-    m_memcard_path_layouts[slot]->addWidget(m_memcard_paths[slot]);
-
-    m_agp_path_layouts[slot] = new QHBoxLayout();
-    m_agp_path_labels[slot] = new QLabel(tr("GBA Cartridge Path:"));
-    m_agp_paths[slot] = new QLineEdit();
-    m_agp_path_layouts[slot]->addWidget(m_agp_path_labels[slot]);
-    m_agp_path_layouts[slot]->addWidget(m_agp_paths[slot]);
-
-    m_gci_path_layouts[slot] = new QVBoxLayout();
-    m_gci_path_labels[slot] = new QLabel(tr("GCI Folder Path:"));
-    m_gci_override_labels[slot] =
-        new QLabel(tr("Warning: A GCI folder override path is currently configured for this slot. "
-                      "Adjusting the GCI path here will have no effect."));
-    m_gci_override_labels[slot]->setHidden(true);
-    m_gci_override_labels[slot]->setWordWrap(true);
-    m_gci_paths[slot] = new QLineEdit();
-    auto* hlayout = new QHBoxLayout();
-    hlayout->addWidget(m_gci_path_labels[slot]);
-    hlayout->addWidget(m_gci_paths[slot]);
-    m_gci_path_layouts[slot]->addWidget(m_gci_override_labels[slot]);
-    m_gci_path_layouts[slot]->addLayout(hlayout);
-  }
-
-  // Add slot devices
   for (const auto device : {EXIDeviceType::None, EXIDeviceType::Dummy, EXIDeviceType::MemoryCard,
                             EXIDeviceType::MemoryCardFolder, EXIDeviceType::Gecko,
                             EXIDeviceType::AGP, EXIDeviceType::Microphone})
@@ -161,91 +216,6 @@ void GameCubePane::CreateWidgets()
     m_slot_combos[ExpansionInterface::Slot::SP1]->addItem(tr(fmt::format("{:n}", device).c_str()),
                                                           static_cast<int>(device));
   }
-
-  {
-    int row = 0;
-    device_layout->addWidget(new QLabel(tr("Slot A:")), row, 0);
-    device_layout->addWidget(m_slot_combos[ExpansionInterface::Slot::A], row, 1);
-    device_layout->addWidget(m_slot_buttons[ExpansionInterface::Slot::A], row, 2);
-
-    ++row;
-    device_layout->addLayout(m_memcard_path_layouts[ExpansionInterface::Slot::A], row, 0, 1, 3);
-
-    ++row;
-    device_layout->addLayout(m_agp_path_layouts[ExpansionInterface::Slot::A], row, 0, 1, 3);
-
-    ++row;
-    device_layout->addLayout(m_gci_path_layouts[ExpansionInterface::Slot::A], row, 0, 1, 3);
-
-    ++row;
-    device_layout->addWidget(new QLabel(tr("Slot B:")), row, 0);
-    device_layout->addWidget(m_slot_combos[ExpansionInterface::Slot::B], row, 1);
-    device_layout->addWidget(m_slot_buttons[ExpansionInterface::Slot::B], row, 2);
-
-    ++row;
-    device_layout->addLayout(m_memcard_path_layouts[ExpansionInterface::Slot::B], row, 0, 1, 3);
-
-    ++row;
-    device_layout->addLayout(m_agp_path_layouts[ExpansionInterface::Slot::B], row, 0, 1, 3);
-
-    ++row;
-    device_layout->addLayout(m_gci_path_layouts[ExpansionInterface::Slot::B], row, 0, 1, 3);
-
-    ++row;
-    device_layout->addWidget(new QLabel(tr("SP1:")), row, 0);
-    device_layout->addWidget(m_slot_combos[ExpansionInterface::Slot::SP1], row, 1);
-    device_layout->addWidget(m_slot_buttons[ExpansionInterface::Slot::SP1], row, 2);
-  }
-
-#ifdef HAS_LIBMGBA
-  // GBA Settings
-  auto* gba_box = new QGroupBox(tr("GBA Settings"), this);
-  auto* gba_layout = new QGridLayout(gba_box);
-  gba_box->setLayout(gba_layout);
-  int gba_row = 0;
-
-  m_gba_bios_edit = new ConfigUserPath(F_GBABIOS_IDX, Config::MAIN_GBA_BIOS_PATH);
-  m_gba_browse_bios = new NonDefaultQPushButton(QStringLiteral("..."));
-  gba_layout->addWidget(new QLabel(tr("BIOS:")), gba_row, 0);
-  gba_layout->addWidget(m_gba_bios_edit, gba_row, 1);
-  gba_layout->addWidget(m_gba_browse_bios, gba_row, 2);
-  gba_row++;
-
-  for (size_t i = 0; i < m_gba_rom_edits.size(); ++i)
-  {
-    m_gba_rom_edits[i] = new ConfigText(Config::MAIN_GBA_ROM_PATHS[i]);
-    m_gba_browse_roms[i] = new NonDefaultQPushButton(QStringLiteral("..."));
-    auto* const label =
-        new QLabel((i == Config::GBPLAYER_GBA_INDEX) ? tr("Game Boy Player ROM:") :
-                                                       tr("Port %1 ROM:").arg(i + 1));
-    gba_layout->addWidget(label, gba_row, 0);
-    gba_layout->addWidget(m_gba_rom_edits[i], gba_row, 1);
-    gba_layout->addWidget(m_gba_browse_roms[i], gba_row, 2);
-    gba_row++;
-  }
-
-  m_gba_save_rom_path =
-      new ConfigBool(tr("Save in Same Directory as the ROM"), Config::MAIN_GBA_SAVES_IN_ROM_PATH);
-  gba_layout->addWidget(m_gba_save_rom_path, gba_row, 0, 1, -1);
-  gba_row++;
-
-  m_gba_saves_edit = new ConfigUserPath(D_GBASAVES_IDX, Config::MAIN_GBA_SAVES_PATH);
-  m_gba_browse_saves = new NonDefaultQPushButton(QStringLiteral("..."));
-  gba_layout->addWidget(new QLabel(tr("Saves:")), gba_row, 0);
-  gba_layout->addWidget(m_gba_saves_edit, gba_row, 1);
-  gba_layout->addWidget(m_gba_browse_saves, gba_row, 2);
-  gba_row++;
-#endif
-
-  layout->addWidget(ipl_box);
-  layout->addWidget(device_box);
-#ifdef HAS_LIBMGBA
-  layout->addWidget(gba_box);
-#endif
-
-  layout->addStretch();
-
-  setLayout(layout);
 }
 
 void GameCubePane::ConnectWidgets()
@@ -278,14 +248,15 @@ void GameCubePane::ConnectWidgets()
 
 #ifdef HAS_LIBMGBA
   // GBA Settings
-  connect(m_gba_browse_bios, &QPushButton::clicked, this, &GameCubePane::BrowseGBABios);
+  connect(m_ui->gbaBiosBrowseButton, &QPushButton::clicked, this, &GameCubePane::BrowseGBABios);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-  connect(m_gba_save_rom_path, &QCheckBox::checkStateChanged, this,
+  connect(m_ui->gbaSaveInRomPathCheckBox, &QCheckBox::checkStateChanged, this,
           &GameCubePane::SaveRomPathChanged);
 #else
-  connect(m_gba_save_rom_path, &QCheckBox::stateChanged, this, &GameCubePane::SaveRomPathChanged);
+  connect(m_ui->gbaSaveInRomPathCheckBox, &QCheckBox::stateChanged, this,
+          &GameCubePane::SaveRomPathChanged);
 #endif
-  connect(m_gba_browse_saves, &QPushButton::clicked, this, &GameCubePane::BrowseGBASaves);
+  connect(m_ui->gbaSavesBrowseButton, &QPushButton::clicked, this, &GameCubePane::BrowseGBASaves);
   for (size_t i = 0; i < m_gba_browse_roms.size(); ++i)
   {
     connect(m_gba_browse_roms[i], &QPushButton::clicked, this, [this, i] { BrowseGBARom(i); });
@@ -301,12 +272,13 @@ void GameCubePane::ConnectWidgets()
 void GameCubePane::OnEmulationStateChanged()
 {
 #ifdef HAS_LIBMGBA
-  bool gba_enabled = !NetPlay::IsNetPlayRunning();
-  m_gba_bios_edit->setEnabled(gba_enabled);
-  m_gba_browse_bios->setEnabled(gba_enabled);
-  m_gba_save_rom_path->setEnabled(gba_enabled);
-  m_gba_saves_edit->setEnabled(gba_enabled);
-  m_gba_browse_saves->setEnabled(gba_enabled);
+  const bool gba_enabled = !NetPlay::IsNetPlayRunning();
+  m_ui->gbaBiosLineEdit->setEnabled(gba_enabled);
+  m_ui->gbaBiosBrowseButton->setEnabled(gba_enabled);
+  m_ui->gbaSaveInRomPathCheckBox->setEnabled(gba_enabled);
+  const bool saves_enabled = gba_enabled && !m_ui->gbaSaveInRomPathCheckBox->isChecked();
+  m_ui->gbaSavesLineEdit->setEnabled(saves_enabled);
+  m_ui->gbaSavesBrowseButton->setEnabled(saves_enabled);
   for (size_t i = 0; i < m_gba_browse_roms.size(); ++i)
   {
     m_gba_rom_edits[i]->setEnabled(gba_enabled);
@@ -499,23 +471,15 @@ bool GameCubePane::SetMemcard(ExpansionInterface::Slot slot, const QString& file
     }
   }
 
-  // Check if the other slot has the same memory card configured and refuse to use this card if so.
-  // The EU path is compared here, but it doesn't actually matter which one we compare since they
-  // follow a known pattern, so if the EU path matches the other match too and vice-versa.
-  for (ExpansionInterface::Slot other_slot : ExpansionInterface::MEMCARD_SLOTS)
+  // Refuse a card the other slot is using. A card path the other slot keeps while it is set to
+  // another device doesn't count; SaveSettings checks it when that slot becomes a memory card.
+  if (const auto other_slot =
+          FindSlotUsingPath(slot, ExpansionInterface::EXIDeviceType::MemoryCard, eu_path))
   {
-    if (other_slot == slot)
-      continue;
-
-    const std::string other_eu_path = Config::GetMemcardPath(other_slot, DiscIO::Region::PAL);
-    if (eu_path == other_eu_path)
-    {
-      ModalMessageBox::critical(
-          this, tr("Error"),
-          tr("The same file can't be used in multiple slots; it is already used by %1.")
-              .arg(QString::fromStdString(fmt::to_string(other_slot))));
-      return false;
-    }
+    ModalMessageBox::critical(
+        this, tr("Error"),
+        AlreadyUsedMessage(ExpansionInterface::EXIDeviceType::MemoryCard, *other_slot));
+    return false;
   }
 
   const std::string old_eu_path = Config::GetMemcardPath(slot, DiscIO::Region::PAL);
@@ -607,23 +571,15 @@ bool GameCubePane::SetGCIFolder(ExpansionInterface::Slot slot, const QString& pa
       return false;
     }
 
-    // Check if the other slot has the same folder configured and refuse to use this folder if so.
-    // The EU path is compared here, but it doesn't actually matter which one we compare since they
-    // follow a known pattern, so if the EU path matches the other match too and vice-versa.
-    for (ExpansionInterface::Slot other_slot : ExpansionInterface::MEMCARD_SLOTS)
+    // Refuse a folder the other slot is using. A folder path the other slot keeps while it is set
+    // to another device doesn't count; SaveSettings checks it when that slot becomes a GCI folder.
+    if (const auto other_slot =
+            FindSlotUsingPath(slot, ExpansionInterface::EXIDeviceType::MemoryCardFolder, eu_path))
     {
-      if (other_slot == slot)
-        continue;
-
-      const std::string other_eu_path = Config::GetGCIFolderPath(other_slot, DiscIO::Region::PAL);
-      if (eu_path == other_eu_path)
-      {
-        ModalMessageBox::critical(
-            this, tr("Error"),
-            tr("The same folder can't be used in multiple slots; it is already used by %1.")
-                .arg(QString::fromStdString(fmt::to_string(other_slot))));
-        return false;
-      }
+      ModalMessageBox::critical(
+          this, tr("Error"),
+          AlreadyUsedMessage(ExpansionInterface::EXIDeviceType::MemoryCardFolder, *other_slot));
+      return false;
     }
 
     path_changed = eu_path != Config::GetGCIFolderPath(slot, DiscIO::Region::PAL);
@@ -693,20 +649,25 @@ void GameCubePane::BrowseGBABios()
       this, tr("Select GBA BIOS"), QString::fromStdString(Config::Get(Config::MAIN_GBA_BIOS_PATH)),
       tr("All Files (*)")));
   if (!file.isEmpty())
-    m_gba_bios_edit->SetTextAndUpdate(file);
+    SetUserPath(m_ui->gbaBiosLineEdit, F_GBABIOS_IDX, Config::MAIN_GBA_BIOS_PATH, file);
 }
 
 void GameCubePane::BrowseGBARom(size_t index)
 {
   QString file = QString::fromStdString(GetOpenGBARom({}));
   if (!file.isEmpty())
-    m_gba_rom_edits[index]->SetTextAndUpdate(file);
+  {
+    m_gba_rom_edits[index]->setText(file);
+    Config::SetBaseOrCurrent(Config::MAIN_GBA_ROM_PATHS[index], file.toStdString());
+  }
 }
 
 void GameCubePane::SaveRomPathChanged()
 {
-  m_gba_saves_edit->setEnabled(!m_gba_save_rom_path->isChecked());
-  m_gba_browse_saves->setEnabled(!m_gba_save_rom_path->isChecked());
+  const bool saves_enabled =
+      !NetPlay::IsNetPlayRunning() && !m_ui->gbaSaveInRomPathCheckBox->isChecked();
+  m_ui->gbaSavesLineEdit->setEnabled(saves_enabled);
+  m_ui->gbaSavesBrowseButton->setEnabled(saves_enabled);
 }
 
 void GameCubePane::BrowseGBASaves()
@@ -716,7 +677,7 @@ void GameCubePane::BrowseGBASaves()
       QString::fromStdString(Config::Get(Config::MAIN_GBA_SAVES_PATH))));
   if (!dir.isEmpty())
   {
-    m_gba_saves_edit->setText(dir);
+    SetUserPath(m_ui->gbaSavesLineEdit, D_GBASAVES_IDX, Config::MAIN_GBA_SAVES_PATH, dir);
     SaveSettings();
   }
 }
@@ -738,8 +699,9 @@ void GameCubePane::LoadSettings()
     }
   }
 
-  m_skip_main_menu->setEnabled(have_menu || !m_skip_main_menu->isChecked());
-  m_skip_main_menu->SetDescription(have_menu ? QString{} : tr("Put IPL ROMs in User/GC/<region>."));
+  m_ui->skipMainMenuCheckBox->setEnabled(have_menu || !m_ui->skipMainMenuCheckBox->isChecked());
+  ConfigWidget::SetDescription(m_ui->skipMainMenuCheckBox, QString{},
+                               have_menu ? QString{} : tr("Put IPL ROMs in User/GC/<region>."));
 
   // Device Settings
   for (ExpansionInterface::Slot slot : GUI_SLOTS)
@@ -764,6 +726,27 @@ void GameCubePane::LoadSettings()
 
 void GameCubePane::SaveSettings()
 {
+  // A slot switched to a memory card or GCI folder uses the path configured for that device: the
+  // default, since a slot keeps only the path of its current device (below), unless an older
+  // configuration kept one. Refuse the switch if the other slot is using the same card or folder.
+  for (ExpansionInterface::Slot slot : ExpansionInterface::MEMCARD_SLOTS)
+  {
+    const auto dev =
+        static_cast<ExpansionInterface::EXIDeviceType>(m_slot_combos[slot]->currentData().toInt());
+    if (dev == Config::Get(Config::GetInfoForEXIDevice(slot)) ||
+        (dev != ExpansionInterface::EXIDeviceType::MemoryCard &&
+         dev != ExpansionInterface::EXIDeviceType::MemoryCardFolder))
+    {
+      continue;
+    }
+    if (const auto other_slot = FindSlotUsingPath(slot, dev, GetEUPathForDevice(slot, dev)))
+    {
+      ModalMessageBox::critical(this, tr("Error"), AlreadyUsedMessage(dev, *other_slot));
+      LoadSettings();
+      return;
+    }
+  }
+
   Config::ConfigChangeCallbackGuard config_guard;
 
   auto& system = Core::System::GetInstance();
@@ -781,6 +764,22 @@ void GameCubePane::SaveSettings()
     }
 
     Config::SetBaseOrCurrent(Config::GetInfoForEXIDevice(slot), dev);
+
+    // A memory card slot keeps only the path of the device it is set to: its memory card file,
+    // GCI folder or AGP cartridge ROM. The others would stay configured but hidden, still taking
+    // up their card or folder, and come back when the slot is switched to that device again.
+    // Skipped when the device comes from a game's settings, so the user's own paths are kept.
+    if (ExpansionInterface::IsMemcardSlot(slot) &&
+        Config::GetActiveLayerForConfig(Config::GetInfoForEXIDevice(slot)) ==
+            Config::LayerType::Base)
+    {
+      if (dev != ExpansionInterface::EXIDeviceType::MemoryCard)
+        Config::SetBase(Config::GetInfoForMemcardPath(slot), "");
+      if (dev != ExpansionInterface::EXIDeviceType::MemoryCardFolder)
+        Config::SetBase(Config::GetInfoForGCIPath(slot), "");
+      if (dev != ExpansionInterface::EXIDeviceType::AGP)
+        Config::SetBase(Config::GetInfoForAGPCartPath(slot), "");
+    }
   }
 
 #ifdef HAS_LIBMGBA

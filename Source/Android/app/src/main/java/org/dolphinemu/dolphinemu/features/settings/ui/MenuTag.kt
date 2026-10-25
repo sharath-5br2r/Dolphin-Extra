@@ -16,6 +16,7 @@ enum class MenuTag {
     CONFIG_SERIALPORT1("config_serialport1"),
     CONFIG_WII("config_wii"),
     CONFIG_ACHIEVEMENTS("config_achievements"),
+    CONFIG_MEMCARD_SYNC("config_memcard_sync"),
     CONFIG_ADVANCED("config_advanced"),
     CONFIG_LOG("config_log"),
     DEBUG("debug"),

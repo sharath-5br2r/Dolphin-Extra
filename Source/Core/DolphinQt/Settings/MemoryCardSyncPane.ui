@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MemoryCardSyncPane</class>
+ <widget class="QWidget" name="MemoryCardSyncPane">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="syncGroup">
+     <property name="title">
+      <string>Memory Card Sync</string>
+     </property>
+     <layout class="QVBoxLayout" name="syncLayout">
+      <item>
+       <widget class="QLabel" name="introLabel">
+        <property name="text">
+         <string>Keeps the saves on your GameCube memory cards in step with your other devices, through cloud storage you own (Amazon S3 or any S3-compatible service). Works with Dolphin on other computers and on Android, and with emusync's own sync tool.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="enabledCheckBox">
+        <property name="text">
+         <string>Sync Memory Cards</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="fieldsLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="storageLabel">
+          <property name="text">
+           <string>Storage:</string>
+          </property>
+          <property name="buddy">
+           <cstring>storageLineEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="3">
+         <widget class="QLineEdit" name="storageLineEdit">
+          <property name="placeholderText">
+           <string>s3://my-saves/emusync/v1?region=eu-west-1</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="accessKeyIdLabel">
+          <property name="text">
+           <string>Access Key ID:</string>
+          </property>
+          <property name="buddy">
+           <cstring>accessKeyIdLineEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1" colspan="3">
+         <widget class="QLineEdit" name="accessKeyIdLineEdit"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="secretLabel">
+          <property name="text">
+           <string>Secret Access Key:</string>
+          </property>
+          <property name="buddy">
+           <cstring>secretLineEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="secretLineEdit">
+          <property name="echoMode">
+           <enum>QLineEdit::EchoMode::Password</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2" colspan="2">
+         <widget class="QPushButton" name="secretShowButton">
+          <property name="text">
+           <string>Show</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="passphraseLabel">
+          <property name="text">
+           <string>Encryption Passphrase:</string>
+          </property>
+          <property name="buddy">
+           <cstring>passphraseLineEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QLineEdit" name="passphraseLineEdit">
+          <property name="echoMode">
+           <enum>QLineEdit::EchoMode::Password</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2">
+         <widget class="QPushButton" name="passphraseShowButton">
+          <property name="text">
+           <string>Show</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3">
+         <widget class="QPushButton" name="passphraseRemoveButton">
+          <property name="text">
+           <string>Remove</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="deviceNameLabel">
+          <property name="text">
+           <string>Device Name:</string>
+          </property>
+          <property name="buddy">
+           <cstring>deviceNameLineEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1" colspan="3">
+         <widget class="QLineEdit" name="deviceNameLineEdit"/>
+        </item>
+        <item row="5" column="0">
+         <widget class="QLabel" name="statusCaptionLabel">
+          <property name="text">
+           <string>Status:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QLabel" name="statusLabel">
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="2" colspan="2">
+         <widget class="QPushButton" name="syncNowButton">
+          <property name="text">
+           <string>Sync Now</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="cardsHelpLabel">
+        <property name="text">
+         <string>The cards in slots A and B are synced, raw memory cards and GCI folders alike. Each slot has one card per region: slot A's USA card here and on your other devices is the same card, even if one device uses a raw card and another a GCI folder. Newer saves arrive before a game starts; when a save changed on two devices, the newest wins and the other stays in the save's history. Wii saves are not synced.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

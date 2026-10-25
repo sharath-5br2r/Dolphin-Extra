@@ -3,17 +3,12 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
 #include <QWidget>
 
-class ConfigBool;
-class ConfigChoice;
-class ConfigComplexChoice;
-class ConfigStringChoice;
-class ConfigFloatSlider;
 class GraphicsPane;
-class QPushButton;
-class QLabel;
-class ToolTipPushButton;
 
 namespace Config
 {
@@ -22,50 +17,48 @@ class Info;
 class Layer;
 }  // namespace Config
 
+namespace ConfigWidget
+{
+class ComplexBinding;
+}
+
+namespace Ui
+{
+class EnhancementsWidget;
+}
+
 class EnhancementsWidget final : public QWidget
 {
   Q_OBJECT
 public:
   explicit EnhancementsWidget(GraphicsPane* gfx_pane);
+  ~EnhancementsWidget() override;
 
 private:
-  void CreateWidgets();
+  void MigrateRemovedStereoModes();
+  void BindSettings();
   void ConnectWidgets();
   void AddDescriptions();
 
   void OnBackendChanged();
   void UpdateAntialiasingOptions();
-  void LoadPostProcessingShaders();
+  // The preset the post-processing row is showing, which is the one the picker and the parameters
+  // dialog both act on. Empty means no post-processing.
+  std::string CurrentShaderPreset() const;
+  // Replaces the field's text with the preset that is actually in use when the stored value is a
+  // legacy ';'-separated chain, so the row does not advertise passes nothing runs.
+  void ShowResolvedPreset();
+  void SetShaderPreset(const QString& preset);
+  void BrowseForShaderPreset();
+  void ClearShaderPreset();
+  void EditShaderParameters();
+  void UpdateParametersButtonState();
   void ShaderChanged();
 
-  void ConfigureColorCorrection();
-  void ConfigurePostProcessingShader();
+  void DownloadShaderPack(const std::string& pack_id, const std::string& profile);
 
-  // Enhancements
-  ConfigChoice* m_ir_combo;
-  ConfigComplexChoice* m_antialiasing_combo;
-  ConfigComplexChoice* m_texture_filtering_combo;
-  ConfigChoice* m_output_resampling_combo;
-  ConfigStringChoice* m_post_processing_effect;
-  ToolTipPushButton* m_configure_color_correction;
-  QPushButton* m_configure_post_processing_effect;
-  ConfigBool* m_scaled_efb_copy;
-  ConfigBool* m_per_pixel_lighting;
-  ConfigBool* m_widescreen_hack;
-  ConfigBool* m_disable_fog;
-  ConfigBool* m_force_24bit_color;
-  ConfigBool* m_disable_copy_filter;
-  ConfigBool* m_arbitrary_mipmap_detection;
-  ConfigBool* m_hdr;
-
-  // Stereoscopy
-  ConfigChoice* m_3d_mode;
-  ConfigFloatSlider* m_3d_depth;
-  QLabel* m_3d_depth_value;
-  ConfigFloatSlider* m_3d_convergence;
-  QLabel* m_3d_convergence_value;
-  ConfigBool* m_3d_swap_eyes;
-  ConfigBool* m_3d_per_eye_resolution;
-
+  std::unique_ptr<Ui::EnhancementsWidget> m_ui;
+  ConfigWidget::ComplexBinding* m_antialiasing_binding = nullptr;
+  ConfigWidget::ComplexBinding* m_texture_filtering_binding = nullptr;
   Config::Layer* m_game_layer = nullptr;
 };

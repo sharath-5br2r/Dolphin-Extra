@@ -20,8 +20,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <utility>
 
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
 #include <QErrorMessage>
@@ -32,12 +34,19 @@
 #include <QInputDialog>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListView>
 #include <QMap>
 #include <QMenu>
+#include <QPixmap>
 #include <QShortcut>
+#include <QSignalBlocker>
+#include <QSlider>
 #include <QSortFilterProxyModel>
+#include <QStandardItemModel>
+#include <QStyle>
 #include <QTableView>
+#include <QToolButton>
 #include <QUrl>
 
 #ifdef _WIN32
@@ -60,6 +69,7 @@
 
 #include "DolphinQt/Config/PropertiesDialog.h"
 #include "DolphinQt/ConvertDialog.h"
+#include "DolphinQt/GameList/CoverManager.h"
 #include "DolphinQt/GameList/GridProxyModel.h"
 #include "DolphinQt/GameList/ListProxyModel.h"
 #include "DolphinQt/MenuBar.h"
@@ -72,10 +82,14 @@
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/WiiUpdate.h"
 
+#include "ui_GameListWidget.h"
+
 #include "UICommon/GameFile.h"
 
 namespace
 {
+constexpr int GRID_CARD_SPACING = 16;
+
 class GameListTableView : public QTableView
 {
 public:
@@ -115,8 +129,11 @@ protected:
 };
 }  // namespace
 
-GameList::GameList(QWidget* parent) : QStackedWidget(parent), m_model(this)
+GameList::GameList(QWidget* parent)
+    : QWidget(parent), m_ui(std::make_unique<Ui::GameListWidget>()), m_model(this)
 {
+  m_ui->setupUi(this);
+
   m_list_proxy = new ListProxyModel(this);
   m_list_proxy->setSortCaseSensitivity(Qt::CaseInsensitive);
   m_list_proxy->setSortRole(GameListModel::SORT_ROLE);
@@ -130,6 +147,27 @@ GameList::GameList(QWidget* parent) : QStackedWidget(parent), m_model(this)
   MakeGridView();
   MakeEmptyView();
 
+  m_ui->listViewButton->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));
+  m_ui->gridViewButton->setIcon(style()->standardIcon(QStyle::SP_FileDialogListView));
+
+  m_ui->platformFilter->addItem(Resources::GetPlatform(DiscIO::Platform::GameCubeDisc),
+                                tr("GameCube"), static_cast<int>(DiscIO::Platform::GameCubeDisc));
+  m_ui->platformFilter->addItem(Resources::GetPlatform(DiscIO::Platform::WiiDisc), tr("Wii"),
+                                static_cast<int>(DiscIO::Platform::WiiDisc));
+  m_ui->platformFilter->addItem(Resources::GetPlatform(DiscIO::Platform::WiiWAD),
+                                tr("Wii Channels/WAD"), static_cast<int>(DiscIO::Platform::WiiWAD));
+  m_ui->platformFilter->addItem(Resources::GetPlatform(DiscIO::Platform::Triforce), tr("Triforce"),
+                                static_cast<int>(DiscIO::Platform::Triforce));
+  m_ui->platformFilter->addItem(Resources::GetPlatform(DiscIO::Platform::ELFOrDOL), tr("ELF/DOL"),
+                                static_cast<int>(DiscIO::Platform::ELFOrDOL));
+
+  m_ui->regionFilter->addItem(tr("NTSC-J"), static_cast<int>(DiscIO::Region::NTSC_J));
+  m_ui->regionFilter->addItem(tr("NTSC-U"), static_cast<int>(DiscIO::Region::NTSC_U));
+  m_ui->regionFilter->addItem(tr("PAL"), static_cast<int>(DiscIO::Region::PAL));
+  m_ui->regionFilter->addItem(tr("NTSC-K"), static_cast<int>(DiscIO::Region::NTSC_K));
+  m_ui->regionFilter->addItem(tr("Development"), static_cast<int>(DiscIO::Region::DEV));
+  m_ui->regionFilter->addItem(tr("Unknown"), static_cast<int>(DiscIO::Region::Unknown));
+
   // Use List View's sorting for Grid View too.
   m_grid_proxy->sort(m_list_proxy->sortColumn(), m_list_proxy->sortOrder());
   connect(m_list->horizontalHeader(), &QHeaderView::sortIndicatorChanged, m_grid_proxy,
@@ -137,6 +175,7 @@ GameList::GameList(QWidget* parent) : QStackedWidget(parent), m_model(this)
 
   if (Settings::GetQSettings().contains(QStringLiteral("gridview/scale")))
     m_model.SetScale(Settings::GetQSettings().value(QStringLiteral("gridview/scale")).toFloat());
+  SetGridScale(m_model.GetScale());
 
   connect(m_list, &QTableView::doubleClicked, this, &GameList::GameSelected);
   connect(m_grid, &QListView::doubleClicked, this, &GameList::GameSelected);
@@ -145,11 +184,37 @@ GameList::GameList(QWidget* parent) : QStackedWidget(parent), m_model(this)
   connect(&m_model, &QAbstractItemModel::rowsInserted, this, &GameList::UpdateGameCount);
   connect(&m_model, &QAbstractItemModel::rowsRemoved, this, &GameList::UpdateGameCount);
 
-  addWidget(m_list);
-  addWidget(m_grid);
-  addWidget(m_empty);
+  m_ui->viewStack->addWidget(m_list);
+  m_ui->viewStack->addWidget(m_grid);
+  m_ui->viewStack->addWidget(m_empty);
   m_prefer_list = Settings::Instance().GetPreferredView();
+  m_ui->listViewButton->setChecked(m_prefer_list);
+  m_ui->gridViewButton->setChecked(!m_prefer_list);
+  m_ui->gridScaleSlider->setEnabled(!m_prefer_list);
   ConsiderViewChange();
+
+  connect(m_ui->searchEdit, &QLineEdit::textChanged, this, &GameList::SetSearchTerm);
+  m_ui->searchEdit->installEventFilter(this);
+  connect(m_ui->listViewButton, &QToolButton::clicked, this, &GameList::SetListView);
+  connect(m_ui->gridViewButton, &QToolButton::clicked, this, &GameList::SetGridView);
+  connect(m_ui->gridScaleSlider, &QSlider::valueChanged, this,
+          [this](int value) { SetGridScale(static_cast<float>(value) / 100.0f); });
+  connect(m_ui->platformFilter, &QComboBox::currentIndexChanged, this, [this](int index) {
+    if (index == 0)
+      m_model.SetPlatformFilter(std::nullopt);
+    else
+      m_model.SetPlatformFilter(
+          static_cast<DiscIO::Platform>(m_ui->platformFilter->itemData(index).toInt()));
+    OnGameListVisibilityChanged();
+  });
+  connect(m_ui->regionFilter, &QComboBox::currentIndexChanged, this, [this](int index) {
+    if (index == 0)
+      m_model.SetRegionFilter(std::nullopt);
+    else
+      m_model.SetRegionFilter(
+          static_cast<DiscIO::Region>(m_ui->regionFilter->itemData(index).toInt()));
+    OnGameListVisibilityChanged();
+  });
 
   auto* zoom_in = new QShortcut(QKeySequence::ZoomIn, this);
   auto* zoom_out = new QShortcut(QKeySequence::ZoomOut, this);
@@ -279,6 +344,36 @@ GameList::~GameList()
   Settings::GetQSettings().setValue(QStringLiteral("tableheader/state"),
                                     m_list->horizontalHeader()->saveState());
   Settings::GetQSettings().setValue(QStringLiteral("gridview/scale"), m_model.GetScale());
+}
+
+QSize GameList::GetSizeForGrid(int columns, int rows) const
+{
+  Q_ASSERT(columns > 0);
+  Q_ASSERT(rows > 0);
+
+  QStandardItemModel sample_model(1, 1);
+  const QModelIndex sample_index = sample_model.index(0, 0);
+  sample_model.setData(sample_index, tr("Game"), Qt::DisplayRole);
+
+  QPixmap cover(GameListGrid::COVER_SIZE * m_model.GetScale());
+  cover.fill(Qt::transparent);
+  sample_model.setData(sample_index, cover, Qt::DecorationRole);
+
+  QListView sample_view;
+  sample_view.setModel(&sample_model);
+  sample_view.setViewMode(QListView::IconMode);
+  sample_view.setResizeMode(QListView::Adjust);
+  sample_view.setWordWrap(true);
+  sample_view.setFont(m_grid->font());
+  const QSize item_size = sample_view.sizeHintForIndex(sample_index);
+  const int spacing = m_grid->spacing();
+  const int scroll_bar_width =
+      m_grid->style()->pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, m_grid);
+
+  QSize size =
+      GameListGrid::CalculateViewportSize(item_size, spacing, columns, rows, scroll_bar_width);
+  size.rheight() += m_ui->controlBar->height();
+  return size;
 }
 
 void GameList::UpdateColumnVisibility()
@@ -567,6 +662,13 @@ void GameList::ShowContextMenu(const QPoint&)
       menu->addSeparator();
     }
 
+    menu->addAction(tr("Set Cover Image..."), this, &GameList::SetCoverImage);
+    QAction* remove_cover =
+        menu->addAction(tr("Remove Custom Cover"), this, &GameList::RemoveCoverImage);
+    remove_cover->setEnabled(GameListCover::HasManagedCover(game->GetFilePath()));
+
+    menu->addSeparator();
+
     menu->addAction(tr("Open &Containing Folder"), this, &GameList::OpenContainingFolder);
     menu->addAction(tr("Delete File..."), this, &GameList::DeleteFile);
 #ifdef _WIN32
@@ -620,6 +722,72 @@ void GameList::ShowContextMenu(const QPoint&)
   }
 
   menu->exec(QCursor::pos());
+}
+
+void GameList::SetCoverImage()
+{
+  const auto game = GetSelectedGame();
+  if (!game)
+    return;
+
+  const QString source_path = DolphinFileDialog::getOpenFileName(
+      this, tr("Select Cover Image"), QString(),
+      tr("Cover Images (*.png *.jpg *.jpeg *.webp);;All Files (*)"));
+  if (source_path.isEmpty())
+    return;
+
+  if (GameListCover::HasManagedCover(game->GetFilePath()) &&
+      ModalMessageBox::question(
+          this, tr("Replace Cover Image"), tr("This game already has a custom cover. Replace it?"),
+          QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+  {
+    return;
+  }
+
+  const GameListCover::Result result =
+      GameListCover::SaveManagedCover(game->GetFilePath(), source_path);
+  if (!result.Succeeded())
+  {
+    const QString cover_path =
+        QString::fromStdString(GameListCover::GetManagedCoverPath(game->GetFilePath()));
+    const QString message =
+        result.error == GameListCover::Error::InvalidImage ?
+            tr("The selected file is not a valid cover image.") :
+            tr("Dolphin could not save the cover image to:\n%1").arg(cover_path);
+    ModalMessageBox::critical(this, tr("Cover Image Error"), message, QMessageBox::Ok,
+                              QMessageBox::NoButton, Qt::WindowModal, result.detail);
+    return;
+  }
+
+  Settings::Instance().RefreshMetadata();
+}
+
+void GameList::RemoveCoverImage()
+{
+  const auto game = GetSelectedGame();
+  if (!game || !GameListCover::HasManagedCover(game->GetFilePath()))
+    return;
+
+  if (ModalMessageBox::question(
+          this, tr("Remove Custom Cover"), tr("Remove the custom cover for this game?"),
+          QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+  {
+    return;
+  }
+
+  const GameListCover::Result result = GameListCover::RemoveManagedCover(game->GetFilePath());
+  if (!result.Succeeded())
+  {
+    const QString cover_path =
+        QString::fromStdString(GameListCover::GetManagedCoverPath(game->GetFilePath()));
+    ModalMessageBox::critical(this, tr("Cover Image Error"),
+                              tr("Dolphin could not remove the custom cover:\n%1").arg(cover_path),
+                              QMessageBox::Ok, QMessageBox::NoButton, Qt::WindowModal,
+                              result.detail);
+    return;
+  }
+
+  Settings::Instance().RefreshMetadata();
 }
 
 void GameList::OpenProperties()
@@ -952,7 +1120,7 @@ void GameList::ChangeDisc()
 
 QAbstractItemView* GameList::GetActiveView() const
 {
-  if (currentWidget() == m_list)
+  if (m_ui->viewStack->currentWidget() == m_list)
   {
     return m_list;
   }
@@ -961,7 +1129,7 @@ QAbstractItemView* GameList::GetActiveView() const
 
 QSortFilterProxyModel* GameList::GetActiveProxyModel() const
 {
-  if (currentWidget() == m_list)
+  if (m_ui->viewStack->currentWidget() == m_list)
   {
     return m_list_proxy;
   }
@@ -1027,7 +1195,24 @@ void GameList::SetPreferredView(bool list)
 {
   m_prefer_list = list;
   Settings::Instance().SetPreferredView(list);
+  m_ui->listViewButton->setChecked(list);
+  m_ui->gridViewButton->setChecked(!list);
+  m_ui->gridScaleSlider->setEnabled(!list);
   ConsiderViewChange();
+  emit PreferredViewChanged(list);
+}
+
+void GameList::SetGridScale(float scale)
+{
+  const float clamped_scale = std::clamp(scale, 0.1f, 2.0f);
+  m_model.SetScale(clamped_scale);
+  const QSignalBlocker blocker(m_ui->gridScaleSlider);
+  m_ui->gridScaleSlider->setValue(static_cast<int>(std::lround(clamped_scale * 100.0f)));
+  m_grid->setSpacing(std::max(1, static_cast<int>(std::lround(GRID_CARD_SPACING * clamped_scale))));
+
+  m_list_proxy->invalidate();
+  m_grid_proxy->invalidate();
+  UpdateFont();
 }
 
 void GameList::ConsiderViewChange()
@@ -1035,15 +1220,16 @@ void GameList::ConsiderViewChange()
   if (m_model.rowCount(QModelIndex()) > 0)
   {
     if (m_prefer_list)
-      setCurrentWidget(m_list);
+      m_ui->viewStack->setCurrentWidget(m_list);
     else
-      setCurrentWidget(m_grid);
+      m_ui->viewStack->setCurrentWidget(m_grid);
   }
   else
   {
-    setCurrentWidget(m_empty);
+    m_ui->viewStack->setCurrentWidget(m_empty);
   }
 }
+
 void GameList::keyPressEvent(QKeyEvent* event)
 {
   if (event->key() == Qt::Key_Return && GetSelectedGame() != nullptr)
@@ -1055,7 +1241,7 @@ void GameList::keyPressEvent(QKeyEvent* event)
   }
   else
   {
-    QStackedWidget::keyPressEvent(event);
+    QWidget::keyPressEvent(event);
   }
 }
 
@@ -1220,6 +1406,28 @@ void GameList::SetSearchTerm(const QString& term)
   UpdateGameCount();
 }
 
+void GameList::ShowSearch()
+{
+  m_ui->searchEdit->setFocus();
+  m_ui->searchEdit->selectAll();
+}
+
+bool GameList::eventFilter(QObject* object, QEvent* event)
+{
+  if (object == m_ui->searchEdit && event->type() == QEvent::KeyPress &&
+      static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape)
+  {
+    m_ui->searchEdit->clear();
+    if (m_ui->viewStack->currentWidget() == m_empty)
+      m_ui->listViewButton->setFocus();
+    else
+      GetActiveView()->setFocus();
+    return true;
+  }
+
+  return QWidget::eventFilter(object, event);
+}
+
 void GameList::UpdateGameCount() const
 {
   const int total_games = m_model.rowCount(QModelIndex{});
@@ -1230,25 +1438,12 @@ void GameList::UpdateGameCount() const
 
 void GameList::ZoomIn()
 {
-  m_model.SetScale(m_model.GetScale() + 0.1);
-
-  m_list_proxy->invalidate();
-  m_grid_proxy->invalidate();
-
-  UpdateFont();
+  SetGridScale(m_model.GetScale() + 0.1f);
 }
 
 void GameList::ZoomOut()
 {
-  if (m_model.GetScale() <= 0.1)
-    return;
-
-  m_model.SetScale(m_model.GetScale() - 0.1);
-
-  m_list_proxy->invalidate();
-  m_grid_proxy->invalidate();
-
-  UpdateFont();
+  SetGridScale(m_model.GetScale() - 0.1f);
 }
 
 void GameList::UpdateFont()

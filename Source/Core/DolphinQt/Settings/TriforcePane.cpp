@@ -3,8 +3,9 @@
 
 #include "DolphinQt/Settings/TriforcePane.h"
 
+#include <memory>
+
 #include <QDialogButtonBox>
-#include <QGroupBox>
 #include <QHeaderView>
 #include <QPushButton>
 #include <QTableWidget>
@@ -19,8 +20,9 @@
 #include "Core/HW/DVD/AMMediaboard.h"
 
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
-#include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/QtUtils/QtUtils.h"
+
+#include "ui_TriforcePane.h"
 
 namespace
 {
@@ -46,41 +48,25 @@ private:
 
 }  // namespace
 
-TriforcePane::TriforcePane()
+TriforcePane::TriforcePane() : m_ui(std::make_unique<Ui::TriforcePane>())
 {
-  auto* const main_layout = new QVBoxLayout{this};
+  m_ui->setupUi(this);
 
-  auto* const controllers_group = new QGroupBox{tr("Controllers")};
-  main_layout->addWidget(controllers_group);
-
-  auto* const controllers_layout = new QVBoxLayout{controllers_group};
-
-  auto* const configure_controllers_button = new NonDefaultQPushButton{tr("Configure")};
-  controllers_layout->addWidget(configure_controllers_button);
-
-  connect(configure_controllers_button, &QPushButton::clicked, this, [this] {
+  connect(m_ui->configureControllersButton, &QPushButton::clicked, this, [this] {
     auto* const window = new MappingWindow(this, MappingWindow::Type::MAPPING_AM_BASEBOARD, 0);
     window->setAttribute(Qt::WA_DeleteOnClose, true);
     window->setWindowModality(Qt::WindowModality::WindowModal);
     window->show();
   });
 
-  auto* const ip_redirection_group = new QGroupBox{tr("IP Address Redirections")};
-  main_layout->addWidget(ip_redirection_group);
-
-  auto* const ip_redirection_layout = new QVBoxLayout{ip_redirection_group};
-
-  auto* const configure_ip_redirections_button = new NonDefaultQPushButton{tr("Configure")};
-  ip_redirection_layout->addWidget(configure_ip_redirections_button);
-
-  connect(configure_ip_redirections_button, &QPushButton::clicked, this, [this] {
+  connect(m_ui->configureIpRedirectionsButton, &QPushButton::clicked, this, [this] {
     auto* const ip_redirections = new IPRedirectionsDialog{this};
     ip_redirections->setAttribute(Qt::WA_DeleteOnClose);
     ip_redirections->open();
   });
-
-  main_layout->addStretch(1);
 }
+
+TriforcePane::~TriforcePane() = default;
 
 IPRedirectionsDialog::IPRedirectionsDialog(QWidget* parent) : QDialog{parent}
 {

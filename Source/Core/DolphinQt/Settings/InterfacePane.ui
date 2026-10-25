@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>InterfacePane</class>
+ <widget class="QWidget" name="InterfacePane">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>850</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="userInterfaceGroup">
+     <property name="title">
+      <string>User Interface</string>
+     </property>
+     <layout class="QVBoxLayout" name="userInterfaceLayout">
+      <item>
+       <layout class="QFormLayout" name="selectionLayout">
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+        </property>
+        <property name="formAlignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="languageLabel">
+          <property name="text">
+           <string>&amp;Language:</string>
+          </property>
+          <property name="buddy">
+           <cstring>languageComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="languageComboBox">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::SizeAdjustPolicy::AdjustToContents</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="themeLabel">
+          <property name="text">
+           <string>&amp;Theme:</string>
+          </property>
+          <property name="buddy">
+           <cstring>themeComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="themeComboBox"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="styleLabel">
+          <property name="text">
+           <string>Style:</string>
+          </property>
+          <property name="buddy">
+           <cstring>styleComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="styleComboBox"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="useBuiltinTitleDatabaseCheckBox">
+        <property name="text">
+         <string>Use Built-In Database of Game Names</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="useClassicDolphinUiCheckBox">
+        <property name="text">
+         <string>Use Classic Dolphin UI</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="useCoversCheckBox">
+        <property name="text">
+         <string>Download Game Covers from GameTDB.com for Use in Grid Mode</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="showDebuggingUiCheckBox">
+        <property name="text">
+         <string>Enable Debugging UI</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="focusedHotkeysCheckBox">
+        <property name="text">
+         <string>Hotkeys Require Window Focus</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="disableScreensaverCheckBox">
+        <property name="text">
+         <string>Inhibit Screensaver During Emulation</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="timeTrackingCheckBox">
+        <property name="text">
+         <string>Enable Play Time Tracking</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="renderWindowGroup">
+     <property name="title">
+      <string>Render Window</string>
+     </property>
+     <layout class="QVBoxLayout" name="renderWindowLayout">
+      <item>
+       <widget class="QCheckBox" name="keepWindowOnTopCheckBox">
+        <property name="text">
+         <string>Keep Window on Top</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="confirmOnStopCheckBox">
+        <property name="text">
+         <string>Confirm on Stop</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="usePanicHandlersCheckBox">
+        <property name="text">
+         <string>Use Panic Handlers</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="showActiveTitleCheckBox">
+        <property name="text">
+         <string>Show Active Title in Window Title</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="pauseOnFocusLossCheckBox">
+        <property name="text">
+         <string>Pause on Focus Loss</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="cursorVisibilityGroup">
+        <property name="title">
+         <string>Mouse Cursor Visibility</string>
+        </property>
+        <layout class="QVBoxLayout" name="cursorVisibilityLayout">
+         <item>
+          <widget class="QRadioButton" name="cursorOnMovementRadioButton">
+           <property name="text">
+            <string>On Movement</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="cursorNeverRadioButton">
+           <property name="text">
+            <string>Never</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="cursorAlwaysRadioButton">
+           <property name="text">
+            <string>Always</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="lockMouseCursorCheckBox">
+        <property name="text">
+         <string>Lock Mouse Cursor</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>languageComboBox</tabstop>
+  <tabstop>themeComboBox</tabstop>
+  <tabstop>styleComboBox</tabstop>
+  <tabstop>useBuiltinTitleDatabaseCheckBox</tabstop>
+  <tabstop>useClassicDolphinUiCheckBox</tabstop>
+  <tabstop>useCoversCheckBox</tabstop>
+  <tabstop>showDebuggingUiCheckBox</tabstop>
+  <tabstop>focusedHotkeysCheckBox</tabstop>
+  <tabstop>disableScreensaverCheckBox</tabstop>
+  <tabstop>timeTrackingCheckBox</tabstop>
+  <tabstop>keepWindowOnTopCheckBox</tabstop>
+  <tabstop>confirmOnStopCheckBox</tabstop>
+  <tabstop>usePanicHandlersCheckBox</tabstop>
+  <tabstop>showActiveTitleCheckBox</tabstop>
+  <tabstop>pauseOnFocusLossCheckBox</tabstop>
+  <tabstop>cursorOnMovementRadioButton</tabstop>
+  <tabstop>cursorNeverRadioButton</tabstop>
+  <tabstop>cursorAlwaysRadioButton</tabstop>
+  <tabstop>lockMouseCursorCheckBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

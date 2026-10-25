@@ -3,7 +3,20 @@
 
 #pragma once
 
+#include <QSize>
 #include <QSortFilterProxyModel>
+
+namespace GameListGrid
+{
+inline const QSize COVER_SIZE{160, 224};
+
+inline QSize CalculateViewportSize(const QSize& item_size, int spacing, int columns, int rows,
+                                   int scroll_bar_width)
+{
+  return {columns * item_size.width() + (columns + 1) * spacing + scroll_bar_width,
+          rows * item_size.height() + (rows + 1) * spacing};
+}
+}  // namespace GameListGrid
 
 // This subclass of QSortFilterProxyModel transforms the raw data into a
 // single-column large icon + name to be displayed in a QListView.

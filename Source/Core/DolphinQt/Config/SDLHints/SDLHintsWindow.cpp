@@ -7,11 +7,12 @@
 
 #include "Core/Config/MainSettings.h"
 
-#include "DolphinQt/Config/ToolTipControls/ToolTipCheckBox.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/QtUtils/QtUtils.h"
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFrame>
 #include <QHeaderView>
@@ -82,41 +83,45 @@ void SDLHintsWindow::CreateMainLayout()
   advanced_frame->setLayout(advanced_layout);
 
   // Create default tab
-  m_directinput_detection = new ToolTipCheckBox(tr("Enable DirectInput Detection"));
-  m_directinput_detection->SetDescription(
+  m_directinput_detection = new QCheckBox(tr("Enable DirectInput Detection"));
+  ConfigWidget::SetDescription(
+      m_directinput_detection, QString{},
       tr("Controls whether SDL should use DirectInput for detecting controllers. Enabling this "
          "fixes hotplug detection issues with DualSense controllers but causes Dolphin to hang up "
          "on shutdown when using certain 8BitDo controllers.<br><br><dolphin_emphasis>If unsure, "
          "leave this checked.</dolphin_emphasis>"));
-  connect(m_directinput_detection, &ToolTipCheckBox::toggled, [](bool checked) {
+  connect(m_directinput_detection, &QCheckBox::toggled, [](bool checked) {
     Config::SetBase(Config::MAIN_SDL_HINT_JOYSTICK_DIRECTINPUT, checked ? "1" : "0");
   });
 
-  m_combine_joy_cons = new ToolTipCheckBox(tr("Use Joy-Con Pairs as a Single Controller"));
-  m_combine_joy_cons->SetDescription(
+  m_combine_joy_cons = new QCheckBox(tr("Use Joy-Con Pairs as a Single Controller"));
+  ConfigWidget::SetDescription(
+      m_combine_joy_cons, QString{},
       tr("Controls whether SDL should treat a pair of Joy-Con as a single controller or as two "
          "separate controllers.<br><br><dolphin_emphasis>If unsure, leave this "
          "checked.</dolphin_emphasis>"));
-  connect(m_combine_joy_cons, &ToolTipCheckBox::toggled, [](bool checked) {
+  connect(m_combine_joy_cons, &QCheckBox::toggled, [](bool checked) {
     Config::SetBase(Config::MAIN_SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS, checked ? "1" : "0");
   });
 
-  m_horizontal_joy_cons = new ToolTipCheckBox(tr("Sideways Joy-Con"));
-  m_horizontal_joy_cons->SetDescription(
+  m_horizontal_joy_cons = new QCheckBox(tr("Sideways Joy-Con"));
+  ConfigWidget::SetDescription(
+      m_horizontal_joy_cons, QString{},
       tr("Defines the default orientation for individual Joy-Con. This setting has no effect when "
          "Use Joy-Con Pairs as a Single Controller is "
          "enabled.<br><br><dolphin_emphasis>If unsure, "
          "leave this checked.</dolphin_emphasis>"));
-  connect(m_horizontal_joy_cons, &ToolTipCheckBox::toggled, [](bool checked) {
+  connect(m_horizontal_joy_cons, &QCheckBox::toggled, [](bool checked) {
     Config::SetBase(Config::MAIN_SDL_HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS, checked ? "0" : "1");
   });
 
-  m_dualsense_player_led = new ToolTipCheckBox(tr("Enable DualSense Player LEDs"));
-  m_dualsense_player_led->SetDescription(
+  m_dualsense_player_led = new QCheckBox(tr("Enable DualSense Player LEDs"));
+  ConfigWidget::SetDescription(
+      m_dualsense_player_led, QString{},
       tr("Controls whether the player LEDs should be lit to indicate which player is associated "
          "with a DualSense controller.<br><br><dolphin_emphasis>If unsure, leave this "
          "unchecked.</dolphin_emphasis>"));
-  connect(m_dualsense_player_led, &ToolTipCheckBox::toggled, [](bool checked) {
+  connect(m_dualsense_player_led, &QCheckBox::toggled, [](bool checked) {
     Config::SetBase(Config::MAIN_SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED, checked ? "1" : "0");
   });
 

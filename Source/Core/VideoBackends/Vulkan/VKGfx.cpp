@@ -14,6 +14,7 @@
 #include "VideoBackends/Vulkan/CommandBufferManager.h"
 #include "VideoBackends/Vulkan/ObjectCache.h"
 #include "VideoBackends/Vulkan/StateTracker.h"
+#include "VideoBackends/Vulkan/VKLibrashaderRuntime.h"
 #include "VideoBackends/Vulkan/VKPipeline.h"
 #include "VideoBackends/Vulkan/VKShader.h"
 #include "VideoBackends/Vulkan/VKSwapChain.h"
@@ -83,6 +84,11 @@ std::unique_ptr<AbstractPipeline> VKGfx::CreatePipeline(const AbstractPipelineCo
                                                         size_t cache_data_length)
 {
   return VKPipeline::Create(config);
+}
+
+std::unique_ptr<VideoCommon::LibrashaderRuntime> VKGfx::CreateLibrashaderRuntime()
+{
+  return std::make_unique<VKLibrashaderRuntime>();
 }
 
 std::unique_ptr<AbstractFramebuffer>
@@ -220,6 +226,9 @@ void VKGfx::WaitForGPUIdle()
 bool VKGfx::BindBackbuffer(const ClearColor& clear_color)
 {
   StateTracker::GetInstance()->EndRenderPass();
+  // Every frame starts without a deferred clear; PresentBackbuffer() flushed last frame's, and the
+  // swap chain may have been recreated since (stale framebuffer pointer).
+  StateTracker::GetInstance()->DiscardPendingClear();
 
   g_command_buffer_mgr->WaitForWorkerThreadIdle();
 
@@ -301,13 +310,39 @@ bool VKGfx::BindBackbuffer(const ClearColor& clear_color)
   m_swap_chain->GetCurrentTexture()->OverrideImageLayout(VK_IMAGE_LAYOUT_UNDEFINED);
   m_swap_chain->GetCurrentTexture()->TransitionToLayout(
       g_command_buffer_mgr->GetCurrentCommandBuffer(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  SetAndClearFramebuffer(m_swap_chain->GetCurrentFramebuffer(),
-                         ClearColor{{0.0f, 0.0f, 0.0f, 1.0f}});
+
+  // Bind the backbuffer but defer its clear. Clearing eagerly opened a clear-store render pass that
+  // the post-processor's off-screen work (native-res downscale, filter chain) ended at once, so the
+  // final blit re-opened the backbuffer with a load: a full store plus load of the swap-chain image
+  // per frame for nothing. Pending, the clear becomes the loadOp of whichever pass draws to the
+  // backbuffer first (post-process blit, built-in final pass, or ImGui); PresentBackbuffer() flushes
+  // it if nothing draws at all, so the presented pixels are unchanged in every case.
+  VKFramebuffer* backbuffer = m_swap_chain->GetCurrentFramebuffer();
+  BindFramebuffer(backbuffer);
+  VkClearValue clear_color_value;
+  std::memcpy(clear_color_value.color.float32, clear_color.data(),
+              sizeof(clear_color_value.color.float32));
+  VkClearValue clear_depth_value;
+  clear_depth_value.depthStencil.depth = 0.0f;
+  clear_depth_value.depthStencil.stencil = 0;
+  StateTracker::GetInstance()->SetPendingClear(backbuffer, clear_color_value, clear_depth_value);
   return true;
 }
 
 void VKGfx::PresentBackbuffer()
 {
+  // A clear still pending here means nothing drew into the backbuffer this frame (no XFB and no
+  // on-screen UI). Record it now so the presented image is black, exactly as the eager clear was.
+  if (m_swap_chain->IsCurrentImageValid())
+  {
+    VKFramebuffer* backbuffer = m_swap_chain->GetCurrentFramebuffer();
+    if (StateTracker::GetInstance()->HasPendingClear(backbuffer))
+    {
+      BindFramebuffer(backbuffer);
+      StateTracker::GetInstance()->BeginRenderPass();
+    }
+  }
+
   // End drawing to backbuffer
   StateTracker::GetInstance()->EndRenderPass();
 

@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Graphics/AdvancedWidget.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QLabel>
-#include <QVBoxLayout>
+#include <memory>
+
+#include <QCheckBox>
 
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/SYSCONFSettings.h"
@@ -14,18 +13,19 @@
 #include "Core/Core.h"
 #include "Core/System.h"
 
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigChoice.h"
-#include "DolphinQt/Config/ConfigControls/ConfigInteger.h"
-#include "DolphinQt/Config/GameConfigWidget.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
 #include "DolphinQt/Settings.h"
 
 #include "VideoCommon/VideoConfig.h"
 
-AdvancedWidget::AdvancedWidget(GraphicsPane* gfx_pane) : m_game_layer{gfx_pane->GetConfigLayer()}
+#include "ui_AdvancedWidget.h"
+
+AdvancedWidget::AdvancedWidget(GraphicsPane* gfx_pane)
+    : m_ui{std::make_unique<Ui::AdvancedWidget>()}, m_game_layer{gfx_pane->GetConfigLayer()}
 {
-  CreateWidgets();
+  m_ui->setupUi(this);
+  BindSettings();
   ConnectWidgets();
   AddDescriptions();
 
@@ -33,243 +33,146 @@ AdvancedWidget::AdvancedWidget(GraphicsPane* gfx_pane) : m_game_layer{gfx_pane->
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this](Core::State state) {
     OnEmulationStateChanged(state != Core::State::Uninitialized);
   });
-  connect(m_manual_texture_sampling, &QCheckBox::toggled, gfx_pane,
-          [gfx_pane] { emit gfx_pane->UseFastTextureSamplingChanged(); });
+  ConfigWidget::ConnectCheckStateChanged(m_ui->manualTextureSamplingCheckBox, gfx_pane, [gfx_pane] {
+    emit gfx_pane->UseFastTextureSamplingChanged();
+  });
 
   OnBackendChanged();
   OnEmulationStateChanged(!Core::IsUninitialized(Core::System::GetInstance()));
 }
 
-void AdvancedWidget::CreateWidgets()
+AdvancedWidget::~AdvancedWidget() = default;
+
+void AdvancedWidget::BindSettings()
 {
   const bool local_edit = m_game_layer != nullptr;
 
-  auto* main_layout = new QVBoxLayout;
+  ConfigWidget::Bind(m_ui->wireframeCheckBox, Config::GFX_ENABLE_WIREFRAME, m_game_layer);
+  ConfigWidget::Bind(m_ui->textureFormatOverlayCheckBox, Config::GFX_TEXFMT_OVERLAY_ENABLE,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->apiValidationCheckBox, Config::GFX_ENABLE_VALIDATION_LAYER,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->logRenderTimeCheckBox, Config::GFX_LOG_RENDER_TIME_TO_FILE,
+                     m_game_layer);
 
-  // Debugging
-  auto* debugging_box = new QGroupBox(tr("Debugging"));
-  auto* debugging_layout = new QGridLayout();
-  debugging_box->setLayout(debugging_layout);
+  ConfigWidget::Bind(m_ui->loadCustomTexturesCheckBox, Config::GFX_HIRES_TEXTURES, m_game_layer);
+  ConfigWidget::Bind(m_ui->prefetchCustomTexturesCheckBox, Config::GFX_CACHE_HIRES_TEXTURES,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->dumpEfbTargetCheckBox, Config::GFX_DUMP_EFB_TARGET);
+  ConfigWidget::Bind(m_ui->dumpXfbTargetCheckBox, Config::GFX_DUMP_XFB_TARGET);
+  ConfigWidget::Bind(m_ui->disableVramCopiesCheckBox, Config::GFX_HACK_DISABLE_COPY_TO_VRAM,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->enableGraphicsModsCheckBox, Config::GFX_MODS_ENABLE, m_game_layer);
 
-  m_log_render_time = new ConfigBool(tr("Log Render Time to File"),
-                                     Config::GFX_LOG_RENDER_TIME_TO_FILE, m_game_layer);
-
-  m_enable_wireframe =
-      new ConfigBool(tr("Enable Wireframe"), Config::GFX_ENABLE_WIREFRAME, m_game_layer);
-  m_enable_format_overlay =
-      new ConfigBool(tr("Texture Format Overlay"), Config::GFX_TEXFMT_OVERLAY_ENABLE, m_game_layer);
-  m_enable_api_validation = new ConfigBool(tr("Enable API Validation Layers"),
-                                           Config::GFX_ENABLE_VALIDATION_LAYER, m_game_layer);
-
-  debugging_layout->addWidget(m_enable_wireframe, 0, 0);
-  debugging_layout->addWidget(m_enable_format_overlay, 0, 1);
-  debugging_layout->addWidget(m_enable_api_validation, 1, 0);
-  debugging_layout->addWidget(m_log_render_time, 1, 1);
-
-  // Utility
-  auto* utility_box = new QGroupBox(tr("Utility"));
-  auto* utility_layout = new QGridLayout();
-  utility_box->setLayout(utility_layout);
-
-  m_load_custom_textures =
-      new ConfigBool(tr("Load Custom Textures"), Config::GFX_HIRES_TEXTURES, m_game_layer);
-  m_prefetch_custom_textures = new ConfigBool(tr("Prefetch Custom Textures"),
-                                              Config::GFX_CACHE_HIRES_TEXTURES, m_game_layer);
-  m_prefetch_custom_textures->setEnabled(m_load_custom_textures->isChecked());
-  m_dump_efb_target = new ConfigBool(tr("Dump EFB Target"), Config::GFX_DUMP_EFB_TARGET);
-  m_dump_xfb_target = new ConfigBool(tr("Dump XFB Target"), Config::GFX_DUMP_XFB_TARGET);
+  m_ui->prefetchCustomTexturesCheckBox->setEnabled(
+      ConfigWidget::EffectiveChecked(m_ui->loadCustomTexturesCheckBox));
 
   if (local_edit)
   {
     // It's hazardous to accidentally set these in a game ini.
-    m_dump_efb_target->setEnabled(false);
-    m_dump_xfb_target->setEnabled(false);
+    m_ui->dumpEfbTargetCheckBox->setEnabled(false);
+    m_ui->dumpXfbTargetCheckBox->setEnabled(false);
   }
 
-  m_disable_vram_copies = new ConfigBool(tr("Disable EFB VRAM Copies"),
-                                         Config::GFX_HACK_DISABLE_COPY_TO_VRAM, m_game_layer);
-  m_enable_graphics_mods =
-      new ConfigBool(tr("Enable Graphics Mods"), Config::GFX_MODS_ENABLE, m_game_layer);
-
-  utility_layout->addWidget(m_load_custom_textures, 0, 0);
-  utility_layout->addWidget(m_prefetch_custom_textures, 0, 1);
-
-  utility_layout->addWidget(m_disable_vram_copies, 1, 0);
-  utility_layout->addWidget(m_enable_graphics_mods, 1, 1);
-
-  utility_layout->addWidget(m_dump_efb_target, 2, 0);
-  utility_layout->addWidget(m_dump_xfb_target, 2, 1);
-
-  // Texture dumping
-  auto* texture_dump_box = new QGroupBox(tr("Texture Dumping"));
-  auto* texture_dump_layout = new QGridLayout();
-  texture_dump_box->setLayout(texture_dump_layout);
-  m_dump_textures = new ConfigBool(tr("Enable"), Config::GFX_DUMP_TEXTURES);
-  m_dump_base_textures = new ConfigBool(tr("Dump Base Textures"), Config::GFX_DUMP_BASE_TEXTURES);
-  m_dump_mip_textures = new ConfigBool(tr("Dump Mip Maps"), Config::GFX_DUMP_MIP_TEXTURES);
-  m_dump_mip_textures->setEnabled(m_dump_textures->isChecked());
-  m_dump_base_textures->setEnabled(m_dump_textures->isChecked());
+  ConfigWidget::Bind(m_ui->dumpTexturesCheckBox, Config::GFX_DUMP_TEXTURES);
+  ConfigWidget::Bind(m_ui->dumpBaseTexturesCheckBox, Config::GFX_DUMP_BASE_TEXTURES);
+  ConfigWidget::Bind(m_ui->dumpMipTexturesCheckBox, Config::GFX_DUMP_MIP_TEXTURES);
+  m_ui->dumpMipTexturesCheckBox->setEnabled(
+      ConfigWidget::EffectiveChecked(m_ui->dumpTexturesCheckBox));
+  m_ui->dumpBaseTexturesCheckBox->setEnabled(
+      ConfigWidget::EffectiveChecked(m_ui->dumpTexturesCheckBox));
 
   if (local_edit)
   {
     // It's hazardous to accidentally set dumping in a game ini.
-    m_dump_textures->setEnabled(false);
-    m_dump_base_textures->setEnabled(false);
-    m_dump_mip_textures->setEnabled(false);
+    m_ui->dumpTexturesCheckBox->setEnabled(false);
+    m_ui->dumpBaseTexturesCheckBox->setEnabled(false);
+    m_ui->dumpMipTexturesCheckBox->setEnabled(false);
   }
 
-  texture_dump_layout->addWidget(m_dump_textures, 0, 0);
-
-  texture_dump_layout->addWidget(m_dump_base_textures, 1, 0);
-  texture_dump_layout->addWidget(m_dump_mip_textures, 1, 1);
-
-  // Frame dumping
-  auto* dump_box = new QGroupBox(tr("Frame Dumping"));
-  auto* dump_layout = new QGridLayout();
-  dump_box->setLayout(dump_layout);
-
-  m_frame_dumps_resolution_type =
-      new ConfigChoice({tr("Window Resolution"), tr("Aspect Ratio Corrected Internal Resolution"),
-                        tr("Raw Internal Resolution")},
-                       Config::GFX_FRAME_DUMPS_RESOLUTION_TYPE, m_game_layer);
-  m_png_compression_level =
-      new ConfigInteger(0, 9, Config::GFX_PNG_COMPRESSION_LEVEL, m_game_layer);
-  dump_layout->addWidget(new QLabel(tr("Resolution Type:")), 0, 0);
-  dump_layout->addWidget(m_frame_dumps_resolution_type, 0, 1);
+  ConfigWidget::Bind(m_ui->resolutionTypeComboBox, Config::GFX_FRAME_DUMPS_RESOLUTION_TYPE,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->pngCompressionSpinBox, Config::GFX_PNG_COMPRESSION_LEVEL, m_game_layer);
 
 #if defined(HAVE_FFMPEG)
-  m_dump_use_lossless =
-      new ConfigBool(tr("Use Lossless Codec (Ut Video)"), Config::GFX_USE_LOSSLESS, m_game_layer);
-
-  m_dump_bitrate = new ConfigInteger(0, 1000000, Config::GFX_BITRATE_KBPS, m_game_layer, 1000);
-  m_dump_bitrate->setEnabled(!m_dump_use_lossless->isChecked());
-
-  dump_layout->addWidget(m_dump_use_lossless, 1, 0);
-  dump_layout->addWidget(new QLabel(tr("Bitrate (kbps):")), 2, 0);
-  dump_layout->addWidget(m_dump_bitrate, 2, 1);
+  ConfigWidget::Bind(m_ui->losslessCodecCheckBox, Config::GFX_USE_LOSSLESS, m_game_layer);
+  ConfigWidget::Bind(m_ui->bitrateSpinBox, Config::GFX_BITRATE_KBPS, m_game_layer);
+  m_ui->bitrateSpinBox->setEnabled(!ConfigWidget::EffectiveChecked(m_ui->losslessCodecCheckBox));
+#else
+  m_ui->losslessCodecCheckBox->hide();
+  m_ui->bitrateLabel->hide();
+  m_ui->bitrateSpinBox->hide();
 #endif
 
-  dump_layout->addWidget(new QLabel(tr("PNG Compression Level:")), 3, 0);
-  m_png_compression_level->SetTitle(tr("PNG Compression Level"));
-  dump_layout->addWidget(m_png_compression_level, 3, 1);
+  ConfigWidget::Bind(m_ui->cropToAspectRatioCheckBox, Config::GFX_CROP_TO_ASPECT_RATIO,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->customCropCheckBox, Config::GFX_CROP_CUSTOM, m_game_layer);
+  ConfigWidget::Bind(m_ui->cropLeftSpinBox, Config::GFX_CROP_CUSTOM_LEFT, m_game_layer);
+  ConfigWidget::Bind(m_ui->cropTopSpinBox, Config::GFX_CROP_CUSTOM_TOP, m_game_layer);
+  ConfigWidget::Bind(m_ui->cropRightSpinBox, Config::GFX_CROP_CUSTOM_RIGHT, m_game_layer);
+  ConfigWidget::Bind(m_ui->cropBottomSpinBox, Config::GFX_CROP_CUSTOM_BOTTOM, m_game_layer);
+  ConfigWidget::MirrorFont(m_ui->cropLeftLabel, m_ui->cropLeftSpinBox);
+  ConfigWidget::MirrorFont(m_ui->cropTopLabel, m_ui->cropTopSpinBox);
+  ConfigWidget::MirrorFont(m_ui->cropRightLabel, m_ui->cropRightSpinBox);
+  ConfigWidget::MirrorFont(m_ui->cropBottomLabel, m_ui->cropBottomSpinBox);
+  m_ui->customCropGroup->setDisabled(!ConfigWidget::EffectiveChecked(m_ui->customCropCheckBox));
 
-  // Crop.
-  auto* crop_box = new QGroupBox(tr("Crop"));
-  auto* crop_box_layout = new QVBoxLayout();
-  crop_box->setLayout(crop_box_layout);
-
-  m_crop_to_aspect_ratio =
-      new ConfigBool(tr("To Aspect Ratio"), Config::GFX_CROP_TO_ASPECT_RATIO, m_game_layer);
-  m_crop_custom = new ConfigBool(tr("Custom"), Config::GFX_CROP_CUSTOM, m_game_layer);
-
-  m_crop_custom_box = new QGroupBox(tr("Custom"));
-  auto* misc_crop_custom_layout = new QGridLayout();
-  m_crop_custom_box->setLayout(misc_crop_custom_layout);
-  m_crop_custom_box->setDisabled(!m_crop_custom->isChecked());
-
-  m_crop_custom_left = new ConfigInteger(0, 640, Config::GFX_CROP_CUSTOM_LEFT, m_game_layer, 1);
-  auto crop_custom_left_label = new ConfigIntegerLabel(tr("Left"), m_crop_custom_left);
-  m_crop_custom_top = new ConfigInteger(0, 528, Config::GFX_CROP_CUSTOM_TOP, m_game_layer, 1);
-  auto crop_custom_top_label = new ConfigIntegerLabel(tr("Top"), m_crop_custom_top);
-  m_crop_custom_right = new ConfigInteger(0, 640, Config::GFX_CROP_CUSTOM_RIGHT, m_game_layer, 1);
-  auto crop_custom_right_label = new ConfigIntegerLabel(tr("Right"), m_crop_custom_right);
-  m_crop_custom_bottom = new ConfigInteger(0, 528, Config::GFX_CROP_CUSTOM_BOTTOM, m_game_layer, 1);
-  auto crop_custom_bottom_label = new ConfigIntegerLabel(tr("Bottom"), m_crop_custom_bottom);
-
-  misc_crop_custom_layout->addWidget(crop_custom_left_label, 0, 0);
-  misc_crop_custom_layout->addWidget(m_crop_custom_left, 0, 1);
-  misc_crop_custom_layout->addWidget(crop_custom_top_label, 0, 2);
-  misc_crop_custom_layout->addWidget(m_crop_custom_top, 0, 3);
-  misc_crop_custom_layout->addWidget(crop_custom_right_label, 1, 0);
-  misc_crop_custom_layout->addWidget(m_crop_custom_right, 1, 1);
-  misc_crop_custom_layout->addWidget(crop_custom_bottom_label, 1, 2);
-  misc_crop_custom_layout->addWidget(m_crop_custom_bottom, 1, 3);
-
-  crop_box_layout->addWidget(m_crop_to_aspect_ratio);
-  crop_box_layout->addWidget(m_crop_custom);
-  crop_box_layout->addWidget(m_crop_custom_box);
-
-  // Misc.
-  auto* misc_box = new QGroupBox(tr("Misc"));
-  auto* misc_layout = new QGridLayout();
-  misc_box->setLayout(misc_layout);
-
-  m_enable_prog_scan =
-      new ConfigBool(tr("Enable Progressive Scan"), Config::SYSCONF_PROGRESSIVE_SCAN, m_game_layer);
-  m_backend_multithreading = new ConfigBool(tr("Backend Multithreading"),
-                                            Config::GFX_BACKEND_MULTITHREADING, m_game_layer);
-  m_prefer_vs_for_point_line_expansion = new ConfigBool(
-      // i18n: VS is short for vertex shaders.
-      tr("Prefer VS for Point/Line Expansion"), Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION,
-      m_game_layer);
-  m_cpu_cull = new ConfigBool(tr("Cull Vertices on the CPU"), Config::GFX_CPU_CULL, m_game_layer);
-
-  misc_layout->addWidget(m_backend_multithreading, 0, 0);
-  misc_layout->addWidget(m_enable_prog_scan, 0, 1);
-  misc_layout->addWidget(m_cpu_cull, 1, 0);
-  misc_layout->addWidget(m_prefer_vs_for_point_line_expansion, 1, 1);
+  ConfigWidget::Bind(m_ui->progressiveScanCheckBox, Config::SYSCONF_PROGRESSIVE_SCAN, m_game_layer);
+  ConfigWidget::Bind(m_ui->backendMultithreadingCheckBox, Config::GFX_BACKEND_MULTITHREADING,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->preferVsExpansionCheckBox,
+                     Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION, m_game_layer);
+  ConfigWidget::Bind(m_ui->cpuCullCheckBox, Config::GFX_CPU_CULL, m_game_layer);
 
 #ifdef _WIN32
-  m_borderless_fullscreen =
-      new ConfigBool(tr("Borderless Fullscreen"), Config::GFX_BORDERLESS_FULLSCREEN, m_game_layer);
-
-  misc_layout->addWidget(m_borderless_fullscreen, 2, 1);
+  ConfigWidget::Bind(m_ui->borderlessFullscreenCheckBox, Config::GFX_BORDERLESS_FULLSCREEN,
+                     m_game_layer);
+#else
+  m_ui->borderlessFullscreenCheckBox->hide();
 #endif
 
-  // Experimental.
-  auto* experimental_box = new QGroupBox(tr("Experimental"));
-  auto* experimental_layout = new QGridLayout();
-  experimental_box->setLayout(experimental_layout);
-
-  m_defer_efb_access_invalidation = new ConfigBool(
-      tr("Defer EFB Cache Invalidation"), Config::GFX_HACK_EFB_DEFER_INVALIDATION, m_game_layer);
-  m_manual_texture_sampling = new ConfigBool(
-      tr("Manual Texture Sampling"), Config::GFX_HACK_FAST_TEXTURE_SAMPLING, m_game_layer, true);
-
-  experimental_layout->addWidget(m_defer_efb_access_invalidation, 0, 0);
-  experimental_layout->addWidget(m_manual_texture_sampling, 0, 1);
-
-  main_layout->addWidget(debugging_box);
-  main_layout->addWidget(utility_box);
-  main_layout->addWidget(texture_dump_box);
-  main_layout->addWidget(dump_box);
-  main_layout->addWidget(crop_box);
-  main_layout->addWidget(misc_box);
-  main_layout->addWidget(experimental_box);
-  main_layout->addStretch();
-
-  setLayout(main_layout);
+  ConfigWidget::Bind(m_ui->deferEfbInvalidationCheckBox, Config::GFX_HACK_EFB_DEFER_INVALIDATION,
+                     m_game_layer);
+  ConfigWidget::Bind(m_ui->manualTextureSamplingCheckBox, Config::GFX_HACK_FAST_TEXTURE_SAMPLING,
+                     m_game_layer, true);
 }
 
 void AdvancedWidget::ConnectWidgets()
 {
-  connect(m_load_custom_textures, &QCheckBox::toggled, this,
-          [this](bool checked) { m_prefetch_custom_textures->setEnabled(checked); });
-  connect(m_dump_textures, &QCheckBox::toggled, this, [this](bool checked) {
-    m_dump_mip_textures->setEnabled(checked);
-    m_dump_base_textures->setEnabled(checked);
+  ConfigWidget::ConnectCheckStateChanged(m_ui->loadCustomTexturesCheckBox, this, [this] {
+    m_ui->prefetchCustomTexturesCheckBox->setEnabled(
+        ConfigWidget::EffectiveChecked(m_ui->loadCustomTexturesCheckBox));
   });
-  connect(m_enable_graphics_mods, &QCheckBox::toggled, this,
-          [](bool checked) { emit Settings::Instance().EnableGfxModsChanged(checked); });
-  connect(m_crop_custom, &QCheckBox::toggled, this,
-          [this](bool checked) { m_crop_custom_box->setDisabled(!checked); });
+  ConfigWidget::ConnectCheckStateChanged(m_ui->dumpTexturesCheckBox, this, [this] {
+    const bool checked = ConfigWidget::EffectiveChecked(m_ui->dumpTexturesCheckBox);
+    m_ui->dumpMipTexturesCheckBox->setEnabled(checked);
+    m_ui->dumpBaseTexturesCheckBox->setEnabled(checked);
+  });
+  ConfigWidget::ConnectCheckStateChanged(m_ui->enableGraphicsModsCheckBox, this, [this] {
+    emit Settings::Instance().EnableGfxModsChanged(
+        ConfigWidget::EffectiveChecked(m_ui->enableGraphicsModsCheckBox));
+  });
+  ConfigWidget::ConnectCheckStateChanged(m_ui->customCropCheckBox, this, [this] {
+    m_ui->customCropGroup->setDisabled(!ConfigWidget::EffectiveChecked(m_ui->customCropCheckBox));
+  });
 #if defined(HAVE_FFMPEG)
-  connect(m_dump_use_lossless, &QCheckBox::toggled, this,
-          [this](bool checked) { m_dump_bitrate->setEnabled(!checked); });
+  ConfigWidget::ConnectCheckStateChanged(m_ui->losslessCodecCheckBox, this, [this] {
+    m_ui->bitrateSpinBox->setEnabled(!ConfigWidget::EffectiveChecked(m_ui->losslessCodecCheckBox));
+  });
 #endif
 }
 
 void AdvancedWidget::OnBackendChanged()
 {
-  m_backend_multithreading->setEnabled(g_backend_info.bSupportsMultithreading);
-  m_prefer_vs_for_point_line_expansion->setEnabled(g_backend_info.bSupportsGeometryShaders &&
-                                                   g_backend_info.bSupportsVSLinePointExpand);
+  m_ui->backendMultithreadingCheckBox->setEnabled(g_backend_info.bSupportsMultithreading);
+  m_ui->preferVsExpansionCheckBox->setEnabled(g_backend_info.bSupportsGeometryShaders &&
+                                              g_backend_info.bSupportsVSLinePointExpand);
   AddDescriptions();
 }
 
 void AdvancedWidget::OnEmulationStateChanged(bool running)
 {
-  m_enable_prog_scan->setEnabled(!running);
+  m_ui->progressiveScanCheckBox->setEnabled(!running);
 }
 
 void AdvancedWidget::AddDescriptions()
@@ -433,26 +336,38 @@ void AdvancedWidget::AddDescriptions()
   static const char IF_UNSURE_UNCHECKED[] =
       QT_TR_NOOP("<dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>");
 
-  m_enable_wireframe->SetDescription(tr(TR_WIREFRAME_DESCRIPTION));
-  m_enable_format_overlay->SetDescription(tr(TR_TEXTURE_FORMAT_DESCRIPTION));
-  m_enable_api_validation->SetDescription(tr(TR_VALIDATION_LAYER_DESCRIPTION));
-  m_log_render_time->SetDescription(tr(TR_LOG_RENDERTIME_DESCRIPTION));
-  m_dump_textures->SetDescription(tr(TR_DUMP_TEXTURE_DESCRIPTION));
-  m_dump_mip_textures->SetDescription(tr(TR_DUMP_MIP_TEXTURE_DESCRIPTION));
-  m_dump_base_textures->SetDescription(tr(TR_DUMP_BASE_TEXTURE_DESCRIPTION));
-  m_load_custom_textures->SetDescription(tr(TR_LOAD_CUSTOM_TEXTURE_DESCRIPTION));
-  m_prefetch_custom_textures->SetDescription(tr(TR_CACHE_CUSTOM_TEXTURE_DESCRIPTION));
-  m_dump_efb_target->SetDescription(tr(TR_DUMP_EFB_DESCRIPTION));
-  m_dump_xfb_target->SetDescription(tr(TR_DUMP_XFB_DESCRIPTION));
-  m_disable_vram_copies->SetDescription(tr(TR_DISABLE_VRAM_COPIES_DESCRIPTION));
-  m_enable_graphics_mods->SetDescription(tr(TR_LOAD_GRAPHICS_MODS_DESCRIPTION));
-  m_frame_dumps_resolution_type->SetDescription(tr(TR_FRAME_DUMPS_RESOLUTION_TYPE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->wireframeCheckBox, {}, tr(TR_WIREFRAME_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->textureFormatOverlayCheckBox, {},
+                               tr(TR_TEXTURE_FORMAT_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->apiValidationCheckBox, {},
+                               tr(TR_VALIDATION_LAYER_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->logRenderTimeCheckBox, {}, tr(TR_LOG_RENDERTIME_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dumpTexturesCheckBox, {}, tr(TR_DUMP_TEXTURE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dumpMipTexturesCheckBox, {},
+                               tr(TR_DUMP_MIP_TEXTURE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dumpBaseTexturesCheckBox, {},
+                               tr(TR_DUMP_BASE_TEXTURE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->loadCustomTexturesCheckBox, {},
+                               tr(TR_LOAD_CUSTOM_TEXTURE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->prefetchCustomTexturesCheckBox, {},
+                               tr(TR_CACHE_CUSTOM_TEXTURE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dumpEfbTargetCheckBox, {}, tr(TR_DUMP_EFB_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dumpXfbTargetCheckBox, {}, tr(TR_DUMP_XFB_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->disableVramCopiesCheckBox, {},
+                               tr(TR_DISABLE_VRAM_COPIES_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->enableGraphicsModsCheckBox, {},
+                               tr(TR_LOAD_GRAPHICS_MODS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->resolutionTypeComboBox, {},
+                               tr(TR_FRAME_DUMPS_RESOLUTION_TYPE_DESCRIPTION));
 #ifdef HAVE_FFMPEG
-  m_dump_use_lossless->SetDescription(tr(TR_USE_LOSSLESS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->losslessCodecCheckBox, {}, tr(TR_USE_LOSSLESS_DESCRIPTION));
 #endif
-  m_png_compression_level->SetDescription(tr(TR_PNG_COMPRESSION_LEVEL_DESCRIPTION));
-  m_enable_prog_scan->SetDescription(tr(TR_PROGRESSIVE_SCAN_DESCRIPTION));
-  m_backend_multithreading->SetDescription(tr(TR_BACKEND_MULTITHREADING_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->pngCompressionSpinBox, tr("PNG Compression Level"),
+                               tr(TR_PNG_COMPRESSION_LEVEL_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->progressiveScanCheckBox, {},
+                               tr(TR_PROGRESSIVE_SCAN_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->backendMultithreadingCheckBox, {},
+                               tr(TR_BACKEND_MULTITHREADING_DESCRIPTION));
   QString vsexpand_extra;
   if (!g_backend_info.bSupportsGeometryShaders)
     vsexpand_extra = tr("Forced on because %1 doesn't support geometry shaders.")
@@ -462,18 +377,23 @@ void AdvancedWidget::AddDescriptions()
                          .arg(tr(g_backend_info.DisplayName.c_str()));
   else
     vsexpand_extra = tr(IF_UNSURE_UNCHECKED);
-  m_prefer_vs_for_point_line_expansion->SetDescription(
+  ConfigWidget::SetDescription(
+      m_ui->preferVsExpansionCheckBox, {},
       tr(TR_PREFER_VS_FOR_POINT_LINE_EXPANSION_DESCRIPTION).arg(vsexpand_extra));
-  m_cpu_cull->SetDescription(tr(TR_CPU_CULL_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->cpuCullCheckBox, {}, tr(TR_CPU_CULL_DESCRIPTION));
 #ifdef _WIN32
-  m_borderless_fullscreen->SetDescription(tr(TR_BORDERLESS_FULLSCREEN_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->borderlessFullscreenCheckBox, {},
+                               tr(TR_BORDERLESS_FULLSCREEN_DESCRIPTION));
 #endif
-  m_crop_to_aspect_ratio->SetDescription(tr(TR_CROP_TO_ASPECT_RATIO_DESCRIPTION));
-  m_crop_custom->SetDescription(tr(TR_CROP_CUSTOM_DESCRIPTION));
-  m_crop_custom_left->SetDescription(tr(TR_CROP_CUSTOM_LEFT));
-  m_crop_custom_top->SetDescription(tr(TR_CROP_CUSTOM_TOP));
-  m_crop_custom_right->SetDescription(tr(TR_CROP_CUSTOM_RIGHT));
-  m_crop_custom_bottom->SetDescription(tr(TR_CROP_CUSTOM_BOTTOM));
-  m_defer_efb_access_invalidation->SetDescription(tr(TR_DEFER_EFB_ACCESS_INVALIDATION_DESCRIPTION));
-  m_manual_texture_sampling->SetDescription(tr(TR_MANUAL_TEXTURE_SAMPLING_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->cropToAspectRatioCheckBox, {},
+                               tr(TR_CROP_TO_ASPECT_RATIO_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->customCropCheckBox, {}, tr(TR_CROP_CUSTOM_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->cropLeftSpinBox, {}, tr(TR_CROP_CUSTOM_LEFT));
+  ConfigWidget::SetDescription(m_ui->cropTopSpinBox, {}, tr(TR_CROP_CUSTOM_TOP));
+  ConfigWidget::SetDescription(m_ui->cropRightSpinBox, {}, tr(TR_CROP_CUSTOM_RIGHT));
+  ConfigWidget::SetDescription(m_ui->cropBottomSpinBox, {}, tr(TR_CROP_CUSTOM_BOTTOM));
+  ConfigWidget::SetDescription(m_ui->deferEfbInvalidationCheckBox, {},
+                               tr(TR_DEFER_EFB_ACCESS_INVALIDATION_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->manualTextureSamplingCheckBox, {},
+                               tr(TR_MANUAL_TEXTURE_SAMPLING_DESCRIPTION));
 }

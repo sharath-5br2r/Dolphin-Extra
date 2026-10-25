@@ -3,32 +3,30 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QWidget>
 
-class QCheckBox;
-class QGroupBox;
-class QVBoxLayout;
-class QPushButton;
+namespace Ui
+{
+class CommonControllersWidget;
+}
 
 class CommonControllersWidget final : public QWidget
 {
   Q_OBJECT
 public:
   explicit CommonControllersWidget(QWidget* parent);
+  ~CommonControllersWidget() override;
 
 private:
   void OnControllerInterfaceConfigure();
   void OnSDLHintConfigure();
 
-  void CreateLayout();
   void ConnectWidgets();
 
   void LoadSettings();
   void SaveSettings();
 
-  QGroupBox* m_common_box;
-  QVBoxLayout* m_common_layout;
-  QCheckBox* m_common_bg_input;
-  QPushButton* m_common_configure_controller_interface;
-  QPushButton* m_common_configure_sdl_hints;
+  std::unique_ptr<Ui::CommonControllersWidget> m_ui;
 };

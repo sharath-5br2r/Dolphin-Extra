@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WiimoteControllersWidget</class>
+ <widget class="QWidget" name="WiimoteControllersWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>520</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QGroupBox" name="wiimoteGroup">
+     <property name="title">
+      <string>Wii Remotes</string>
+     </property>
+     <layout class="QGridLayout" name="wiimoteLayout" columnstretch="0,0,1,0">
+      <property name="verticalSpacing">
+       <number>7</number>
+      </property>
+      <item row="0" column="0" colspan="4">
+       <widget class="QRadioButton" name="passthroughRadioButton">
+        <property name="text">
+         <string>Passthrough a Bluetooth adapter</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <spacer name="indentSpacer">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Policy::Fixed</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>18</width>
+          <height>0</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLabel" name="bluetoothAdaptersLabel">
+        <property name="text">
+         <string>Adapter</string>
+        </property>
+        <property name="buddy">
+         <cstring>bluetoothAdaptersComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QComboBox" name="bluetoothAdaptersComboBox">
+        <property name="sizeAdjustPolicy">
+         <enum>QComboBox::SizeAdjustPolicy::AdjustToMinimumContentsLengthWithIcon</enum>
+        </property>
+        <property name="minimumContentsLength">
+         <number>12</number>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QPushButton" name="bluetoothAdaptersRefreshButton">
+        <property name="text">
+         <string>Refresh</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <widget class="QLabel" name="passthroughSyncLabel">
+        <property name="text">
+         <string>Sync real Wii Remotes and pair them</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="QPushButton" name="passthroughSyncButton">
+        <property name="text">
+         <string>Sync</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1" colspan="2">
+       <widget class="QLabel" name="passthroughResetLabel">
+        <property name="text">
+         <string>Reset all saved Wii Remote pairings</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="3">
+       <widget class="QPushButton" name="passthroughResetButton">
+        <property name="text">
+         <string>Reset</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="4">
+       <widget class="QRadioButton" name="emulatedRadioButton">
+        <property name="text">
+         <string>Emulate the Wii's Bluetooth adapter</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLabel" name="wiimote1Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>wiimote1ComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="2">
+       <widget class="QComboBox" name="wiimote1ComboBox">
+        <property name="sizeAdjustPolicy">
+         <enum>QComboBox::SizeAdjustPolicy::AdjustToMinimumContentsLengthWithIcon</enum>
+        </property>
+        <property name="minimumContentsLength">
+         <number>12</number>
+        </property>
+        <item>
+         <property name="text">
+          <string>None</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Emulated Wii Remote</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Real Wii Remote</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="5" column="3">
+       <widget class="QPushButton" name="wiimote1ConfigureButton">
+        <property name="text">
+         <string>Configure</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="QLabel" name="wiimote2Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>wiimote2ComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="2">
+       <widget class="QComboBox" name="wiimote2ComboBox">
+        <property name="sizeAdjustPolicy">
+         <enum>QComboBox::SizeAdjustPolicy::AdjustToMinimumContentsLengthWithIcon</enum>
+        </property>
+        <property name="minimumContentsLength">
+         <number>12</number>
+        </property>
+        <item>
+         <property name="text">
+          <string>None</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Emulated Wii Remote</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Real Wii Remote</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="6" column="3">
+       <widget class="QPushButton" name="wiimote2ConfigureButton">
+        <property name="text">
+         <string>Configure</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QLabel" name="wiimote3Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>wiimote3ComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="2">
+       <widget class="QComboBox" name="wiimote3ComboBox">
+        <property name="sizeAdjustPolicy">
+         <enum>QComboBox::SizeAdjustPolicy::AdjustToMinimumContentsLengthWithIcon</enum>
+        </property>
+        <property name="minimumContentsLength">
+         <number>12</number>
+        </property>
+        <item>
+         <property name="text">
+          <string>None</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Emulated Wii Remote</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Real Wii Remote</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="7" column="3">
+       <widget class="QPushButton" name="wiimote3ConfigureButton">
+        <property name="text">
+         <string>Configure</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1">
+       <widget class="QLabel" name="wiimote4Label">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="buddy">
+         <cstring>wiimote4ComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="2">
+       <widget class="QComboBox" name="wiimote4ComboBox">
+        <property name="sizeAdjustPolicy">
+         <enum>QComboBox::SizeAdjustPolicy::AdjustToMinimumContentsLengthWithIcon</enum>
+        </property>
+        <property name="minimumContentsLength">
+         <number>12</number>
+        </property>
+        <item>
+         <property name="text">
+          <string>None</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Emulated Wii Remote</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Real Wii Remote</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="8" column="3">
+       <widget class="QPushButton" name="wiimote4ConfigureButton">
+        <property name="text">
+         <string>Configure</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="1" colspan="3">
+       <widget class="QCheckBox" name="realBalanceBoardCheckBox">
+        <property name="text">
+         <string>Real Balance Board</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="1" colspan="3">
+       <widget class="QCheckBox" name="speakerDataCheckBox">
+        <property name="text">
+         <string>Enable Speaker Data</string>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="0" colspan="4">
+       <widget class="QCheckBox" name="controllerInterfaceCheckBox">
+        <property name="text">
+         <string>Connect Wii Remotes for Emulated Controllers</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="0" colspan="3">
+       <layout class="QHBoxLayout" name="continuousScanningLayout">
+        <item>
+         <widget class="QCheckBox" name="continuousScanningCheckBox">
+          <property name="text">
+           <string>Continuous Scanning</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="continuousScanningSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="refreshIndicatorLabel">
+          <property name="visible">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="12" column="3">
+       <widget class="QToolButton" name="wiimoteRefreshButton">
+        <property name="text">
+         <string>Refresh</string>
+        </property>
+        <property name="popupMode">
+         <enum>QToolButton::ToolButtonPopupMode::MenuButtonPopup</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>passthroughRadioButton</tabstop>
+  <tabstop>bluetoothAdaptersComboBox</tabstop>
+  <tabstop>bluetoothAdaptersRefreshButton</tabstop>
+  <tabstop>passthroughSyncButton</tabstop>
+  <tabstop>passthroughResetButton</tabstop>
+  <tabstop>emulatedRadioButton</tabstop>
+  <tabstop>wiimote1ComboBox</tabstop>
+  <tabstop>wiimote1ConfigureButton</tabstop>
+  <tabstop>wiimote2ComboBox</tabstop>
+  <tabstop>wiimote2ConfigureButton</tabstop>
+  <tabstop>wiimote3ComboBox</tabstop>
+  <tabstop>wiimote3ConfigureButton</tabstop>
+  <tabstop>wiimote4ComboBox</tabstop>
+  <tabstop>wiimote4ConfigureButton</tabstop>
+  <tabstop>realBalanceBoardCheckBox</tabstop>
+  <tabstop>speakerDataCheckBox</tabstop>
+  <tabstop>controllerInterfaceCheckBox</tabstop>
+  <tabstop>continuousScanningCheckBox</tabstop>
+  <tabstop>wiimoteRefreshButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

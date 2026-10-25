@@ -6,66 +6,39 @@
 
 #include <QByteArray>
 #include <QDateTime>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QProgressBar>
 #include <QSizePolicy>
-#include <QVBoxLayout>
 #include <QWidget>
 
 #include "Core/AchievementManager.h"
 
 #include "DolphinQt/QtUtils/FromStdString.h"
 
+#include "ui_AchievementBox.h"
+
 static constexpr size_t PROGRESS_LENGTH = 24;
 
 AchievementBox::AchievementBox(QWidget* parent, const rc_client_achievement_t* achievement)
-    : QGroupBox(parent), m_achievement(achievement)
+    : QGroupBox(parent), m_ui(std::make_unique<Ui::AchievementBox>()), m_achievement(achievement)
 {
+  m_ui->setupUi(this);
+
   const auto& instance = AchievementManager::GetInstance();
   if (!instance.IsGameLoaded())
     return;
 
-  m_badge = new QLabel();
-  QLabel* title = new QLabel(QString::fromUtf8(achievement->title, strlen(achievement->title)));
-  title->setWordWrap(true);
-  title->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-  QLabel* description =
-      new QLabel(QString::fromUtf8(achievement->description, strlen(achievement->description)));
-  description->setWordWrap(true);
-  description->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-  QLabel* points = new QLabel(tr("%1 points").arg(achievement->points));
-  m_status = new QLabel();
-  m_progress_bar = new QProgressBar();
-  QSizePolicy sp_retain = m_progress_bar->sizePolicy();
-  sp_retain.setRetainSizeWhenHidden(true);
-  m_progress_bar->setSizePolicy(sp_retain);
-  m_progress_label = new QLabel();
-  m_progress_label->setStyleSheet(QStringLiteral("background-color:transparent;"));
-  m_progress_label->setAlignment(Qt::AlignCenter);
+  m_ui->titleLabel->setText(QString::fromUtf8(achievement->title, strlen(achievement->title)));
+  m_ui->descriptionLabel->setText(
+      QString::fromUtf8(achievement->description, strlen(achievement->description)));
+  m_ui->pointsLabel->setText(tr("%1 points").arg(achievement->points));
 
-  QVBoxLayout* a_col_left = new QVBoxLayout();
-  a_col_left->addSpacerItem(new QSpacerItem(0, 0));
-  a_col_left->addWidget(m_badge);
-  a_col_left->addSpacerItem(new QSpacerItem(0, 0));
-  a_col_left->setSizeConstraint(QLayout::SetFixedSize);
-  a_col_left->setAlignment(Qt::AlignCenter);
-  QVBoxLayout* a_col_right = new QVBoxLayout();
-  a_col_right->addWidget(title);
-  a_col_right->addWidget(description);
-  a_col_right->addWidget(points);
-  a_col_right->addWidget(m_status);
-  a_col_right->addWidget(m_progress_bar);
-  QVBoxLayout* a_prog_layout = new QVBoxLayout(m_progress_bar);
-  a_prog_layout->setContentsMargins(0, 0, 0, 0);
-  a_prog_layout->addWidget(m_progress_label);
-  QHBoxLayout* a_total = new QHBoxLayout();
-  a_total->addLayout(a_col_left);
-  a_total->addLayout(a_col_right);
-  setLayout(a_total);
+  QSizePolicy sp_retain = m_ui->progressBar->sizePolicy();
+  sp_retain.setRetainSizeWhenHidden(true);
+  m_ui->progressBar->setSizePolicy(sp_retain);
 
   UpdateData();
 }
+
+AchievementBox::~AchievementBox() = default;
 
 void AchievementBox::UpdateData()
 {
@@ -83,29 +56,29 @@ void AchievementBox::UpdateData()
     else if (m_achievement->unlocked & RC_CLIENT_ACHIEVEMENT_UNLOCKED_SOFTCORE)
       color = AchievementManager::BLUE;
     QImage i_badge(badge.data.data(), badge.width, badge.height, QImage::Format_RGBA8888);
-    m_badge->setPixmap(
+    m_ui->badgeLabel->setPixmap(
         QPixmap::fromImage(i_badge).scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    m_badge->adjustSize();
-    m_badge->setStyleSheet(
+    m_ui->badgeLabel->adjustSize();
+    m_ui->badgeLabel->setStyleSheet(
         QStringLiteral("border: 4px solid %1").arg(QtUtils::FromStdString(color)));
 
     if (m_achievement->unlocked)
     {
       if (m_achievement->unlock_time != 0)
       {
-        m_status->setText(
+        m_ui->statusLabel->setText(
             // i18n: %1 is a date/time.
             tr("Unlocked at %1")
                 .arg(QDateTime::fromSecsSinceEpoch(m_achievement->unlock_time).toString()));
       }
       else
       {
-        m_status->setText(tr("Unlocked"));
+        m_ui->statusLabel->setText(tr("Unlocked"));
       }
     }
     else
     {
-      m_status->setText(tr("Locked"));
+      m_ui->statusLabel->setText(tr("Locked"));
     }
   }
 
@@ -121,18 +94,17 @@ void AchievementBox::UpdateProgress()
 
   if (m_achievement->measured_percent > 0.000)
   {
-    m_progress_bar->setRange(0, 100);
-    m_progress_bar->setValue(m_achievement->unlocked ? 100 : m_achievement->measured_percent);
-    m_progress_bar->setTextVisible(false);
-    m_progress_label->setText(
+    m_ui->progressBar->setRange(0, 100);
+    m_ui->progressBar->setValue(m_achievement->unlocked ? 100 : m_achievement->measured_percent);
+    m_ui->progressLabel->setText(
         QString::fromUtf8(m_achievement->measured_progress,
                           qstrnlen(m_achievement->measured_progress, PROGRESS_LENGTH)));
-    m_progress_label->setVisible(!m_achievement->unlocked);
-    m_progress_bar->setVisible(true);
+    m_ui->progressLabel->setVisible(!m_achievement->unlocked);
+    m_ui->progressBar->setVisible(true);
   }
   else
   {
-    m_progress_bar->setVisible(false);
+    m_ui->progressBar->setVisible(false);
   }
 }
 

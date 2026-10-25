@@ -825,6 +825,8 @@ const std::string GetGpuDriverDirectory(unsigned int dir_index)
   {
   case D_GPU_DRIVERS_EXTRACTED:
     return s_android_driver_directory + DIR_SEP GPU_DRIVERS_EXTRACTED DIR_SEP;
+  case D_GPU_DRIVERS_INSTALLED:
+    return s_android_driver_directory + DIR_SEP GPU_DRIVERS_INSTALLED DIR_SEP;
   case D_GPU_DRIVERS_TMP:
     return s_android_driver_directory + DIR_SEP GPU_DRIVERS_TMP DIR_SEP;
   case D_GPU_DRIVERS_HOOKS:

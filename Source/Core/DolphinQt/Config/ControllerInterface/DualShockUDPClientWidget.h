@@ -3,25 +3,28 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QStringList>
 #include <QWidget>
 
-class QCheckBox;
-class QListWidget;
-class QPushButton;
+namespace Ui
+{
+class DualShockUDPClientWidget;
+}
 
 class DualShockUDPClientWidget final : public QWidget
 {
   Q_OBJECT
 public:
   explicit DualShockUDPClientWidget();
+  ~DualShockUDPClientWidget() override;
 
 signals:
   // Emitted when config has changed so widgets can update to reflect the change.
   void ConfigChanged();
 
 private:
-  void CreateWidgets();
   void ConnectWidgets();
 
   void SetButtonEnableStates();
@@ -33,9 +36,5 @@ private:
   void OnServerSelection();
   void OnServersToggled();
 
-  QCheckBox* m_servers_enabled;
-  QListWidget* m_server_list;
-  QPushButton* m_add_server;
-  QPushButton* m_edit_server;
-  QPushButton* m_remove_server;
+  std::unique_ptr<Ui::DualShockUDPClientWidget> m_ui;
 };

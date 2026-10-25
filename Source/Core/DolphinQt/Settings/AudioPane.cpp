@@ -3,23 +3,25 @@
 
 #include "DolphinQt/Settings/AudioPane.h"
 
+#include <algorithm>
+#include <array>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QFontMetrics>
-#include <QFormLayout>
-#include <QGridLayout>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QLabel>
-#include <QRadioButton>
-#include <QSpacerItem>
+#include <QSizePolicy>
+#include <QSlider>
 #include <QString>
-#include <QVBoxLayout>
 #include <QWidget>
 
 #include "AudioCommon/AudioCommon.h"
+#include "AudioCommon/Enums.h"
 #include "AudioCommon/WASAPIStream.h"
 
 #ifdef HAVE_CUBEB
@@ -32,21 +34,23 @@
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/Wiimote.h"
 #include "Core/System.h"
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigChoice.h"
-#include "DolphinQt/Config/ConfigControls/ConfigSlider.h"
 
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_AudioPane.h"
 
 static QString GetVolumeLabelText(int volume_level)
 {
   return QWidget::tr("%1%").arg(volume_level);
 }
 
-AudioPane::AudioPane()
+AudioPane::AudioPane(QWidget* parent) : QWidget(parent), m_ui(std::make_unique<Ui::AudioPane>())
 {
+  m_ui->setupUi(this);
   CheckNeedForLatencyControl();
-  CreateWidgets();
+  BindSettings();
+  ConfigureLayout();
   AddDescriptions();
   ConnectWidgets();
   OnBackendChanged();
@@ -58,76 +62,34 @@ AudioPane::AudioPane()
   OnEmulationStateChanged(!Core::IsUninitialized(Core::System::GetInstance()));
 }
 
-void AudioPane::CreateWidgets()
+AudioPane::~AudioPane() = default;
+
+void AudioPane::BindSettings()
 {
-  auto* dsp_box = new QGroupBox(tr("DSP Options"));
-  auto* dsp_layout = new QHBoxLayout;
-
-  dsp_box->setLayout(dsp_layout);
-  QLabel* dsp_combo_label = new QLabel(tr("DSP Emulation Engine:"));
-  m_dsp_combo = new ConfigComplexChoice(Config::MAIN_DSP_HLE, Config::MAIN_DSP_JIT);
-  m_dsp_combo->Add(tr("HLE (recommended)"), true, true);
-  m_dsp_combo->Add(tr("LLE Recompiler (slow)"), false, true);
-  m_dsp_combo->Add(tr("LLE Interpreter (very slow)"), false, false);
+  auto* const dsp_binding = ConfigWidget::BindComplex(m_ui->dspEngineComboBox, Config::MAIN_DSP_HLE,
+                                                      Config::MAIN_DSP_JIT);
+  dsp_binding->Add(tr("HLE (recommended)"), true, true);
+  dsp_binding->Add(tr("LLE Recompiler (slow)"), false, true);
+  dsp_binding->Add(tr("LLE Interpreter (very slow)"), false, false);
   // The state true/false shouldn't normally happen, but is HLE (index 0) when it does.
-  m_dsp_combo->SetDefault(0);
-  m_dsp_combo->Refresh();
+  dsp_binding->SetDefault(0);
 
-  dsp_layout->addWidget(dsp_combo_label);
-  dsp_layout->addWidget(m_dsp_combo, Qt::AlignLeft);
+  ConfigWidget::Bind(m_ui->volumeSlider, Config::MAIN_AUDIO_VOLUME);
 
-  auto* volume_box = new QGroupBox(tr("Volume"));
-  auto* volume_layout = new QVBoxLayout{volume_box};
+  const std::vector<std::string> backends = AudioCommon::GetSoundBackends();
+  std::vector<std::pair<QString, QString>> translated_backends;
+  translated_backends.reserve(backends.size());
+  for (const std::string& backend : backends)
+    translated_backends.emplace_back(tr(backend.c_str()), QString::fromStdString(backend));
+  ConfigWidget::BindStringChoice(m_ui->backendComboBox, Config::MAIN_AUDIO_BACKEND,
+                                 translated_backends);
 
-  m_volume_slider = new ConfigSlider(0, 100, Config::MAIN_AUDIO_VOLUME);
-  m_volume_slider->setOrientation(Qt::Vertical);
-
-  // Volume indicator text label.
-  m_volume_indicator = new QLabel;
-  m_volume_indicator->setAlignment(Qt::AlignVCenter | Qt::AlignHCenter);
-  auto update_volume_label = [this]() {
-    m_volume_indicator->setText(GetVolumeLabelText(m_volume_slider->value()));
-  };
-  update_volume_label();
-  connect(m_volume_slider, &QSlider::valueChanged, this, std::move(update_volume_label));
-
-  const QFontMetrics font_metrics{font()};
-  const int label_width = font_metrics.boundingRect(GetVolumeLabelText(100)).width();
-  // Ensure the label is at least as wide as the QGroupBox title.
-  // This prevents [-Volume] title ugliness on Windows.
-  const int title_width = font_metrics.boundingRect(volume_box->title()).width();
-  m_volume_indicator->setFixedWidth(std::max(label_width, title_width));
-
-  volume_layout->addWidget(m_volume_slider, 0, Qt::AlignHCenter);
-  volume_layout->addWidget(m_volume_indicator, 0, Qt::AlignHCenter);
-
-  auto* backend_box = new QGroupBox(tr("Backend Settings"));
-  auto* backend_layout = new QFormLayout;
-  backend_box->setLayout(backend_layout);
-  m_backend_label = new QLabel(tr("Audio Backend:"));
-
-  {
-    std::vector<std::string> backends = AudioCommon::GetSoundBackends();
-    std::vector<std::pair<QString, QString>> translated_backends;
-    translated_backends.reserve(backends.size());
-    for (const std::string& backend : backends)
-    {
-      translated_backends.emplace_back(tr(backend.c_str()), QString::fromStdString(backend));
-    }
-    m_backend_combo = new ConfigStringChoice(translated_backends, Config::MAIN_AUDIO_BACKEND);
-  }
-
-  m_dolby_pro_logic = new ConfigBool(tr("Dolby Pro Logic II Decoder"), Config::MAIN_DPL2_DECODER);
-  m_dolby_quality_label = new QLabel(tr("Decoding Quality:"));
-
-  QStringList quality_options{tr("Lowest (Latency ~10 ms)"), tr("Low (Latency ~20 ms)"),
-                              tr("High (Latency ~40 ms)"), tr("Highest (Latency ~80 ms)")};
-
-  m_dolby_quality_combo = new ConfigChoice(quality_options, Config::MAIN_DPL2_QUALITY);
-
-  backend_layout->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
-  backend_layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-  backend_layout->addRow(m_backend_label, m_backend_combo);
+  ConfigWidget::Bind(m_ui->dolbyProLogicCheckBox, Config::MAIN_DPL2_DECODER);
+  constexpr std::array quality_values{AudioCommon::DPL2Quality::Lowest,
+                                      AudioCommon::DPL2Quality::Low, AudioCommon::DPL2Quality::High,
+                                      AudioCommon::DPL2Quality::Highest};
+  ConfigWidget::BindMapped(m_ui->dolbyQualityComboBox, Config::MAIN_DPL2_QUALITY,
+                           std::span<const AudioCommon::DPL2Quality>{quality_values});
 
 #ifdef _WIN32
   std::vector<std::pair<QString, QString>> wasapi_options;
@@ -141,182 +103,129 @@ void AudioPane::CreateWidgets()
                                                          QString::fromStdString(string)});
   }
 
-  m_wasapi_device_label = new QLabel(tr("Output Device:"));
-  m_wasapi_device_combo = new ConfigStringChoice(wasapi_options, Config::MAIN_WASAPI_DEVICE);
-
-  backend_layout->addRow(m_wasapi_device_label, m_wasapi_device_combo);
+  ConfigWidget::BindStringChoice(m_ui->wasapiDeviceComboBox, Config::MAIN_WASAPI_DEVICE,
+                                 wasapi_options);
 #endif
 
   if (m_latency_control_supported)
-  {
-    m_latency_slider = new ConfigSlider(0, 200, Config::MAIN_AUDIO_LATENCY);
-    m_latency_label = new QLabel(tr("Latency: %1 ms").arg(m_latency_slider->value()));
-    m_latency_label->setFixedWidth(
-        QFontMetrics(font()).boundingRect(tr("Latency:  000 ms")).width());
+    ConfigWidget::Bind(m_ui->latencySlider, Config::MAIN_AUDIO_LATENCY);
 
-    backend_layout->addRow(m_latency_label, m_latency_slider);
-  }
+  ConfigWidget::Bind(m_ui->audioBufferSizeSlider, Config::MAIN_AUDIO_BUFFER_SIZE);
+  ConfigWidget::MirrorFont(m_ui->audioBufferSizeLabel, m_ui->audioBufferSizeSlider);
+  ConfigWidget::Bind(m_ui->audioFillGapsCheckBox, Config::MAIN_AUDIO_FILL_GAPS);
+  ConfigWidget::Bind(m_ui->audioPreservePitchCheckBox, Config::MAIN_AUDIO_PRESERVE_PITCH);
+  ConfigWidget::Bind(m_ui->muteOnUnlimitedSpeedCheckBox,
+                     Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT);
 
-  backend_layout->addRow(m_dolby_pro_logic);
-  backend_layout->addRow(m_dolby_quality_label, m_dolby_quality_combo);
-
-  dsp_box->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-
-  auto* playback_box = new QGroupBox(tr("Audio Playback Settings"));
-  auto* playback_layout = new QGridLayout;
-  playback_box->setLayout(playback_layout);
-
-  ConfigSlider* audio_buffer_size = new ConfigSlider(16, 512, Config::MAIN_AUDIO_BUFFER_SIZE, 8);
-  QLabel* audio_buffer_size_label = new QLabel;
-
-  audio_buffer_size->setSingleStep(8);
-  audio_buffer_size->setPageStep(8);
-
-  audio_buffer_size->SetDescription(
-      tr("Controls the number of audio samples buffered."
-         " Lower values reduce latency but may cause more crackling or stuttering."
-         "<br><br><dolphin_emphasis>If unsure, set this to 80 ms.</dolphin_emphasis>"));
-
-  // Connect the slider to update the value label live
-  connect(audio_buffer_size, &QSlider::valueChanged, this, [=](int value) {
-    int stepped_value = (value / 8) * 8;
-    audio_buffer_size->setValue(stepped_value);
-    audio_buffer_size_label->setText(tr("%1 ms").arg(stepped_value));
-  });
-
-  // Set initial value display
-  audio_buffer_size_label->setText(tr("%1 ms").arg(audio_buffer_size->value()));
-  audio_buffer_size_label->setFixedWidth(QFontMetrics(font()).boundingRect(tr(" 000 ms")).width());
-
-  m_audio_fill_gaps = new ConfigBool(tr("Fill Audio Gaps"), Config::MAIN_AUDIO_FILL_GAPS);
-
-  m_audio_preserve_pitch =
-      new ConfigBool(tr("Preserve Audio Pitch"), Config::MAIN_AUDIO_PRESERVE_PITCH);
-
-  m_speed_up_mute_enable = new ConfigBool(tr("Mute When Disabling Speed Limit"),
-                                          Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT);
-
-  // Create a horizontal layout for the slider + value label
-  auto* buffer_layout = new QHBoxLayout;
-  buffer_layout->addWidget(new ConfigSliderLabel(tr("Audio Buffer Size:"), audio_buffer_size));
-  buffer_layout->addWidget(audio_buffer_size);
-  buffer_layout->addWidget(audio_buffer_size_label);
-
-  playback_layout->addLayout(buffer_layout, 0, 0);
-  playback_layout->addWidget(m_audio_fill_gaps, 1, 0);
-  playback_layout->addWidget(m_audio_preserve_pitch, 2, 0);
-  playback_layout->addWidget(m_speed_up_mute_enable, 3, 0);
-  playback_layout->setRowStretch(4, 1);
-  playback_box->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-
-  // Wiimote Audio Routing
 #ifdef HAVE_CUBEB
-  m_wiimote_routing_box = new QGroupBox(tr("Wii Remote Audio Routing"));
-  auto* wiimote_routing_layout = new QVBoxLayout;
-  m_wiimote_routing_box->setLayout(wiimote_routing_layout);
+  ConfigWidget::Bind(m_ui->wiimoteRoutingCheckBox, Config::MAIN_WIIMOTE_AUDIO_ROUTING_ENABLED);
 
-  m_wiimote_routing_enable = new ConfigBool(tr("Enable Wii Remote Audio Routing"),
-                                            Config::MAIN_WIIMOTE_AUDIO_ROUTING_ENABLED);
-  wiimote_routing_layout->addWidget(m_wiimote_routing_enable);
-
-  // Build device list once for all wiimote dropdowns
   std::vector<std::pair<QString, QString>> output_devices;
   output_devices.emplace_back(tr("Default Device"), QStringLiteral(""));
   for (const auto& [id, name] : CubebUtils::ListOutputDevices())
     output_devices.emplace_back(QString::fromStdString(name), QString::fromStdString(id));
 
+  const std::array output_checkboxes{m_ui->wiimote1CheckBox, m_ui->wiimote2CheckBox,
+                                     m_ui->wiimote3CheckBox, m_ui->wiimote4CheckBox};
+  const std::array output_combos{m_ui->wiimote1DeviceComboBox, m_ui->wiimote2DeviceComboBox,
+                                 m_ui->wiimote3DeviceComboBox, m_ui->wiimote4DeviceComboBox};
   for (std::size_t i = 0; i < 4; ++i)
   {
-    auto* row_widget = new QWidget;
-    auto* row_layout = new QHBoxLayout(row_widget);
-    row_layout->setContentsMargins(0, 0, 0, 0);
-
-    m_wiimote_output_enable[i] = new ConfigBool(tr("Wii Remote %1").arg(i + 1),
-                                                Config::MAIN_WIIMOTE_AUDIO_OUTPUT_ENABLED[i]);
-    m_wiimote_output_device[i] =
-        new ConfigStringChoice(output_devices, Config::MAIN_WIIMOTE_AUDIO_OUTPUT_DEVICE[i]);
-
-    row_layout->addWidget(m_wiimote_output_enable[i]);
-    row_layout->addWidget(m_wiimote_output_device[i], 1);
-
-    wiimote_routing_layout->addWidget(row_widget);
+    output_checkboxes[i]->setText(tr("Wii Remote %1").arg(i + 1));
+    ConfigWidget::Bind(output_checkboxes[i], Config::MAIN_WIIMOTE_AUDIO_OUTPUT_ENABLED[i]);
+    ConfigWidget::BindStringChoice(output_combos[i], Config::MAIN_WIIMOTE_AUDIO_OUTPUT_DEVICE[i],
+                                   output_devices);
   }
-#endif
 
-// GBA Audio Routing
-#ifdef HAVE_CUBEB
-  m_gba_routing_box = new QGroupBox(tr("GBA Audio Routing"));
-  auto* gba_routing_layout = new QVBoxLayout;
-  m_gba_routing_box->setLayout(gba_routing_layout);
+  ConfigWidget::Bind(m_ui->gbaRoutingCheckBox, Config::MAIN_GBA_AUDIO_ROUTING_ENABLED);
 
-  m_gba_routing_enable =
-      new ConfigBool(tr("Enable GBA Audio Routing"), Config::MAIN_GBA_AUDIO_ROUTING_ENABLED);
-  gba_routing_layout->addWidget(m_gba_routing_enable);
-
+  const std::array gba_checkboxes{m_ui->gba1CheckBox, m_ui->gba2CheckBox, m_ui->gba3CheckBox,
+                                  m_ui->gba4CheckBox};
+  const std::array gba_combos{m_ui->gba1DeviceComboBox, m_ui->gba2DeviceComboBox,
+                              m_ui->gba3DeviceComboBox, m_ui->gba4DeviceComboBox};
+  static_assert(gba_checkboxes.size() == Config::GBA_SPEAKER_COUNT);
   for (std::size_t i = 0; i < Config::GBA_SPEAKER_COUNT; ++i)
   {
-    auto* row_widget = new QWidget;
-    auto* row_layout = new QHBoxLayout(row_widget);
-    row_layout->setContentsMargins(0, 0, 0, 0);
-
-    m_gba_output_enable[i] =
-        new ConfigBool(tr("GBA %1").arg(i + 1), Config::MAIN_GBA_AUDIO_OUTPUT_ENABLED[i]);
-    m_gba_output_device[i] =
-        new ConfigStringChoice(output_devices, Config::MAIN_GBA_AUDIO_OUTPUT_DEVICE[i]);
-
-    row_layout->addWidget(m_gba_output_enable[i]);
-    row_layout->addWidget(m_gba_output_device[i], 1);
-
-    gba_routing_layout->addWidget(row_widget);
+    gba_checkboxes[i]->setText(tr("GBA %1").arg(i + 1));
+    ConfigWidget::Bind(gba_checkboxes[i], Config::MAIN_GBA_AUDIO_OUTPUT_ENABLED[i]);
+    ConfigWidget::BindStringChoice(gba_combos[i], Config::MAIN_GBA_AUDIO_OUTPUT_DEVICE[i],
+                                   output_devices);
   }
 #endif
+}
 
-  auto* const main_vbox_layout = new QVBoxLayout;
+void AudioPane::ConfigureLayout()
+{
+  m_ui->dspGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  m_ui->playbackGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-  main_vbox_layout->addWidget(dsp_box);
-  main_vbox_layout->addWidget(backend_box);
-  main_vbox_layout->addWidget(playback_box);
-#ifdef HAVE_CUBEB
-  main_vbox_layout->addWidget(m_wiimote_routing_box);
-  main_vbox_layout->addWidget(m_gba_routing_box);
+  const QFontMetrics font_metrics{font()};
+  const int volume_label_width = font_metrics.boundingRect(GetVolumeLabelText(100)).width();
+  // Ensure the label is at least as wide as the QGroupBox title.
+  // This prevents [-Volume] title ugliness on Windows.
+  const int volume_title_width = font_metrics.boundingRect(m_ui->volumeGroup->title()).width();
+  m_ui->volumeValueLabel->setFixedWidth(std::max(volume_label_width, volume_title_width));
+  m_ui->volumeValueLabel->setText(GetVolumeLabelText(m_ui->volumeSlider->value()));
+
+  m_ui->audioBufferSizeValueLabel->setFixedWidth(font_metrics.boundingRect(tr(" 000 ms")).width());
+  m_ui->audioBufferSizeValueLabel->setText(tr("%1 ms").arg(m_ui->audioBufferSizeSlider->value()));
+
+  m_ui->latencyLabel->setFixedWidth(font_metrics.boundingRect(tr("Latency:  000 ms")).width());
+  m_ui->latencyLabel->setText(tr("Latency: %1 ms").arg(m_ui->latencySlider->value()));
+  if (!m_latency_control_supported)
+  {
+    m_ui->latencyLabel->hide();
+    m_ui->latencySlider->hide();
+  }
+
+#ifndef _WIN32
+  m_ui->wasapiDeviceLabel->hide();
+  m_ui->wasapiDeviceComboBox->hide();
 #endif
 
-  m_main_layout = new QHBoxLayout;
-  m_main_layout->addLayout(main_vbox_layout);
-  m_main_layout->addWidget(volume_box);
-
-  setLayout(m_main_layout);
-  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+#ifndef HAVE_CUBEB
+  m_ui->wiimoteRoutingGroup->hide();
+  m_ui->gbaRoutingGroup->hide();
+#endif
 }
 
 void AudioPane::ConnectWidgets()
 {
-  connect(m_backend_combo, &QComboBox::currentIndexChanged, this, &AudioPane::OnBackendChanged);
-  connect(m_dolby_pro_logic, &ConfigBool::toggled, this, &AudioPane::OnDspChanged);
-  connect(m_dsp_combo, &ConfigComplexChoice::currentIndexChanged, this, &AudioPane::OnDspChanged);
-  connect(m_volume_slider, &QSlider::valueChanged, this,
-          [] { AudioCommon::UpdateSoundStream(Core::System::GetInstance()); });
+  connect(m_ui->backendComboBox, &QComboBox::currentIndexChanged, this,
+          &AudioPane::OnBackendChanged);
+  connect(m_ui->dolbyProLogicCheckBox, &QCheckBox::toggled, this, &AudioPane::OnDspChanged);
+  connect(m_ui->dspEngineComboBox, &QComboBox::currentIndexChanged, this, &AudioPane::OnDspChanged);
+  connect(m_ui->volumeSlider, &QSlider::valueChanged, this, [this](int value) {
+    m_ui->volumeValueLabel->setText(GetVolumeLabelText(value));
+    AudioCommon::UpdateSoundStream(Core::System::GetInstance());
+  });
+
+  connect(m_ui->audioBufferSizeSlider, &QSlider::valueChanged, this, [this](int value) {
+    const int stepped_value = (value / 8) * 8;
+    m_ui->audioBufferSizeSlider->setValue(stepped_value);
+    m_ui->audioBufferSizeValueLabel->setText(tr("%1 ms").arg(stepped_value));
+  });
 
   if (m_latency_control_supported)
   {
-    connect(m_latency_slider, &QSlider::valueChanged, this,
-            [this](int value) { m_latency_label->setText(tr("Latency: %1 ms").arg(value)); });
+    connect(m_ui->latencySlider, &QSlider::valueChanged, this,
+            [this](int value) { m_ui->latencyLabel->setText(tr("Latency: %1 ms").arg(value)); });
   }
 
 #ifdef HAVE_CUBEB
-  connect(m_wiimote_routing_enable, &ConfigBool::toggled, this,
+  connect(m_ui->wiimoteRoutingCheckBox, &QCheckBox::toggled, this,
           [this](bool) { UpdateWiimoteRoutingEnabled(); });
-  connect(m_gba_routing_enable, &ConfigBool::toggled, this,
-          [this](bool) { UpdateGBARoutingEnabled(); });
-  for (std::size_t i = 0; i < 4; ++i)
+  for (QCheckBox* checkbox : {m_ui->wiimote1CheckBox, m_ui->wiimote2CheckBox,
+                              m_ui->wiimote3CheckBox, m_ui->wiimote4CheckBox})
   {
-    connect(m_wiimote_output_enable[i], &ConfigBool::toggled, this,
-            [this](bool) { UpdateWiimoteRoutingEnabled(); });
+    connect(checkbox, &QCheckBox::toggled, this, [this](bool) { UpdateWiimoteRoutingEnabled(); });
   }
-  for (std::size_t i = 0; i < Config::GBA_SPEAKER_COUNT; ++i)
+  connect(m_ui->gbaRoutingCheckBox, &QCheckBox::toggled, this,
+          [this](bool) { UpdateGBARoutingEnabled(); });
+  for (QCheckBox* checkbox :
+       {m_ui->gba1CheckBox, m_ui->gba2CheckBox, m_ui->gba3CheckBox, m_ui->gba4CheckBox})
   {
-    connect(m_gba_output_enable[i], &ConfigBool::toggled, this,
-            [this](bool) { UpdateGBARoutingEnabled(); });
+    connect(checkbox, &QCheckBox::toggled, this, [this](bool) { UpdateGBARoutingEnabled(); });
   }
   // Also react to external config changes: wiimote source type, speaker data, BT passthrough.
   connect(&Settings::Instance(), &Settings::ConfigChanged, this,
@@ -333,9 +242,9 @@ void AudioPane::OnDspChanged()
   const auto backend = Config::Get(Config::MAIN_AUDIO_BACKEND);
   const bool enabled =
       AudioCommon::SupportsDPL2Decoder(backend) && !Config::Get(Config::MAIN_DSP_HLE);
-  m_dolby_pro_logic->setEnabled(enabled);
-  m_dolby_quality_label->setEnabled(enabled && m_dolby_pro_logic->isChecked());
-  m_dolby_quality_combo->setEnabled(enabled && m_dolby_pro_logic->isChecked());
+  m_ui->dolbyProLogicCheckBox->setEnabled(enabled);
+  m_ui->dolbyQualityLabel->setEnabled(enabled && m_ui->dolbyProLogicCheckBox->isChecked());
+  m_ui->dolbyQualityComboBox->setEnabled(enabled && m_ui->dolbyProLogicCheckBox->isChecked());
 }
 
 void AudioPane::OnBackendChanged()
@@ -346,18 +255,18 @@ void AudioPane::OnBackendChanged()
 
   if (m_latency_control_supported)
   {
-    m_latency_label->setEnabled(AudioCommon::SupportsLatencyControl(backend));
-    m_latency_slider->setEnabled(AudioCommon::SupportsLatencyControl(backend));
+    m_ui->latencyLabel->setEnabled(AudioCommon::SupportsLatencyControl(backend));
+    m_ui->latencySlider->setEnabled(AudioCommon::SupportsLatencyControl(backend));
   }
 
 #ifdef _WIN32
-  bool is_wasapi = backend == BACKEND_WASAPI;
-  m_wasapi_device_label->setHidden(!is_wasapi);
-  m_wasapi_device_combo->setHidden(!is_wasapi);
+  const bool is_wasapi = backend == BACKEND_WASAPI;
+  m_ui->wasapiDeviceLabel->setHidden(!is_wasapi);
+  m_ui->wasapiDeviceComboBox->setHidden(!is_wasapi);
 #endif
 
-  m_volume_slider->setEnabled(AudioCommon::SupportsVolumeChanges(backend));
-  m_volume_indicator->setEnabled(AudioCommon::SupportsVolumeChanges(backend));
+  m_ui->volumeSlider->setEnabled(AudioCommon::SupportsVolumeChanges(backend));
+  m_ui->volumeValueLabel->setEnabled(AudioCommon::SupportsVolumeChanges(backend));
 
 #ifdef HAVE_CUBEB
   UpdateWiimoteRoutingEnabled();
@@ -367,25 +276,25 @@ void AudioPane::OnBackendChanged()
 
 void AudioPane::OnEmulationStateChanged(bool running)
 {
-  m_dsp_combo->setEnabled(!running);
-  m_backend_label->setEnabled(!running);
-  m_backend_combo->setEnabled(!running);
+  m_ui->dspEngineComboBox->setEnabled(!running);
+  m_ui->backendLabel->setEnabled(!running);
+  m_ui->backendComboBox->setEnabled(!running);
   if (AudioCommon::SupportsDPL2Decoder(Config::Get(Config::MAIN_AUDIO_BACKEND)) &&
       !Config::Get(Config::MAIN_DSP_HLE))
   {
-    m_dolby_pro_logic->setEnabled(!running);
-    m_dolby_quality_label->setEnabled(!running && m_dolby_pro_logic->isChecked());
-    m_dolby_quality_combo->setEnabled(!running && m_dolby_pro_logic->isChecked());
+    m_ui->dolbyProLogicCheckBox->setEnabled(!running);
+    m_ui->dolbyQualityLabel->setEnabled(!running && m_ui->dolbyProLogicCheckBox->isChecked());
+    m_ui->dolbyQualityComboBox->setEnabled(!running && m_ui->dolbyProLogicCheckBox->isChecked());
   }
   if (m_latency_control_supported &&
       AudioCommon::SupportsLatencyControl(Config::Get(Config::MAIN_AUDIO_BACKEND)))
   {
-    m_latency_label->setEnabled(!running);
-    m_latency_slider->setEnabled(!running);
+    m_ui->latencyLabel->setEnabled(!running);
+    m_ui->latencySlider->setEnabled(!running);
   }
 
 #ifdef _WIN32
-  m_wasapi_device_combo->setEnabled(!running);
+  m_ui->wasapiDeviceComboBox->setEnabled(!running);
 #endif
 
 #ifdef HAVE_CUBEB
@@ -397,9 +306,6 @@ void AudioPane::OnEmulationStateChanged(bool running)
 void AudioPane::UpdateWiimoteRoutingEnabled()
 {
 #ifdef HAVE_CUBEB
-  if (!m_wiimote_routing_box)
-    return;
-
   const bool running = Core::GetState(Core::System::GetInstance()) != Core::State::Uninitialized;
   const bool is_cubeb = Config::Get(Config::MAIN_AUDIO_BACKEND) == BACKEND_CUBEB;
   const bool speaker_enabled = Config::Get(Config::MAIN_WIIMOTE_ENABLE_SPEAKER);
@@ -409,18 +315,21 @@ void AudioPane::UpdateWiimoteRoutingEnabled()
   // emulation not running.
   const bool group_usable = !running && is_cubeb && speaker_enabled && !bt_passthrough;
 
-  m_wiimote_routing_enable->setEnabled(group_usable);
+  m_ui->wiimoteRoutingCheckBox->setEnabled(group_usable);
 
-  const bool routing_on = group_usable && m_wiimote_routing_enable->isChecked();
+  const bool routing_on = group_usable && m_ui->wiimoteRoutingCheckBox->isChecked();
 
+  const std::array output_checkboxes{m_ui->wiimote1CheckBox, m_ui->wiimote2CheckBox,
+                                     m_ui->wiimote3CheckBox, m_ui->wiimote4CheckBox};
+  const std::array output_combos{m_ui->wiimote1DeviceComboBox, m_ui->wiimote2DeviceComboBox,
+                                 m_ui->wiimote3DeviceComboBox, m_ui->wiimote4DeviceComboBox};
   for (std::size_t i = 0; i < 4; ++i)
   {
     const WiimoteSource source = Config::Get(Config::GetInfoForWiimoteSource(static_cast<int>(i)));
     const bool is_emulated = source == WiimoteSource::Emulated;
 
-    m_wiimote_output_enable[i]->setEnabled(routing_on && is_emulated);
-    m_wiimote_output_device[i]->setEnabled(routing_on && is_emulated &&
-                                           m_wiimote_output_enable[i]->isChecked());
+    output_checkboxes[i]->setEnabled(routing_on && is_emulated);
+    output_combos[i]->setEnabled(routing_on && is_emulated && output_checkboxes[i]->isChecked());
   }
 #endif
 }
@@ -428,26 +337,26 @@ void AudioPane::UpdateWiimoteRoutingEnabled()
 void AudioPane::UpdateGBARoutingEnabled()
 {
 #ifdef HAVE_CUBEB
-  if (!m_gba_routing_box)
-    return;
-
   const bool running = Core::GetState(Core::System::GetInstance()) != Core::State::Uninitialized;
   const bool is_cubeb = Config::Get(Config::MAIN_AUDIO_BACKEND) == BACKEND_CUBEB;
   const bool group_usable = !running && is_cubeb;
 
-  m_gba_routing_enable->setEnabled(group_usable);
+  m_ui->gbaRoutingCheckBox->setEnabled(group_usable);
 
-  const bool routing_on = group_usable && m_gba_routing_enable->isChecked();
+  const bool routing_on = group_usable && m_ui->gbaRoutingCheckBox->isChecked();
 
+  const std::array gba_checkboxes{m_ui->gba1CheckBox, m_ui->gba2CheckBox, m_ui->gba3CheckBox,
+                                  m_ui->gba4CheckBox};
+  const std::array gba_combos{m_ui->gba1DeviceComboBox, m_ui->gba2DeviceComboBox,
+                              m_ui->gba3DeviceComboBox, m_ui->gba4DeviceComboBox};
   for (std::size_t i = 0; i < Config::GBA_SPEAKER_COUNT; ++i)
   {
     const u32 device_type = Config::Get(Config::GetInfoForSIDevice(static_cast<u32>(i)));
     const bool is_gba_connected = static_cast<SerialInterface::SIDevices>(device_type) ==
                                   SerialInterface::SIDEVICE_GC_GBA_EMULATED;
 
-    m_gba_output_enable[i]->setEnabled(routing_on && is_gba_connected);
-    m_gba_output_device[i]->setEnabled(routing_on && is_gba_connected &&
-                                       m_gba_output_enable[i]->isChecked());
+    gba_checkboxes[i]->setEnabled(routing_on && is_gba_connected);
+    gba_combos[i]->setEnabled(routing_on && is_gba_connected && gba_checkboxes[i]->isChecked());
   }
 #endif
 }
@@ -485,6 +394,10 @@ void AudioPane::AddDescriptions()
   static const char TR_VOLUME_DESCRIPTION[] =
       QT_TR_NOOP("Adjusts audio output volume.<br><br><dolphin_emphasis>If unsure, leave this at "
                  "100%.</dolphin_emphasis>");
+  static const char TR_AUDIO_BUFFER_SIZE_DESCRIPTION[] = QT_TR_NOOP(
+      "Controls the number of audio samples buffered. Lower values reduce latency but may cause "
+      "more crackling or stuttering.<br><br><dolphin_emphasis>If unsure, set this to 80 "
+      "ms.</dolphin_emphasis>");
   static const char TR_FILL_AUDIO_GAPS_DESCRIPTION[] = QT_TR_NOOP(
       "Repeat existing audio during lag spikes to prevent stuttering.<br><br><dolphin_emphasis>If "
       "unsure, leave this checked.</dolphin_emphasis>");
@@ -496,45 +409,45 @@ void AudioPane::AddDescriptions()
       QT_TR_NOOP("Mutes the audio when overriding the emulation speed limit (default hotkey: Tab). "
                  "<br><br><dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>");
 
-  m_dsp_combo->SetTitle(tr("DSP Emulation Engine"));
-  m_dsp_combo->SetDescription(tr(TR_DSP_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dspEngineComboBox, tr("DSP Emulation Engine"),
+                               tr(TR_DSP_DESCRIPTION));
 
-  m_backend_combo->SetTitle(tr("Audio Backend"));
-  m_backend_combo->SetDescription(
+  ConfigWidget::SetDescription(
+      m_ui->backendComboBox, tr("Audio Backend"),
       tr(TR_AUDIO_BACKEND_DESCRIPTION)
           .arg(QString::fromStdString(AudioCommon::GetDefaultSoundBackend())));
 
-  m_dolby_pro_logic->SetTitle(tr("Dolby Pro Logic II Decoder"));
-  m_dolby_pro_logic->SetDescription(tr(TR_DOLBY_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dolbyProLogicCheckBox, tr("Dolby Pro Logic II Decoder"),
+                               tr(TR_DOLBY_DESCRIPTION));
 
-  m_dolby_quality_combo->SetTitle(tr("Decoding Quality"));
-  m_dolby_quality_combo->SetDescription(tr(TR_DOLBY_OPTIONS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->dolbyQualityComboBox, tr("Decoding Quality"),
+                               tr(TR_DOLBY_OPTIONS_DESCRIPTION));
 
 #ifdef _WIN32
   static const char TR_WASAPI_DEVICE_DESCRIPTION[] =
       QT_TR_NOOP("Selects an output device to use.<br><br><dolphin_emphasis>If unsure, select "
                  "Default Device.</dolphin_emphasis>");
-  m_wasapi_device_combo->SetTitle(tr("Output Device"));
-  m_wasapi_device_combo->SetDescription(tr(TR_WASAPI_DEVICE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->wasapiDeviceComboBox, tr("Output Device"),
+                               tr(TR_WASAPI_DEVICE_DESCRIPTION));
 #endif
 
-  m_volume_slider->SetTitle(tr("Volume"));
-  m_volume_slider->SetDescription(tr(TR_VOLUME_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->volumeSlider, tr("Volume"), tr(TR_VOLUME_DESCRIPTION));
 
   if (m_latency_control_supported)
   {
-    m_latency_slider->SetTitle(tr("Latency"));
-    m_latency_slider->SetDescription(tr(TR_LATENCY_SLIDER_DESCRIPTION));
+    ConfigWidget::SetDescription(m_ui->latencySlider, tr("Latency"),
+                                 tr(TR_LATENCY_SLIDER_DESCRIPTION));
   }
 
-  m_speed_up_mute_enable->SetTitle(tr("Mute When Disabling Speed Limit"));
-  m_speed_up_mute_enable->SetDescription(tr(TR_SPEED_UP_MUTE_DESCRIPTION));
-
-  m_audio_fill_gaps->SetTitle(tr("Fill Audio Gaps"));
-  m_audio_fill_gaps->SetDescription(tr(TR_FILL_AUDIO_GAPS_DESCRIPTION));
-
-  m_audio_preserve_pitch->SetTitle(tr("Preserve Audio Pitch"));
-  m_audio_preserve_pitch->SetDescription(tr(TR_PRESERVE_AUDIO_PITCH_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->audioBufferSizeSlider, QString{},
+                               tr(TR_AUDIO_BUFFER_SIZE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->muteOnUnlimitedSpeedCheckBox,
+                               tr("Mute When Disabling Speed Limit"),
+                               tr(TR_SPEED_UP_MUTE_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->audioFillGapsCheckBox, tr("Fill Audio Gaps"),
+                               tr(TR_FILL_AUDIO_GAPS_DESCRIPTION));
+  ConfigWidget::SetDescription(m_ui->audioPreservePitchCheckBox, tr("Preserve Audio Pitch"),
+                               tr(TR_PRESERVE_AUDIO_PITCH_DESCRIPTION));
 
 #ifdef HAVE_CUBEB
   static const char TR_WIIMOTE_ROUTING_DESCRIPTION[] =
@@ -551,16 +464,18 @@ void AudioPane::AddDescriptions()
                  "<br><br>This setting is disabled when this Wii Remote is not set to Emulated "
                  "Wii Remote.");
 
-  if (m_wiimote_routing_box)
+  ConfigWidget::SetDescription(m_ui->wiimoteRoutingCheckBox, tr("Enable Wii Remote Audio Routing"),
+                               tr(TR_WIIMOTE_ROUTING_DESCRIPTION));
+  const std::array output_checkboxes{m_ui->wiimote1CheckBox, m_ui->wiimote2CheckBox,
+                                     m_ui->wiimote3CheckBox, m_ui->wiimote4CheckBox};
+  const std::array output_combos{m_ui->wiimote1DeviceComboBox, m_ui->wiimote2DeviceComboBox,
+                                 m_ui->wiimote3DeviceComboBox, m_ui->wiimote4DeviceComboBox};
+  for (std::size_t i = 0; i < 4; ++i)
   {
-    m_wiimote_routing_enable->SetTitle(tr("Enable Wii Remote Audio Routing"));
-    m_wiimote_routing_enable->SetDescription(tr(TR_WIIMOTE_ROUTING_DESCRIPTION));
-    for (std::size_t i = 0; i < 4; ++i)
-    {
-      m_wiimote_output_enable[i]->SetDescription(tr(TR_WIIMOTE_OUTPUT_ENABLE_DESCRIPTION));
-      m_wiimote_output_device[i]->SetTitle(tr("Wii Remote %1").arg(i + 1));
-      m_wiimote_output_device[i]->SetDescription(tr(TR_WIIMOTE_OUTPUT_DEVICE_DESCRIPTION));
-    }
+    ConfigWidget::SetDescription(output_checkboxes[i], QString{},
+                                 tr(TR_WIIMOTE_OUTPUT_ENABLE_DESCRIPTION));
+    ConfigWidget::SetDescription(output_combos[i], tr("Wii Remote %1").arg(i + 1),
+                                 tr(TR_WIIMOTE_OUTPUT_DEVICE_DESCRIPTION));
   }
 
   static const char TR_GBA_ROUTING_DESCRIPTION[] =
@@ -576,16 +491,18 @@ void AudioPane::AddDescriptions()
                  "<br><br>This setting is disabled when this port is not set to GBA "
                  "(Integrated).");
 
-  if (m_gba_routing_box)
+  ConfigWidget::SetDescription(m_ui->gbaRoutingCheckBox, tr("Enable GBA Audio Routing"),
+                               tr(TR_GBA_ROUTING_DESCRIPTION));
+  const std::array gba_checkboxes{m_ui->gba1CheckBox, m_ui->gba2CheckBox, m_ui->gba3CheckBox,
+                                  m_ui->gba4CheckBox};
+  const std::array gba_combos{m_ui->gba1DeviceComboBox, m_ui->gba2DeviceComboBox,
+                              m_ui->gba3DeviceComboBox, m_ui->gba4DeviceComboBox};
+  for (std::size_t i = 0; i < Config::GBA_SPEAKER_COUNT; ++i)
   {
-    m_gba_routing_enable->SetTitle(tr("Enable GBA Audio Routing"));
-    m_gba_routing_enable->SetDescription(tr(TR_GBA_ROUTING_DESCRIPTION));
-    for (std::size_t i = 0; i < Config::GBA_SPEAKER_COUNT; ++i)
-    {
-      m_gba_output_enable[i]->SetDescription(tr(TR_GBA_OUTPUT_ENABLE_DESCRIPTION));
-      m_gba_output_device[i]->SetTitle(tr("GBA %1").arg(i + 1));
-      m_gba_output_device[i]->SetDescription(tr(TR_GBA_OUTPUT_DEVICE_DESCRIPTION));
-    }
+    ConfigWidget::SetDescription(gba_checkboxes[i], QString{},
+                                 tr(TR_GBA_OUTPUT_ENABLE_DESCRIPTION));
+    ConfigWidget::SetDescription(gba_combos[i], tr("GBA %1").arg(i + 1),
+                                 tr(TR_GBA_OUTPUT_DEVICE_DESCRIPTION));
   }
 #endif
 }

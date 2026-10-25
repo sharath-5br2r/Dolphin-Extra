@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WiimoteEmuExtension</class>
+ <widget class="QWidget" name="WiimoteEmuExtension">
+  <layout class="QHBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QGroupBox" name="classicBox">
+     <property name="title">
+      <string>Classic Controller</string>
+     </property>
+     <layout class="QGridLayout" name="classicLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="drumsBox">
+     <property name="title">
+      <string>Drum Kit</string>
+     </property>
+     <layout class="QGridLayout" name="drumsLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="guitarBox">
+     <property name="title">
+      <string>Guitar</string>
+     </property>
+     <layout class="QHBoxLayout" name="guitarLayout">
+      <item>
+       <layout class="QVBoxLayout" name="guitarStickLayout"/>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="guitarFretsLayout"/>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="guitarButtonsLayout"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="noneBox">
+     <layout class="QHBoxLayout" name="noneLayout">
+      <item>
+       <widget class="QLabel" name="noneLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>No extension selected.</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="nunchukBox">
+     <property name="title">
+      <string>Nunchuk</string>
+     </property>
+     <layout class="QGridLayout" name="nunchukLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="turntableBox">
+     <property name="title">
+      <string>DJ Turntable</string>
+     </property>
+     <layout class="QGridLayout" name="turntableLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="uDrawTabletBox">
+     <property name="title">
+      <string>uDraw GameTablet</string>
+     </property>
+     <layout class="QHBoxLayout" name="uDrawTabletLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="drawsomeTabletBox">
+     <property name="title">
+      <string>Drawsome Tablet</string>
+     </property>
+     <layout class="QHBoxLayout" name="drawsomeTabletLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="taTaConBox">
+     <property name="title">
+      <string>Taiko Drum</string>
+     </property>
+     <layout class="QHBoxLayout" name="taTaConLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="shinkansenBox">
+     <property name="title">
+      <string>Shinkansen</string>
+     </property>
+     <layout class="QHBoxLayout" name="shinkansenLayout"/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

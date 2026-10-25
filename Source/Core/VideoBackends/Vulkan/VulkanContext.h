@@ -120,6 +120,10 @@ public:
   // Returns true if the specified extension is supported and enabled.
   bool SupportsDeviceExtension(const char* name) const;
 
+  // True when the dynamicRendering feature was enabled on the device (core 1.3, or
+  // VK_KHR_dynamic_rendering on 1.2). Consumed by the librashader post-processor only.
+  bool SupportsDynamicRendering() const { return m_supports_dynamic_rendering; }
+
   // Returns true if exclusive fullscreen is supported for the given surface.
   bool SupportsExclusiveFullscreen(const WindowSystemInfo& wsi, VkSurfaceKHR surface);
 
@@ -155,6 +159,7 @@ private:
   VkDebugUtilsMessengerEXT m_debug_utils_messenger = VK_NULL_HANDLE;
 
   PhysicalDeviceInfo m_device_info;
+  bool m_supports_dynamic_rendering = false;
 
   std::vector<std::string> m_device_extensions;
 };

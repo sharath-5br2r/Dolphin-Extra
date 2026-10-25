@@ -64,6 +64,11 @@ if(USE_DISCORD_PRESENCE)
   target_compile_definitions(dolphin-nogui PRIVATE -DUSE_DISCORD_PRESENCE)
 endif()
 
+# Memory card sync: emusync's library next to the executable (see DolphinQt).
+if(EMUSYNC_FOUND)
+  emusync_deploy_runtime(dolphin-nogui)
+endif()
+
 set(CPACK_PACKAGE_EXECUTABLES ${CPACK_PACKAGE_EXECUTABLES} dolphin-nogui)
 if (NOT WIN32)
   install(TARGETS dolphin-nogui RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

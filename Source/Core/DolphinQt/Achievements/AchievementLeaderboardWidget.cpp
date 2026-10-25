@@ -4,37 +4,32 @@
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinQt/Achievements/AchievementLeaderboardWidget.h"
 
-#include <QGroupBox>
+#include <QFrame>
 #include <QLabel>
-#include <QLineEdit>
 #include <QString>
-#include <QVBoxLayout>
 
 #include "Common/CommonTypes.h"
 #include "Core/AchievementManager.h"
 
+#include "DolphinQt/Achievements/AchievementLeaderboardCell.h"
 #include "DolphinQt/QtUtils/ClearLayoutRecursively.h"
 
-AchievementLeaderboardWidget::AchievementLeaderboardWidget(QWidget* parent) : QWidget(parent)
+#include "ui_AchievementLeaderboardWidget.h"
+
+AchievementLeaderboardWidget::AchievementLeaderboardWidget(QWidget* parent)
+    : QWidget(parent), m_ui(std::make_unique<Ui::AchievementLeaderboardWidget>())
 {
-  m_common_box = new QGroupBox();
-  m_common_layout = new QGridLayout();
-
-  m_common_box->setLayout(m_common_layout);
-
-  auto* layout = new QVBoxLayout;
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->setAlignment(Qt::AlignTop);
-  layout->addWidget(m_common_box);
-  layout->setSizeConstraint(QLayout::SetFixedSize);
-  setLayout(layout);
+  m_ui->setupUi(this);
 }
+
+AchievementLeaderboardWidget::~AchievementLeaderboardWidget() = default;
 
 void AchievementLeaderboardWidget::UpdateData(bool clean_all)
 {
   if (clean_all)
   {
-    ClearLayoutRecursively(m_common_layout);
+    m_leaderboard_order.clear();
+    ClearLayoutRecursively(m_ui->commonLayout);
 
     auto& instance = AchievementManager::GetInstance();
     if (!instance.IsGameLoaded())
@@ -47,55 +42,49 @@ void AchievementLeaderboardWidget::UpdateData(bool clean_all)
     for (u32 bucket = 0; bucket < leaderboard_list->num_buckets; bucket++)
     {
       const auto& leaderboard_bucket = leaderboard_list->buckets[bucket];
-      m_common_layout->addWidget(new QLabel(tr(leaderboard_bucket.label)), row, 0);
+      m_ui->commonLayout->addWidget(new QLabel(tr(leaderboard_bucket.label)), row, 0);
       row += 2;
       for (u32 board = 0; board < leaderboard_bucket.num_leaderboards; board++)
       {
         const auto* leaderboard = leaderboard_bucket.leaderboards[board];
-        m_leaderboard_order[leaderboard->id] = row;
-        QLabel* a_title = new QLabel(QString::fromUtf8(leaderboard->title));
-        a_title->setWordWrap(true);
-        a_title->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-        QLabel* a_description = new QLabel(QString::fromUtf8(leaderboard->description));
-        a_description->setWordWrap(true);
-        a_description->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-        QVBoxLayout* a_col_left = new QVBoxLayout();
-        a_col_left->addWidget(a_title);
-        a_col_left->addWidget(a_description);
-        QFrame* a_divider = new QFrame();
-        a_divider->setFrameShape(QFrame::HLine);
-        m_common_layout->addWidget(a_divider, row - 1, 0);
-        m_common_layout->addLayout(a_col_left, row, 0);
+        auto* description_cell = new AchievementLeaderboardCell(this);
+        description_cell->SetLeaderboard(QString::fromUtf8(leaderboard->title),
+                                         QString::fromUtf8(leaderboard->description));
+
+        auto* divider = new QFrame();
+        divider->setFrameShape(QFrame::HLine);
+        m_ui->commonLayout->addWidget(divider, row - 1, 0);
+        m_ui->commonLayout->addWidget(description_cell, row, 0);
+
+        std::array<AchievementLeaderboardCell*, 4> entries;
         for (size_t ix = 0; ix < 4; ix++)
         {
-          QVBoxLayout* a_col = new QVBoxLayout();
-          for (size_t jx = 0; jx < 3; jx++)
-            a_col->addWidget(new QLabel(QStringLiteral("---")));
-          QFrame* a_divider_2 = new QFrame();
-          a_divider_2->setFrameShape(QFrame::HLine);
-          m_common_layout->addWidget(a_divider_2, row - 1, static_cast<int>(ix) + 1);
-          m_common_layout->addLayout(a_col, row, static_cast<int>(ix) + 1);
+          auto* entry = new AchievementLeaderboardCell(this);
+          entry->SetPlaceholder();
+          entries[ix] = entry;
+
+          auto* entry_divider = new QFrame();
+          entry_divider->setFrameShape(QFrame::HLine);
+          m_ui->commonLayout->addWidget(entry_divider, row - 1, static_cast<int>(ix) + 1);
+          m_ui->commonLayout->addWidget(entry, row, static_cast<int>(ix) + 1);
         }
+        m_leaderboard_order.emplace(leaderboard->id, LeaderboardRow{entries});
         row += 2;
       }
     }
     rc_client_destroy_leaderboard_list(leaderboard_list);
   }
-  for (auto row : m_leaderboard_order)
-  {
-    UpdateRow(row.first);
-  }
+  for (const auto& item : m_leaderboard_order)
+    UpdateRow(item.first);
 }
 
 void AchievementLeaderboardWidget::UpdateData(
     const std::set<AchievementManager::AchievementId>& update_ids)
 {
-  for (auto row : m_leaderboard_order)
+  for (const auto& item : m_leaderboard_order)
   {
-    if (update_ids.contains(row.first))
-    {
-      UpdateRow(row.first);
-    }
+    if (update_ids.contains(item.first))
+      UpdateRow(item.first);
   }
 }
 
@@ -104,7 +93,7 @@ void AchievementLeaderboardWidget::UpdateRow(AchievementManager::AchievementId l
   const auto leaderboard_itr = m_leaderboard_order.find(leaderboard_id);
   if (leaderboard_itr == m_leaderboard_order.end())
     return;
-  const int row = leaderboard_itr->second;
+  const LeaderboardRow& row = leaderboard_itr->second;
 
   const AchievementManager::LeaderboardStatus* board;
   {
@@ -141,15 +130,12 @@ void AchievementLeaderboardWidget::UpdateRow(AchievementManager::AchievementId l
     const auto it = board->entries.find(to_display[ix]);
     if (it != board->entries.end())
     {
-      QVBoxLayout* a_col = new QVBoxLayout();
-      a_col->addWidget(new QLabel(tr("Rank %1").arg(it->second.rank)));
-      a_col->addWidget(new QLabel(QString::fromStdString(it->second.username)));
-      a_col->addWidget(new QLabel(QString::fromUtf8(it->second.score.data())));
-      auto old_item = m_common_layout->itemAtPosition(row, static_cast<int>(ix) + 1);
-      m_common_layout->removeItem(old_item);
-      ClearLayoutRecursively(static_cast<QLayout*>(old_item));
-      m_common_layout->addLayout(a_col, row, static_cast<int>(ix) + 1);
+      row.entries[ix]->SetScore(tr("Rank %1").arg(it->second.rank),
+                                QString::fromStdString(it->second.username),
+                                QString::fromUtf8(it->second.score.data()));
     }
+    else
+      row.entries[ix]->SetPlaceholder();
   }
 }
 

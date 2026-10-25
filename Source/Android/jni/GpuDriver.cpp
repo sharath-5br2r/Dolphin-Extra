@@ -83,12 +83,23 @@ Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_getSystemDri
                   VK_API_VERSION_MINOR(properties.driverVersion),
                   VK_API_VERSION_PATCH(properties.driverVersion));
 
+  const std::string deviceName = properties.deviceName;
+  const std::string vendorId = fmt::format("{:#x}", properties.vendorID);
+  const std::string apiVersion =
+      fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(properties.apiVersion),
+                  VK_API_VERSION_MINOR(properties.apiVersion),
+                  VK_API_VERSION_PATCH(properties.apiVersion));
+
   vkDestroyInstance(instance, nullptr);
   Vulkan::UnloadVulkanLibrary();
 
-  auto array = env->NewObjectArray(2, env->FindClass("java/lang/String"), nullptr);
+  // Consumed by GpuDriverHelper.getSystemGpuInfo(): keep the order in sync with SystemGpuInfo.kt.
+  auto array = env->NewObjectArray(5, env->FindClass("java/lang/String"), nullptr);
   env->SetObjectArrayElement(array, 0, ToJString(env, driverId));
   env->SetObjectArrayElement(array, 1, ToJString(env, driverVersion));
+  env->SetObjectArrayElement(array, 2, ToJString(env, deviceName));
+  env->SetObjectArrayElement(array, 3, ToJString(env, vendorId));
+  env->SetObjectArrayElement(array, 4, ToJString(env, apiVersion));
   return array;
 }
 

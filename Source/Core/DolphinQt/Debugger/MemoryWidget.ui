@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MemoryWidget</class>
+ <widget class="QWidget" name="MemoryWidget">
+  <layout class="QHBoxLayout" name="mainLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>2</number>
+   </property>
+   <property name="topMargin">
+    <number>2</number>
+   </property>
+   <property name="rightMargin">
+    <number>2</number>
+   </property>
+   <property name="bottomMargin">
+    <number>2</number>
+   </property>
+   <item>
+    <widget class="QSplitter" name="splitter">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QWidget" name="memoryViewContainer">
+      <layout class="QVBoxLayout" name="memoryViewLayout">
+       <property name="spacing">
+        <number>0</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+      </layout>
+     </widget>
+     <widget class="QScrollArea" name="sidebarScrollArea">
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="sidebarWidget">
+       <layout class="QVBoxLayout" name="sidebarLayout">
+        <property name="spacing">
+         <number>1</number>
+        </property>
+        <item>
+         <widget class="QMenuBar" name="menuBar">
+          <property name="nativeMenuBar">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSplitter" name="addressSplitter">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="handleWidth">
+           <number>1</number>
+          </property>
+          <widget class="QComboBox" name="searchAddressCombo">
+           <property name="editable">
+            <bool>true</bool>
+           </property>
+           <property name="insertPolicy">
+            <enum>QComboBox::InsertAtTop</enum>
+           </property>
+           <property name="duplicatesEnabled">
+            <bool>false</bool>
+           </property>
+           <property name="maxVisibleItems">
+            <number>8</number>
+           </property>
+           <property name="placeholderText">
+            <string>Search Address</string>
+           </property>
+          </widget>
+          <widget class="QLineEdit" name="searchOffsetEdit">
+           <property name="maxLength">
+            <number>9</number>
+           </property>
+           <property name="placeholderText">
+            <string>Offset</string>
+           </property>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="inputWidget" native="true">
+          <layout class="QHBoxLayout" name="inputLayout">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QLineEdit" name="dataEdit">
+             <property name="placeholderText">
+              <string>Value</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="hexCheckBox">
+             <property name="layoutDirection">
+              <enum>Qt::RightToLeft</enum>
+             </property>
+             <property name="text">
+              <string>Hex</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="inputTypeCombo">
+          <property name="maxVisibleItems">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="inputSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>1</width>
+            <height>10</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="dataPreviewLabel">
+          <property name="backgroundRole">
+           <enum>QPalette::AlternateBase</enum>
+          </property>
+          <property name="autoFillBackground">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="setValueButton">
+          <property name="text">
+           <string>Set &amp;Value</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="searchSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>1</width>
+            <height>10</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="searchGroup">
+          <property name="title">
+           <string>Search</string>
+          </property>
+          <layout class="QVBoxLayout" name="searchLayout">
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <item>
+            <widget class="QPushButton" name="findNextButton">
+             <property name="text">
+              <string>Find &amp;Next</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="findPreviousButton">
+             <property name="text">
+              <string>Find &amp;Previous</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="resultLabel"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="displaySpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>1</width>
+            <height>10</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="displayTypeGroup">
+          <property name="title">
+           <string>Display Type</string>
+          </property>
+          <layout class="QVBoxLayout" name="displayTypeLayout">
+           <item>
+            <widget class="QComboBox" name="displayTypeCombo">
+             <property name="maxVisibleItems">
+              <number>20</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="alignmentCombo"/>
+           </item>
+           <item>
+            <widget class="QComboBox" name="rowLengthCombo"/>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="dualViewCheckBox">
+             <property name="text">
+              <string>Dual View</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="addressSpaceSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>1</width>
+            <height>10</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="addressSpaceGroup">
+          <property name="title">
+           <string>Address Space</string>
+          </property>
+          <layout class="QVBoxLayout" name="addressSpaceLayout">
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <item>
+            <widget class="QRadioButton" name="effectiveAddressRadio">
+             <property name="text">
+              <string extracomment="One of the options shown below &quot;Address Space&quot;. &quot;Effective&quot; addresses are the addresses used directly by the CPU and may be subject to translation via the MMU to physical addresses.">Effective</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="auxiliaryAddressRadio">
+             <property name="text">
+              <string extracomment="One of the options shown below &quot;Address Space&quot;. &quot;Auxiliary&quot; is the address space of ARAM (Auxiliary RAM).">Auxiliary</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="physicalAddressRadio">
+             <property name="text">
+              <string extracomment="One of the options shown below &quot;Address Space&quot;. &quot;Physical&quot; is the address space that reflects how devices (e.g. RAM) is physically wired up.">Physical</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="breakpointSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeType">
+           <enum>QSizePolicy::Fixed</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>1</width>
+            <height>10</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="breakpointGroup">
+          <property name="title">
+           <string>Memory breakpoint options</string>
+          </property>
+          <layout class="QVBoxLayout" name="breakpointLayout">
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <item>
+            <widget class="QRadioButton" name="readWriteRadio">
+             <property name="text">
+              <string extracomment="This string is used for a radio button that represents the type of memory breakpoint that gets triggered when a read operation or write operation occurs. The string is not a command to read and write something or to allow reading and writing.">Read and write</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="readOnlyRadio">
+             <property name="text">
+              <string extracomment="This string is used for a radio button that represents the type of memory breakpoint that gets triggered when a read operation occurs. The string does not mean &quot;read-only&quot; in the sense that something cannot be written to.">Read only</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="writeOnlyRadio">
+             <property name="text">
+              <string extracomment="This string is used for a radio button that represents the type of memory breakpoint that gets triggered when a write operation occurs. The string does not mean &quot;write-only&quot; in the sense that something cannot be read from.">Write only</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="breakpointLogCheckBox">
+             <property name="text">
+              <string>Log</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="labelsGroup">
+          <property name="title">
+           <string>Labels</string>
+          </property>
+          <layout class="QVBoxLayout" name="labelsLayout">
+           <item>
+            <widget class="QTabWidget" name="labelsTabs">
+             <widget class="QWidget" name="notesTab">
+              <attribute name="title">
+               <string>Notes</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="notesLayout">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QListWidget" name="notesList"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="dataTab">
+              <attribute name="title">
+               <string>Data</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="dataLayout">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QListWidget" name="dataList"/>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="symbolsTab">
+              <attribute name="title">
+               <string>Symbols</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="symbolsLayout">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QListWidget" name="symbolsList">
+                 <property name="horizontalScrollBarPolicy">
+                  <enum>Qt::ScrollBarAlwaysOff</enum>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="labelsFilterEdit">
+             <property name="placeholderText">
+              <string extracomment="Filter is a verb. Typing into this text box will filter the label list so that only labels containing the typed text are shown.">Filter Label List</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="bottomSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -29,6 +29,7 @@
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
+#include "Core/HW/GCMemcard/MemcardSync.h"
 #include "Core/HW/Sram.h"
 #include "Core/System.h"
 
@@ -150,7 +151,10 @@ void MemoryCard::FlushThread()
       std::unique_lock l(m_flush_mutex);
       memcpy(&m_flush_buffer[0], &m_memcard_data[0], m_memory_card_size);
     }
-    file.WriteBytes(&m_flush_buffer[0], m_memory_card_size);
+    const bool written = file.WriteBytes(&m_flush_buffer[0], m_memory_card_size);
+    // Only a card written in full may be uploaded: a short write would spread to other devices.
+    if (file.Close() && written)
+      MemcardSync::OnCardWritten(m_filename);
 
     if (do_exit)
       return;

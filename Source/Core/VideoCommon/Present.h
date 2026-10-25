@@ -22,8 +22,8 @@ enum class DolphinKey;
 
 namespace VideoCommon
 {
+class IPostProcessor;
 class OnScreenUI;
-class PostProcessing;
 
 // Presenter is a class that deals with putting the final XFB on the screen.
 // It also handles the ImGui UI and post-processing.
@@ -32,7 +32,7 @@ class Presenter
 public:
   using ClearColor = std::array<float, 4>;
 
-  Presenter();
+  explicit Presenter(bool ui_only = false);
   virtual ~Presenter();
 
   void ViSwap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u64 ticks,
@@ -45,6 +45,9 @@ public:
   void ClearLastXfbId() { m_last_xfb_id = std::numeric_limits<u64>::max(); }
 
   bool Initialize();
+  bool InitializeUI();
+  bool PresentUI();
+  void SetUIScale(float scale);
 
   void ConfigChanged(u32 changed_bits);
 
@@ -84,11 +87,14 @@ public:
 
   // Draws the specified XFB buffer to the screen, performing any post-processing.
   // Assumes that the backbuffer has already been bound and cleared.
+  // native_width/native_height are the game's resolution before internal-resolution upscaling,
+  // passed to post-processing so effects render resolution-independently.
   virtual void RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
                                  const AbstractTexture* source_texture,
-                                 const MathUtil::Rectangle<int>& source_rc);
+                                 const MathUtil::Rectangle<int>& source_rc, u32 native_width = 0,
+                                 u32 native_height = 0);
 
-  VideoCommon::PostProcessing* GetPostProcessor() const { return m_post_processor.get(); }
+  VideoCommon::IPostProcessor* GetPostProcessor() const { return m_post_processor.get(); }
   // Final surface changing
   // This is called when the surface is resized (WX) or the window changes (Android).
   void ChangeSurface(void* new_surface_handle);
@@ -110,6 +116,8 @@ public:
   const MathUtil::Rectangle<int>& GetTargetRectangle() const { return m_target_rectangle; }
 
 private:
+  bool m_ui_only = false;
+  float m_ui_scale = 0;
   // Fetches the XFB texture from the texture cache.
   // Returns true the contents have changed since last time
   bool FetchXFB(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u64 ticks);
@@ -162,7 +170,7 @@ private:
   int m_last_window_request_width = 0;
   int m_last_window_request_height = 0;
 
-  std::unique_ptr<VideoCommon::PostProcessing> m_post_processor;
+  std::unique_ptr<VideoCommon::IPostProcessor> m_post_processor;
   std::unique_ptr<VideoCommon::OnScreenUI> m_onscreen_ui;
 
   u64 m_frame_count = 0;

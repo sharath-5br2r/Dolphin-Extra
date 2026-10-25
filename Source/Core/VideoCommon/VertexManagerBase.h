@@ -139,6 +139,12 @@ public:
                              const u16* indices, u32 num_indices, u32* out_base_vertex,
                              u32* out_base_index);
 
+  // When utility uniforms are used, the GX uniforms need to be re-written afterwards. Public, not
+  // just protected: a backend that hands its context to foreign code (a librashader filter chain)
+  // has to mark the uniforms dirty from its own InvalidateCachedState(), and those Gfx classes are
+  // not VertexManagerBase subclasses.
+  static void InvalidateConstants();
+
   // Determine how many bytes there are in each element of the texel buffer.
   // Needed for alignment and stride calculations.
   static u32 GetTexelBufferElementSize(TexelBufferFormat buffer_format);
@@ -169,9 +175,6 @@ public:
   void OnEndFrame();
 
 protected:
-  // When utility uniforms are used, the GX uniforms need to be re-written afterwards.
-  static void InvalidateConstants();
-
   // Prepares the buffer for the next batch of vertices.
   virtual void ResetBuffer(u32 vertex_stride);
 

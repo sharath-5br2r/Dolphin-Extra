@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EnhancementsWidget</class>
+ <widget class="QWidget" name="EnhancementsWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>660</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="enhancementsGroup">
+     <property name="title">
+      <string>Enhancements</string>
+     </property>
+     <layout class="QGridLayout" name="enhancementsLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="internalResolutionLabel">
+        <property name="text">
+         <string>Internal Resolution:</string>
+        </property>
+        <property name="buddy">
+         <cstring>internalResolutionComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1" colspan="2">
+       <widget class="QComboBox" name="internalResolutionComboBox"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="antiAliasingLabel">
+        <property name="text">
+         <string>Anti-Aliasing:</string>
+        </property>
+        <property name="buddy">
+         <cstring>antiAliasingComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1" colspan="2">
+       <widget class="QComboBox" name="antiAliasingComboBox"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="textureFilteringLabel">
+        <property name="text">
+         <string>Texture Filtering:</string>
+        </property>
+        <property name="buddy">
+         <cstring>textureFilteringComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <widget class="QComboBox" name="textureFilteringComboBox"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="postProcessingLabel">
+        <property name="text">
+         <string>Post-Processing Effect:</string>
+        </property>
+        <property name="buddy">
+         <cstring>postProcessingPresetLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1" colspan="2">
+       <widget class="QLineEdit" name="postProcessingPresetLineEdit">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="placeholderText">
+         <string>(None)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="3">
+       <layout class="QHBoxLayout" name="postProcessingButtonsLayout">
+        <item>
+         <widget class="QPushButton" name="postProcessingBrowseButton">
+          <property name="text">
+           <string>Browse…</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="postProcessingClearButton">
+          <property name="text">
+           <string>Clear</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="downloadShaderPackButton">
+          <property name="text">
+           <string>Download…</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="postProcessingParametersButton">
+          <property name="text">
+           <string>Parameters…</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="5" column="0">
+       <widget class="QCheckBox" name="scaledEfbCopyCheckBox">
+        <property name="text">
+         <string>Scaled EFB Copy</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1" colspan="2">
+       <widget class="QCheckBox" name="perPixelLightingCheckBox">
+        <property name="text">
+         <string>Per-Pixel Lighting</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QCheckBox" name="widescreenHackCheckBox">
+        <property name="text">
+         <string>Widescreen Hack</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1" colspan="2">
+       <widget class="QCheckBox" name="force24BitColorCheckBox">
+        <property name="text">
+         <string>Force 24-Bit Color</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QCheckBox" name="disableFogCheckBox">
+        <property name="text">
+         <string>Disable Fog</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1" colspan="2">
+       <widget class="QCheckBox" name="arbitraryMipmapDetectionCheckBox">
+        <property name="text">
+         <string>Arbitrary Mipmap Detection</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QCheckBox" name="disableCopyFilterCheckBox">
+        <property name="text">
+         <string>Disable Copy Filter</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1" colspan="2">
+       <widget class="QCheckBox" name="hdrCheckBox">
+        <property name="text">
+         <string>HDR Post-Processing</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="stereoscopyGroup">
+     <property name="title">
+      <string>Stereoscopy</string>
+     </property>
+     <layout class="QGridLayout" name="stereoscopyLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="stereoModeLabel">
+        <property name="text">
+         <string>Stereoscopic 3D Mode:</string>
+        </property>
+        <property name="buddy">
+         <cstring>stereoModeComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="stereoModeComboBox">
+        <item>
+         <property name="text">
+          <string>Off</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Side-by-Side</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Top-and-Bottom</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>HDMI 3D</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="stereoDepthLabel">
+        <property name="text">
+         <string>Depth:</string>
+        </property>
+        <property name="buddy">
+         <cstring>stereoDepthSlider</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSlider" name="stereoDepthSlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLabel" name="stereoDepthValueLabel">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="stereoConvergenceLabel">
+        <property name="text">
+         <string>Convergence:</string>
+        </property>
+        <property name="buddy">
+         <cstring>stereoConvergenceSlider</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QSlider" name="stereoConvergenceSlider">
+        <property name="maximum">
+         <number>20000</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QLabel" name="stereoConvergenceValueLabel">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QCheckBox" name="swapEyesCheckBox">
+        <property name="text">
+         <string>Swap Eyes</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QCheckBox" name="fullResolutionPerEyeCheckBox">
+        <property name="text">
+         <string>Use Full Resolution Per Eye</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>internalResolutionComboBox</tabstop>
+  <tabstop>antiAliasingComboBox</tabstop>
+  <tabstop>textureFilteringComboBox</tabstop>
+  <tabstop>postProcessingPresetLineEdit</tabstop>
+  <tabstop>postProcessingBrowseButton</tabstop>
+  <tabstop>postProcessingClearButton</tabstop>
+  <tabstop>downloadShaderPackButton</tabstop>
+  <tabstop>postProcessingParametersButton</tabstop>
+  <tabstop>scaledEfbCopyCheckBox</tabstop>
+  <tabstop>perPixelLightingCheckBox</tabstop>
+  <tabstop>widescreenHackCheckBox</tabstop>
+  <tabstop>force24BitColorCheckBox</tabstop>
+  <tabstop>disableFogCheckBox</tabstop>
+  <tabstop>arbitraryMipmapDetectionCheckBox</tabstop>
+  <tabstop>disableCopyFilterCheckBox</tabstop>
+  <tabstop>hdrCheckBox</tabstop>
+  <tabstop>stereoModeComboBox</tabstop>
+  <tabstop>stereoDepthSlider</tabstop>
+  <tabstop>stereoConvergenceSlider</tabstop>
+  <tabstop>swapEyesCheckBox</tabstop>
+  <tabstop>fullResolutionPerEyeCheckBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

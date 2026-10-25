@@ -10,7 +10,6 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QTableWidget>
-#include <QVBoxLayout>
 
 #include <fmt/format.h>
 
@@ -22,6 +21,8 @@
 #include "Core/System.h"
 #include "DolphinQt/Host.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_RegisterWidget.h"
 
 RegisterWidget::RegisterWidget(QWidget* parent)
     : QDockWidget(parent), m_system(Core::System::GetInstance())
@@ -76,14 +77,14 @@ void RegisterWidget::showEvent(QShowEvent* event)
 
 void RegisterWidget::CreateWidgets()
 {
-  m_table = new QTableWidget;
-  m_table->setTabKeyNavigation(false);
+  auto* widget = new QWidget;
+  Ui::RegisterWidget ui;
+  ui.setupUi(widget);
+  m_table = ui.table;
 
   m_table->setColumnCount(9);
 
   m_table->verticalHeader()->setVisible(false);
-  m_table->setContextMenuPolicy(Qt::CustomContextMenu);
-  m_table->setSelectionMode(QAbstractItemView::NoSelection);
 
   OnDebugFontChanged(Settings::Instance().GetDebugFont());
 
@@ -93,12 +94,6 @@ void RegisterWidget::CreateWidgets()
     empty_list << QString{};
 
   m_table->setHorizontalHeaderLabels(empty_list);
-
-  QWidget* widget = new QWidget;
-  auto* layout = new QVBoxLayout;
-  layout->addWidget(m_table);
-  layout->setContentsMargins(2, 2, 2, 2);
-  widget->setLayout(layout);
 
   setWidget(widget);
 }

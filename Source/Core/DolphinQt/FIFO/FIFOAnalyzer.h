@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 
 #include <QWidget>
@@ -11,14 +12,11 @@
 
 class FifoPlayer;
 class QFont;
-class QGroupBox;
-class QLabel;
-class QLineEdit;
-class QListWidget;
-class QPushButton;
-class QSplitter;
-class QTextBrowser;
-class QTreeWidget;
+
+namespace Ui
+{
+class FIFOAnalyzer;
+}
 
 class FIFOAnalyzer final : public QWidget
 {
@@ -31,7 +29,6 @@ public:
   void Update();
 
 private:
-  void CreateWidgets();
   void ConnectWidgets();
 
   void BeginSearch();
@@ -47,20 +44,7 @@ private:
   void OnDebugFontChanged(const QFont& font);
 
   FifoPlayer& m_fifo_player;
-
-  QTreeWidget* m_tree_widget;
-  QListWidget* m_detail_list;
-  QTextBrowser* m_entry_detail_browser;
-  QSplitter* m_object_splitter;
-
-  // Search
-  QGroupBox* m_search_box;
-  QLineEdit* m_search_edit;
-  QPushButton* m_search_new;
-  QPushButton* m_search_next;
-  QPushButton* m_search_previous;
-  QLabel* m_search_label;
-  QSplitter* m_search_splitter;
+  std::unique_ptr<Ui::FIFOAnalyzer> m_ui;
 
   struct SearchResult
   {

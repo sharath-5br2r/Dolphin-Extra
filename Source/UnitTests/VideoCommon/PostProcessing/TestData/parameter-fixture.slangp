@@ -1,0 +1,5 @@
+shaders = "1"
+shader0 = "parameter-fixture.slang"
+filter_linear0 = "true"
+test_gamma = "2.400000"
+test_flag = "0.000000"

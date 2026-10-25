@@ -3,23 +3,28 @@
 
 #pragma once
 
-#include <QToolBar>
+#include <QObject>
 
 class QAction;
+class QToolBar;
 
 namespace Core
 {
 enum class State;
 }
 
-class ToolBar final : public QToolBar
+namespace Ui
+{
+class MainWindow;
+}
+
+class ToolBar final : public QObject
 {
   Q_OBJECT
 
 public:
-  explicit ToolBar(QWidget* parent = nullptr);
+  explicit ToolBar(Ui::MainWindow& ui, QObject* parent = nullptr);
 
-  void closeEvent(QCloseEvent*) override;
 signals:
   void OpenPressed();
   void RefreshPressed();
@@ -47,10 +52,11 @@ private:
   void OnEmulationStateChanged(Core::State state);
   void OnDebugModeToggled(bool enabled);
 
-  void MakeActions();
+  void ConnectActions();
   void UpdateIcons();
   void UpdatePausePlayButtonState(bool playing_state);
 
+  QToolBar* m_toolbar;
   QAction* m_open_action;
   QAction* m_refresh_action;
   QAction* m_pause_play_action;

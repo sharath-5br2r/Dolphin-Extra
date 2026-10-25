@@ -4,6 +4,7 @@
 #pragma once
 
 #include <array>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -13,23 +14,23 @@
 #include "Core/HW/EXI/EXI.h"
 #include "DolphinQt/MainWindow.h"
 
-class ConfigBool;
-class ConfigChoice;
-class ConfigText;
-class ConfigUserPath;
 class QComboBox;
-class QHBoxLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
 class QString;
-class QVBoxLayout;
+
+namespace Ui
+{
+class GameCubePane;
+}
 
 class GameCubePane : public QWidget
 {
   Q_OBJECT
 public:
   explicit GameCubePane(MainWindow* main_window);
+  ~GameCubePane() override;
 
   static std::string GetOpenGBARom(std::string_view title);
 
@@ -37,7 +38,9 @@ signals:
   void ShowTriforceWindow();
 
 private:
-  void CreateWidgets();
+  void ConfigureWidgets();
+  void BindSettings();
+  void PopulateDeviceChoices();
   void ConnectWidgets();
 
   void LoadSettings();
@@ -62,30 +65,21 @@ private:
   void BrowseGBASaves();
 #endif  // HAS_LIBMGBA
 
-  ConfigBool* m_skip_main_menu;
-  ConfigChoice* m_language_combo;
+  std::unique_ptr<Ui::GameCubePane> m_ui;
 
   Common::EnumMap<QPushButton*, ExpansionInterface::Slot::SP1> m_slot_buttons;
   Common::EnumMap<QComboBox*, ExpansionInterface::Slot::SP1> m_slot_combos;
 
-  Common::EnumMap<QHBoxLayout*, ExpansionInterface::MAX_MEMCARD_SLOT> m_memcard_path_layouts;
   Common::EnumMap<QLabel*, ExpansionInterface::MAX_MEMCARD_SLOT> m_memcard_path_labels;
   Common::EnumMap<QLineEdit*, ExpansionInterface::MAX_MEMCARD_SLOT> m_memcard_paths;
 
-  Common::EnumMap<QHBoxLayout*, ExpansionInterface::MAX_MEMCARD_SLOT> m_agp_path_layouts;
   Common::EnumMap<QLabel*, ExpansionInterface::MAX_MEMCARD_SLOT> m_agp_path_labels;
   Common::EnumMap<QLineEdit*, ExpansionInterface::MAX_MEMCARD_SLOT> m_agp_paths;
 
-  Common::EnumMap<QVBoxLayout*, ExpansionInterface::MAX_MEMCARD_SLOT> m_gci_path_layouts;
   Common::EnumMap<QLabel*, ExpansionInterface::MAX_MEMCARD_SLOT> m_gci_path_labels;
   Common::EnumMap<QLabel*, ExpansionInterface::MAX_MEMCARD_SLOT> m_gci_override_labels;
   Common::EnumMap<QLineEdit*, ExpansionInterface::MAX_MEMCARD_SLOT> m_gci_paths;
 
-  ConfigBool* m_gba_save_rom_path;
-  QPushButton* m_gba_browse_bios;
-  ConfigUserPath* m_gba_bios_edit;
-  std::array<QPushButton*, 5> m_gba_browse_roms;
-  std::array<ConfigText*, 5> m_gba_rom_edits;
-  QPushButton* m_gba_browse_saves;
-  ConfigUserPath* m_gba_saves_edit;
+  std::array<QPushButton*, 5> m_gba_browse_roms{};
+  std::array<QLineEdit*, 5> m_gba_rom_edits{};
 };

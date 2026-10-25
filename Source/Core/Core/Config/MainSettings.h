@@ -266,6 +266,7 @@ extern const Info<bool> MAIN_LOCK_CURSOR;
 extern const Info<std::string> MAIN_INTERFACE_LANGUAGE;
 extern const Info<bool> MAIN_SHOW_ACTIVE_TITLE;
 extern const Info<bool> MAIN_USE_BUILT_IN_TITLE_DATABASE;
+extern const Info<bool> MAIN_USE_CLASSIC_DOLPHIN_UI;
 extern const Info<std::string> MAIN_THEME_NAME;
 extern const Info<bool> MAIN_PAUSE_ON_FOCUS_LOST;
 extern const Info<bool> MAIN_ENABLE_DEBUGGING;

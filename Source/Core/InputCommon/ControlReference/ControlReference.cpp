@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "InputCommon/ControlReference/ControlReference.h"
+#include "Common/BigPicture/PresentationState.h"
+#include "InputCommon/ControllerInterface/ControllerInterface.h"
 
 using namespace ciface::ExpressionParser;
 
@@ -39,6 +41,12 @@ int ControlReference::BoundCount() const
     return 0;
 }
 
+void ControlReference::ClearHotkeySuppressions()
+{
+  if (m_parsed_expression)
+    m_parsed_expression->ClearHotkeySuppressions();
+}
+
 ParseStatus ControlReference::GetParseStatus() const
 {
   return m_parse_status;
@@ -64,6 +72,7 @@ ControlReference::~ControlReference() = default;
 
 InputReference::InputReference() : ControlReference()
 {
+  m_input_epoch = BigPicture::GetPresentationState().GetInputEpoch();
 }
 
 OutputReference::OutputReference() : ControlReference()
@@ -87,8 +96,27 @@ bool OutputReference::IsInput() const
 //
 ControlState InputReference::State(const ControlState ignore)
 {
+  const bool menu_input =
+      ControllerInterface::GetCurrentInputChannel() == ciface::InputChannel::BigPicture;
+  auto& capture = BigPicture::GetPresentationState();
+  const auto epoch = capture.GetInputEpoch();
+  if (epoch != m_input_epoch)
+  {
+    m_input_epoch = epoch;
+    m_require_release = true;
+  }
+  if (!menu_input && capture.IsModal())
+    return 0;
   if (m_parsed_expression && GetInputGate())
+  {
+    if (m_require_release)
+    {
+      if (m_parsed_expression->IsAnyInputActive())
+        return 0;
+      m_require_release = false;
+    }
     return m_parsed_expression->GetValue() * range;
+  }
   return 0.0;
 }
 

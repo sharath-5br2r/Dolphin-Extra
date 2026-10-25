@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <deque>
+#include <utility>
 
 #include "Common/CommonTypes.h"
 #include "Common/HookableEvent.h"
@@ -41,6 +42,7 @@ public:
   double GetVPS() const;
   double GetSpeed() const;
   double GetMaxSpeed() const;
+  std::pair<u32, u32> GetLatestFrameBufferSize() const;
   // Call from any thread.
   void SetLatestFramePresentationOffset(DT offset);
   void SetLatestFrameBufferSize(u32 width, u32 height);

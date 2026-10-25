@@ -197,9 +197,6 @@ bool GameFile::IsValid() const
 
 bool GameFile::CustomCoverChanged()
 {
-  if (!m_custom_cover.buffer.empty() || !UseGameCovers())
-    return false;
-
   std::string path, name;
   SplitPath(m_file_path, &path, &name, nullptr);
 
@@ -216,10 +213,15 @@ bool GameFile::CustomCoverChanged()
     success = File::Exists(alt_cover_path) && File::ReadFileToString(alt_cover_path, contents);
   }
 
+  std::vector<u8> buffer;
   if (success)
-    m_pending.custom_cover.buffer = {contents.begin(), contents.end()};
+    buffer.assign(contents.begin(), contents.end());
 
-  return success;
+  if (buffer == m_custom_cover.buffer)
+    return false;
+
+  m_pending.custom_cover.buffer = std::move(buffer);
+  return true;
 }
 
 void GameFile::DownloadDefaultCover()

@@ -209,7 +209,9 @@ static u32 getAPIVersion()
   if (vkEnumerateInstanceVersion && vkEnumerateInstanceVersion(&supported_version) == VK_SUCCESS)
   {
     // The device itself may not support 1.1, so we check that before using any 1.1 functionality.
-    if (supported_version >= VK_API_VERSION_1_2)
+    if (supported_version >= VK_API_VERSION_1_3)
+      used_version = VK_API_VERSION_1_3;
+    else if (supported_version >= VK_API_VERSION_1_2)
       used_version = VK_API_VERSION_1_2;
     else if (supported_version >= VK_API_VERSION_1_1)
       used_version = VK_API_VERSION_1_1;
@@ -437,6 +439,7 @@ void VulkanContext::PopulateBackendInfo(BackendInfo* backend_info)
   backend_info->bSupportsPipelineCacheData = false;         // Handled via pipeline caches.
   backend_info->bSupportsDynamicSamplerIndexing = true;     // Assumed support.
   backend_info->bSupportsPostProcessing = true;             // Assumed support.
+  backend_info->bSupportsGPUMipGeneration = true;  // VKTexture::GenerateMipmaps blits the chain.
   backend_info->bSupportsBackgroundCompiling = true;        // Assumed support.
   backend_info->bSupportsCopyToVram = true;                 // Assumed support.
   backend_info->bSupportsReversedDepthRange = true;         // Assumed support.
@@ -662,6 +665,15 @@ bool VulkanContext::SelectDeviceExtensions(bool enable_surface)
   AddExtension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, false);
   AddExtension(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false);
 
+  // Dynamic rendering is core in 1.3. On 1.2 devices the KHR extension is self-contained (its
+  // dependencies are core there); on older devices leave it alone rather than enable it without
+  // them. Only the librashader post-processor consumes it (see CreateDevice).
+  if (m_device_info.apiVersion >= VK_API_VERSION_1_2 &&
+      m_device_info.apiVersion < VK_API_VERSION_1_3)
+  {
+    AddExtension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
+  }
+
   if (!DriverDetails::HasBug(DriverDetails::BUG_BROKEN_DEPTH_CLAMP_CONTROL))
   {
     // Unrestricted depth range is one of the few extensions that changes the behavior
@@ -803,6 +815,31 @@ bool VulkanContext::CreateDevice(VkSurfaceKHR surface, bool enable_validation_la
 
   VkPhysicalDeviceFeatures device_features = m_device_info.features();
   device_info.pEnabledFeatures = &device_features;
+
+  // Dynamic rendering (core 1.3, or VK_KHR_dynamic_rendering on 1.2) lets the librashader
+  // post-processor record its passes without creating a VkFramebuffer per pass per frame. Probe the
+  // feature bit through features2 and enable it when present; nothing else in the backend uses it.
+  VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features = {};
+  dynamic_rendering_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+  const bool dynamic_rendering_available =
+      m_device_info.apiVersion >= VK_API_VERSION_1_3 ||
+      SupportsDeviceExtension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+  if (dynamic_rendering_available && vkGetPhysicalDeviceFeatures2)
+  {
+    VkPhysicalDeviceFeatures2 features2 = {};
+    features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features2.pNext = &dynamic_rendering_features;
+    vkGetPhysicalDeviceFeatures2(m_physical_device, &features2);
+    m_supports_dynamic_rendering = dynamic_rendering_features.dynamicRendering == VK_TRUE;
+  }
+  if (m_supports_dynamic_rendering)
+  {
+    dynamic_rendering_features.pNext = nullptr;
+    dynamic_rendering_features.dynamicRendering = VK_TRUE;
+    device_info.pNext = &dynamic_rendering_features;
+  }
+  INFO_LOG_FMT(VIDEO, "Vulkan: dynamic rendering {}",
+               m_supports_dynamic_rendering ? "enabled" : "unavailable");
 
   // Enable debug layer on debug builds
   if (enable_validation_layer)

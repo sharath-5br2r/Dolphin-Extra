@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyDebugging.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingGridPage.h"
 
 HotkeyDebugging::HotkeyDebugging(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,17 +14,16 @@ HotkeyDebugging::HotkeyDebugging(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyDebugging::CreateMainLayout()
 {
-  m_main_layout = new QGridLayout();
+  Ui::MappingGridPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Stepping"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_STEPPING)), 0, 0, -1, 1);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Program Counter"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_PC)), 0, 1);
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Breakpoint"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_BREAKPOINT)), 1, 1);
-
-  setLayout(m_main_layout);
 }
 
 InputConfig* HotkeyDebugging::GetConfig()

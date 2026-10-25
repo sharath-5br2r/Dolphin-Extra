@@ -8,6 +8,7 @@
 
 #include <QAction>
 #include <QIcon>
+#include <QToolBar>
 
 #include "Core/Core.h"
 #include "Core/System.h"
@@ -15,20 +16,27 @@
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 
-static QSize ICON_SIZE(32, 32);
+#include "ui_MainWindow.h"
 
-ToolBar::ToolBar(QWidget* parent) : QToolBar(parent)
+ToolBar::ToolBar(Ui::MainWindow& ui, QObject* parent)
+    : QObject(parent), m_toolbar(ui.toolbar), m_open_action(ui.actionToolbarOpen),
+      m_refresh_action(ui.actionToolbarRefresh), m_pause_play_action(ui.actionToolbarPlayPause),
+      m_stop_action(ui.actionToolbarStop), m_fullscreen_action(ui.actionToolbarFullScreen),
+      m_screenshot_action(ui.actionToolbarScreenShot), m_config_action(ui.actionToolbarSettings),
+      m_controllers_action(ui.actionToolbarControllers),
+      m_graphics_action(ui.actionToolbarGraphics), m_step_action(ui.actionToolbarStep),
+      m_step_over_action(ui.actionToolbarStepOver), m_step_out_action(ui.actionToolbarStepOut),
+      m_skip_action(ui.actionToolbarSkip), m_show_pc_action(ui.actionToolbarShowPC),
+      m_set_pc_action(ui.actionToolbarSetPC)
 {
-  setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-  setMovable(!Settings::Instance().AreWidgetsLocked());
-  setFloatable(false);
-  setIconSize(ICON_SIZE);
-  setVisible(Settings::Instance().IsToolBarVisible());
+  m_netplay_setup_action = m_toolbar->addAction(tr("Netplay"));
+  m_cloud_saves_action = m_toolbar->addAction(tr("Cloud Saves"));
+  m_updater_action = m_toolbar->addAction(tr("Update"));
 
-  setWindowTitle(tr("Toolbar"));
-  setObjectName(QStringLiteral("toolbar"));
+  m_toolbar->setMovable(!Settings::Instance().AreWidgetsLocked());
+  m_toolbar->setVisible(Settings::Instance().IsToolBarVisible());
 
-  MakeActions();
+  ConnectActions();
   connect(&Settings::Instance(), &Settings::ThemeChanged, this, &ToolBar::UpdateIcons);
   UpdateIcons();
 
@@ -40,11 +48,13 @@ ToolBar::ToolBar(QWidget* parent) : QToolBar(parent)
 
   connect(&Settings::Instance(), &Settings::DebugModeToggled, this, &ToolBar::OnDebugModeToggled);
 
-  connect(&Settings::Instance(), &Settings::ToolBarVisibilityChanged, this, &ToolBar::setVisible);
-  connect(this, &ToolBar::visibilityChanged, &Settings::Instance(), &Settings::SetToolBarVisible);
+  connect(&Settings::Instance(), &Settings::ToolBarVisibilityChanged, m_toolbar,
+          &QToolBar::setVisible);
+  connect(m_toolbar, &QToolBar::visibilityChanged, &Settings::Instance(),
+          &Settings::SetToolBarVisible);
 
   connect(&Settings::Instance(), &Settings::WidgetLockChanged, this,
-          [this](bool locked) { setMovable(!locked); });
+          [this](bool locked) { m_toolbar->setMovable(!locked); });
 
   connect(&Settings::Instance(), &Settings::GameListRefreshRequested, this,
           [this] { m_refresh_action->setEnabled(false); });
@@ -73,11 +83,6 @@ void ToolBar::OnEmulationStateChanged(Core::State state)
   m_set_pc_action->setEnabled(paused);
 }
 
-void ToolBar::closeEvent(QCloseEvent*)
-{
-  Settings::Instance().SetToolBarVisible(false);
-}
-
 void ToolBar::OnDebugModeToggled(bool enabled)
 {
   m_step_action->setVisible(enabled);
@@ -95,46 +100,30 @@ void ToolBar::OnDebugModeToggled(bool enabled)
   m_set_pc_action->setEnabled(paused);
 }
 
-void ToolBar::MakeActions()
+void ToolBar::ConnectActions()
 {
-  // i18n: Here, "Step" is a verb. This feature is used for
-  // going through code step by step.
-  m_step_action = addAction(tr("Step"), this, &ToolBar::StepPressed);
-  // i18n: Here, "Step" is a verb. This feature is used for
-  // going through code step by step.
-  m_step_over_action = addAction(tr("Step Over"), this, &ToolBar::StepOverPressed);
-  // i18n: Here, "Step" is a verb. This feature is used for
-  // going through code step by step.
-  m_step_out_action = addAction(tr("Step Out"), this, &ToolBar::StepOutPressed);
-  m_skip_action = addAction(tr("Skip"), this, &ToolBar::SkipPressed);
-  // i18n: Here, PC is an acronym for program counter, not personal computer.
-  m_show_pc_action = addAction(tr("Show PC"), this, &ToolBar::ShowPCPressed);
-  // i18n: Here, PC is an acronym for program counter, not personal computer.
-  m_set_pc_action = addAction(tr("Set PC"), this, &ToolBar::SetPCPressed);
+  connect(m_step_action, &QAction::triggered, this, &ToolBar::StepPressed);
+  connect(m_step_over_action, &QAction::triggered, this, &ToolBar::StepOverPressed);
+  connect(m_step_out_action, &QAction::triggered, this, &ToolBar::StepOutPressed);
+  connect(m_skip_action, &QAction::triggered, this, &ToolBar::SkipPressed);
+  connect(m_show_pc_action, &QAction::triggered, this, &ToolBar::ShowPCPressed);
+  connect(m_set_pc_action, &QAction::triggered, this, &ToolBar::SetPCPressed);
 
-  m_open_action = addAction(tr("Open"), this, &ToolBar::OpenPressed);
-  m_refresh_action = addAction(tr("Refresh"), [this] { emit RefreshPressed(); });
+  connect(m_open_action, &QAction::triggered, this, &ToolBar::OpenPressed);
+  connect(m_refresh_action, &QAction::triggered, this, &ToolBar::RefreshPressed);
   m_refresh_action->setEnabled(false);
 
-  addSeparator();
+  connect(m_pause_play_action, &QAction::triggered, this, &ToolBar::PlayPressed);
+  connect(m_stop_action, &QAction::triggered, this, &ToolBar::StopPressed);
+  connect(m_fullscreen_action, &QAction::triggered, this, &ToolBar::FullScreenPressed);
+  connect(m_screenshot_action, &QAction::triggered, this, &ToolBar::ScreenShotPressed);
 
-  m_pause_play_action = addAction(tr("Play"), this, &ToolBar::PlayPressed);
-
-  m_stop_action = addAction(tr("Stop"), this, &ToolBar::StopPressed);
-  m_fullscreen_action = addAction(tr("FullScr"), this, &ToolBar::FullScreenPressed);
-  m_screenshot_action = addAction(tr("ScrShot"), this, &ToolBar::ScreenShotPressed);
-  m_netplay_setup_action = addAction(tr("Netplay"), this, &ToolBar::NetPlaySetupDialogPressed);
-
-  addSeparator();
-
-  m_config_action = addAction(tr("Config"), this, &ToolBar::SettingsPressed);
-  m_graphics_action = addAction(tr("Graphics"), this, &ToolBar::GraphicsPressed);
-  m_controllers_action = addAction(tr("Controllers"), this, &ToolBar::ControllersPressed);
-  m_cloud_saves_action = addAction(tr("Cloud Saves"), this, &ToolBar::CloudSavesPressed);
-
-  addSeparator();
-
-  m_updater_action = addAction(tr("Update"), this, &ToolBar::InstallUpdateManuallyPressed);
+  connect(m_config_action, &QAction::triggered, this, &ToolBar::SettingsPressed);
+  connect(m_graphics_action, &QAction::triggered, this, &ToolBar::GraphicsPressed);
+  connect(m_controllers_action, &QAction::triggered, this, &ToolBar::ControllersPressed);
+  connect(m_cloud_saves_action, &QAction::triggered, this, &ToolBar::CloudSavesPressed);
+  connect(m_netplay_setup_action, &QAction::triggered, this, &ToolBar::NetPlaySetupDialogPressed);
+  connect(m_updater_action, &QAction::triggered, this, &ToolBar::InstallUpdateManuallyPressed);
 
   // Ensure every button has about the same width
   std::vector<QWidget*> items;
@@ -144,7 +133,7 @@ void ToolBar::MakeActions()
         m_cloud_saves_action, m_step_action, m_step_over_action, m_step_out_action, m_skip_action,
         m_show_pc_action, m_set_pc_action, m_netplay_setup_action, m_updater_action})
   {
-    items.emplace_back(widgetForAction(action));
+    items.emplace_back(m_toolbar->widgetForAction(action));
   }
 
   std::vector<int> widths;

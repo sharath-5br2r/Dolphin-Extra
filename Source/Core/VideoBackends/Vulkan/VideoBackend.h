@@ -12,6 +12,8 @@ class VideoBackend : public VideoBackendBase
 {
 public:
   bool Initialize(const WindowSystemInfo& wsi) override;
+  bool SupportsUI() const override { return true; }
+  bool InitializeUI(const WindowSystemInfo& wsi) override;
   void Shutdown() override;
 
   std::string GetConfigName() const override { return CONFIG_NAME; }
@@ -20,5 +22,8 @@ public:
   void PrepareWindow(WindowSystemInfo& wsi) override;
 
   static constexpr const char* CONFIG_NAME = "Vulkan";
+
+private:
+  bool InitializeInternal(const WindowSystemInfo& wsi);
 };
 }  // namespace Vulkan

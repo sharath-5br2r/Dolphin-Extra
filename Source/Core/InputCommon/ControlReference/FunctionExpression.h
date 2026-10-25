@@ -31,6 +31,8 @@ public:
   using ArgumentValidation = std::variant<ArgumentsAreValid, ExpectedArguments>;
 
   int CountNumControls() const override;
+  bool IsAnyInputActive() const override;
+  void ClearHotkeySuppressions() override;
   void UpdateReferences(ControlEnvironment& env) override;
 
   void SetArguments(std::vector<std::unique_ptr<Expression>>&& args);

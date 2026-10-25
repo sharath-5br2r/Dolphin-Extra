@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CodeWidget</class>
+ <widget class="QWidget" name="CodeWidget">
+  <layout class="QHBoxLayout" name="mainLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>2</number>
+   </property>
+   <property name="topMargin">
+    <number>2</number>
+   </property>
+   <property name="rightMargin">
+    <number>2</number>
+   </property>
+   <property name="bottomMargin">
+    <number>2</number>
+   </property>
+   <item>
+    <widget class="QSplitter" name="codeSplitter">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QSplitter" name="boxSplitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="QWidget" name="callstackPanel">
+       <layout class="QGridLayout" name="callstackLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="callstackLabel">
+          <property name="text">
+           <string>Callstack</string>
+          </property>
+          <property name="buddy">
+           <cstring>searchCallstackEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="searchCallstackEdit"/>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QListWidget" name="callstackList"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="symbolsPanel">
+       <layout class="QGridLayout" name="symbolsLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="symbolsLabel">
+          <property name="text">
+           <string>Symbols</string>
+          </property>
+          <property name="buddy">
+           <cstring>searchSymbolsEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="searchSymbolsEdit"/>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QTabWidget" name="symbolsTabs">
+          <widget class="QWidget" name="symbolsTab">
+           <attribute name="title">
+            <string>Symbols</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="symbolsTabLayout">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QListWidget" name="symbolsList"/>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="notesTab">
+           <attribute name="title">
+            <string>Notes</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="notesTabLayout">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QListWidget" name="notesList"/>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="callsPanel">
+       <layout class="QGridLayout" name="callsLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="callsLabel">
+          <property name="text">
+           <string>Calls</string>
+          </property>
+          <property name="buddy">
+           <cstring>searchCallsEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="searchCallsEdit"/>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QListWidget" name="callsList"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="callersPanel">
+       <layout class="QGridLayout" name="callersLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="callersLabel">
+          <property name="text">
+           <string>Callers</string>
+          </property>
+          <property name="buddy">
+           <cstring>searchCallersEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="searchCallersEdit"/>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QListWidget" name="callersList"/>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+     <widget class="QWidget" name="rightPanel">
+      <layout class="QVBoxLayout" name="rightLayout">
+       <item>
+        <layout class="QHBoxLayout" name="searchAddressLayout">
+         <item>
+          <widget class="QLineEdit" name="searchAddressEdit">
+           <property name="placeholderText">
+            <string>Search Address</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="lockButton">
+           <property name="minimumSize">
+            <size>
+             <width>24</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>When enabled, prevents automatic updates to the code view.</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="branchWatchButton">
+           <property name="text">
+            <string>Branch Watch</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="codeViewLayout">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

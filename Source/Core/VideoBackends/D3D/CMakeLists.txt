@@ -14,6 +14,8 @@ add_library(videod3d
   D3DSwapChain.cpp
   D3DVertexManager.cpp
   D3DVertexManager.h
+  DXLibrashaderRuntime.cpp
+  DXLibrashaderRuntime.h
   DXPipeline.cpp
   DXPipeline.h
   DXShader.cpp

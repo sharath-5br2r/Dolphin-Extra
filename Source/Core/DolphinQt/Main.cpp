@@ -18,17 +18,23 @@
 #include <QApplication>
 #include <QObject>
 #include <QPushButton>
+#include <QSettings>
+#include <QTimer>
 #include <QWidget>
 
+#include "Common/CommonPaths.h"
 #include "Common/Config/Config.h"
+#include "Common/FileUtil.h"
 #include "Common/MsgHandler.h"
 #include "Common/ScopeGuard.h"
 #include "Common/StringUtil.h"
 
 #include "Core/Boot/Boot.h"
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/UISettings.h"
 #include "Core/Core.h"
 #include "Core/DolphinAnalytics.h"
+#include "Core/HW/GCMemcard/MemcardSync.h"
 #include "Core/System.h"
 
 #include "DolphinQt/Host.h"
@@ -41,7 +47,8 @@
 #endif
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
-#include "DolphinQt/Settings/PathPane.h"
+#include "DolphinQt/SetupWizardDialog.h"
+#include "DolphinQt/SetupWizardPolicy.h"
 #include "DolphinQt/Translation.h"
 #include "DolphinQt/Updater.h"
 
@@ -119,6 +126,7 @@ static bool QtMsgAlertHandler(const char* caption, const char* text, bool yes_no
 #endif
 
 int main(int argc, char* argv[])
+try
 {
 #ifdef _WIN32
   const HANDLE stdout_handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
@@ -193,10 +201,21 @@ int main(int argc, char* argv[])
 #endif
 
   UICommon::SetUserDirectory(static_cast<const char*>(options.get("user")));
+  const bool dolphin_config_existed = File::Exists(File::GetUserPath(F_DOLPHINCONFIG_IDX));
   UICommon::CreateDirectories();
   UICommon::Init();
   Resources::Init();
+  QApplication::setWindowIcon(Resources::GetAppIcon());
   Settings::Instance().SetBatchModeEnabled(options.is_set("batch"));
+
+  QSettings& qt_settings = Settings::GetQSettings();
+  if (!dolphin_config_existed)
+  {
+    qt_settings.setValue(QString::fromLatin1(SetupWizard::INCOMPLETE_SETTING), true);
+    qt_settings.sync();
+  }
+  const bool setup_incomplete =
+      qt_settings.value(QString::fromLatin1(SetupWizard::INCOMPLETE_SETTING), false).toBool();
 
   // Hook up alerts from core
   Common::RegisterMsgAlertHandler(QtMsgAlertHandler);
@@ -271,72 +290,80 @@ int main(int argc, char* argv[])
   }
   else
   {
-    DolphinAnalytics::Instance().ReportDolphinStart("qt");
-
     Settings::Instance().InitDefaultPalette();
     Settings::Instance().ApplyStyle();
 
-    MainWindow win{Core::System::GetInstance(), std::move(boot),
-                   static_cast<const char*>(options.get("movie"))};
-
-#if defined(USE_ANALYTICS) && USE_ANALYTICS
-    if (!Config::Get(Config::MAIN_ANALYTICS_PERMISSION_ASKED))
-      {
-        QMessageBox firstboot_prompt(&win);
-        firstboot_prompt.setIcon(QMessageBox::Information);
-        firstboot_prompt.setWindowTitle(QObject::tr("First Boot Prompt"));
-        firstboot_prompt.setText(
-            QObject::tr("New installation detected; read below for setup tips!"));
-        firstboot_prompt.setInformativeText(QObject::tr(
-            "If you are on modern hardware, we recommend setting Ubershaders "
-            "to either Hybrid or Exclusive mode in Graphics > General for a "
-            "stutter-free experience while playing. \n\n"
-            "Select your Brawl ISO using the button below to allow the mod to load properly. \n"
-            "You can also set this path later in Config > Paths.\n\n"
-            "Thank you for playing!"));
-        QAbstractButton* pButtonYes = firstboot_prompt.addButton(QObject::tr("Select ISO"), QMessageBox::YesRole);
-        firstboot_prompt.addButton(QObject::tr("Skip"), QMessageBox::NoRole);
-
-        firstboot_prompt.exec();
-
-        if (firstboot_prompt.clickedButton() == pButtonYes)
-        {
-          PathPane path_pane;
-          path_pane.BrowseDefaultGame();
-        }
-
-    }
-#endif
-#if defined(USE_ANALYTICS) && USE_ANALYTICS
-      if (!Config::Get(Config::MAIN_ANALYTICS_PERMISSION_ASKED))
+    bool open_controller_settings = false;
+    bool start_application = true;
+    if (SetupWizard::ShouldRun(dolphin_config_existed, setup_incomplete,
+                               Settings::Instance().IsBatchModeEnabled()))
     {
-      // To ensure that the analytics prompt appears aligned with the center of the main window,
-      // the dialog is only shown after the application is ready, as only then it is guaranteed that
-      // the main window has been placed in its final position.
-      auto* const connection_context = new QObject(&win);
-      QObject::connect(qApp, &QGuiApplication::applicationStateChanged, connection_context,
-                       [connection_context, &win](const Qt::ApplicationState state) {
-                         if (state != Qt::ApplicationState::ApplicationActive)
-                           return;
-
-                         // Severe the connection after the first run.
-                         delete connection_context;
-
-                         ShowAnalyticsPrompt(&win);
-                       });
+      SetupWizardDialog setup_wizard;
+      start_application = setup_wizard.exec() == QDialog::Accepted;
+      open_controller_settings = start_application && setup_wizard.ShouldOpenControllerSettings();
     }
+
+    if (!start_application)
+    {
+      retval = 0;
+    }
+    else
+    {
+      DolphinAnalytics::Instance().ReportDolphinStart("qt");
+
+      // Memory card sync starts in the background, from the settings.
+      MemcardSync::Initialize();
+
+      MainWindow win{
+          Core::System::GetInstance(), std::move(boot),
+          static_cast<const char*>(options.get("movie")),
+          !Settings::Instance().IsBatchModeEnabled() &&
+              (options.is_set("big_picture") || Config::Get(Config::MAIN_START_BIG_PICTURE))};
+
+      if (open_controller_settings)
+      {
+        QTimer::singleShot(0, &win, &MainWindow::ShowControllersWindow);
+      }
+
+#if defined(USE_ANALYTICS) && USE_ANALYTICS
+      if (!Settings::Instance().IsBatchModeEnabled() &&
+          !Config::Get(Config::MAIN_ANALYTICS_PERMISSION_ASKED))
+      {
+        // To ensure that the analytics prompt appears aligned with the center of the main window,
+        // the dialog is only shown after the application is ready, as only then it is guaranteed
+        // that the main window has been placed in its final position.
+        auto* const connection_context = new QObject(&win);
+        QObject::connect(qApp, &QGuiApplication::applicationStateChanged, connection_context,
+                         [connection_context, &win](const Qt::ApplicationState state) {
+                           if (state != Qt::ApplicationState::ApplicationActive)
+                             return;
+
+                           // Sever the connection after the first run.
+                           delete connection_context;
+
+                           ShowAnalyticsPrompt(&win);
+                         });
+      }
 #endif
 
     // Auto-update disabled — this fork manages updates via GitHub Releases.
 
-    retval = app.exec();
+      retval = app.exec();
+    }
   }
 
   Core::Shutdown(Core::System::GetInstance());
+  // After the last game closed its cards: gives their uploads a few seconds.
+  MemcardSync::Shutdown();
   UICommon::Shutdown();
   Host::GetInstance()->deleteLater();
 
   return retval;
+}
+catch (int status)
+{
+  // cpp-optparse reports invalid arguments by throwing the intended process exit status.
+  return status;
 }
 
 #ifdef _WIN32

@@ -4,30 +4,33 @@
 #pragma once
 
 #ifdef USE_RETRO_ACHIEVEMENTS
+#include <memory>
+
 #include <QGroupBox>
 
 #include "rcheevos/include/rc_client.h"
 
-class QLabel;
-class QProgressBar;
 class QWidget;
 
 struct rc_api_achievement_definition_t;
+
+namespace Ui
+{
+class AchievementBox;
+}
 
 class AchievementBox final : public QGroupBox
 {
   Q_OBJECT
 public:
   explicit AchievementBox(QWidget* parent, const rc_client_achievement_t* achievement);
+  ~AchievementBox() override;
+
   void UpdateData();
   void UpdateProgress();
 
 private:
-  QLabel* m_badge;
-  QLabel* m_status;
-  QProgressBar* m_progress_bar;
-  QLabel* m_progress_label;
-
+  std::unique_ptr<Ui::AchievementBox> m_ui;
   const rc_client_achievement_t* m_achievement;
 };
 

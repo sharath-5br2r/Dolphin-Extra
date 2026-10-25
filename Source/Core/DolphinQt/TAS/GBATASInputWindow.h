@@ -5,10 +5,8 @@
 
 #include "DolphinQt/TAS/TASInputWindow.h"
 
-class QGroupBox;
 class QHideEvent;
 class QShowEvent;
-class QSpinBox;
 class TASCheckBox;
 
 class GBATASInputWindow final : public TASInputWindow

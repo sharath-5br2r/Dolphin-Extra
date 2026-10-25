@@ -5,12 +5,9 @@
 
 #include <QCheckBox>
 #include <QGridLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QSpacerItem>
 #include <QSpinBox>
 #include <QStyle>
-#include <QVBoxLayout>
+#include <QWidget>
 
 #include "Core/HW/GCPad.h"
 #include "Core/HW/GCPadEmu.h"
@@ -22,34 +19,36 @@
 
 #include "DolphinQt/QtUtils/AspectRatioWidget.h"
 
+#include "ui_GCTASInputWindow.h"
+
 GCTASInputWindow::GCTASInputWindow(QWidget* parent, int controller_id)
     : TASInputWindow(parent), m_controller_id(controller_id)
 {
   setWindowTitle(tr("GameCube TAS Input %1").arg(controller_id + 1));
 
-  m_main_stick_box = CreateStickInputs(tr("Main Stick"), GCPad::MAIN_STICK_GROUP, &m_overrider, 1,
-                                       1, 255, 255, Qt::Key_F, Qt::Key_G);
-  m_c_stick_box = CreateStickInputs(tr("C Stick"), GCPad::C_STICK_GROUP, &m_overrider, 1, 1, 255,
-                                    255, Qt::Key_H, Qt::Key_J);
+  auto* const content = new QWidget(m_scroll_widget);
+  Ui::GCTASInputWindow ui;
+  ui.setupUi(content);
 
-  auto* top_layout = new QHBoxLayout;
-  top_layout->addWidget(new AspectRatioWidget(m_main_stick_box, 1, 1.02f));
-  top_layout->addWidget(new AspectRatioWidget(m_c_stick_box, 1, 1.02f));
+  auto* const main_stick_box =
+      CreateStickInputs(tr("Main Stick"), GCPad::MAIN_STICK_GROUP, &m_overrider, 1, 1, 255, 255,
+                        Qt::Key_F, Qt::Key_G);
+  auto* const c_stick_box = CreateStickInputs(tr("C Stick"), GCPad::C_STICK_GROUP, &m_overrider, 1,
+                                              1, 255, 255, Qt::Key_H, Qt::Key_J);
 
-  m_triggers_box = new QGroupBox(tr("Triggers"));
+  ui.stickLayout->addWidget(new AspectRatioWidget(main_stick_box, 1, 1.02f));
+  ui.stickLayout->addWidget(new AspectRatioWidget(c_stick_box, 1, 1.02f));
 
   auto* l_trigger_layout =
       CreateSliderValuePairLayout(tr("Left"), GCPad::TRIGGERS_GROUP, GCPad::L_ANALOG, &m_overrider,
-                                  0, 0, 0, 255, Qt::Key_N, m_triggers_box);
+                                  0, 0, 0, 255, Qt::Key_N, ui.triggersBox);
 
   auto* r_trigger_layout =
       CreateSliderValuePairLayout(tr("Right"), GCPad::TRIGGERS_GROUP, GCPad::R_ANALOG, &m_overrider,
-                                  0, 0, 0, 255, Qt::Key_M, m_triggers_box);
+                                  0, 0, 0, 255, Qt::Key_M, ui.triggersBox);
 
-  auto* triggers_layout = new QVBoxLayout;
-  triggers_layout->addLayout(l_trigger_layout);
-  triggers_layout->addLayout(r_trigger_layout);
-  m_triggers_box->setLayout(triggers_layout);
+  ui.triggersLayout->addLayout(l_trigger_layout);
+  ui.triggersLayout->addLayout(r_trigger_layout);
 
   m_a_button =
       CreateButton(QStringLiteral("&A"), GCPad::BUTTONS_GROUP, GCPad::A_BUTTON, &m_overrider);
@@ -77,33 +76,21 @@ GCTASInputWindow::GCTASInputWindow(QWidget* parent, int controller_id)
   m_right_button =
       CreateButton(QStringLiteral("R&ight"), GCPad::DPAD_GROUP, DIRECTION_RIGHT, &m_overrider);
 
-  auto* buttons_layout = new QGridLayout;
-  buttons_layout->addWidget(m_a_button, 0, 0);
-  buttons_layout->addWidget(m_b_button, 0, 1);
-  buttons_layout->addWidget(m_x_button, 0, 2);
-  buttons_layout->addWidget(m_y_button, 0, 3);
-  buttons_layout->addWidget(m_z_button, 0, 4);
-  buttons_layout->addWidget(m_l_button, 0, 5);
-  buttons_layout->addWidget(m_r_button, 0, 6);
+  ui.buttonsLayout->addWidget(m_a_button, 0, 0);
+  ui.buttonsLayout->addWidget(m_b_button, 0, 1);
+  ui.buttonsLayout->addWidget(m_x_button, 0, 2);
+  ui.buttonsLayout->addWidget(m_y_button, 0, 3);
+  ui.buttonsLayout->addWidget(m_z_button, 0, 4);
+  ui.buttonsLayout->addWidget(m_l_button, 0, 5);
+  ui.buttonsLayout->addWidget(m_r_button, 0, 6);
 
-  buttons_layout->addWidget(m_start_button, 1, 0);
-  buttons_layout->addWidget(m_left_button, 1, 1);
-  buttons_layout->addWidget(m_up_button, 1, 2);
-  buttons_layout->addWidget(m_down_button, 1, 3);
-  buttons_layout->addWidget(m_right_button, 1, 4);
+  ui.buttonsLayout->addWidget(m_start_button, 1, 0);
+  ui.buttonsLayout->addWidget(m_left_button, 1, 1);
+  ui.buttonsLayout->addWidget(m_up_button, 1, 2);
+  ui.buttonsLayout->addWidget(m_down_button, 1, 3);
+  ui.buttonsLayout->addWidget(m_right_button, 1, 4);
 
-  buttons_layout->addItem(new QSpacerItem(1, 1, QSizePolicy::Expanding), 0, 7);
-
-  m_buttons_box = new QGroupBox(tr("Buttons"));
-  m_buttons_box->setLayout(buttons_layout);
-
-  auto* layout = new QVBoxLayout;
-  layout->addLayout(top_layout);
-  layout->addWidget(m_triggers_box);
-  layout->addWidget(m_buttons_box);
-  layout->addWidget(m_settings_box);
-
-  SetupScrollArea(layout);
+  AddContentWidget(content);
   const QSize hint = m_scroll_widget->sizeHint();
   const int scrollbar_buffer = style()->pixelMetric(QStyle::PM_ScrollBarExtent) + 10;
   resize(hint.width() + scrollbar_buffer, hint.height() + scrollbar_buffer);

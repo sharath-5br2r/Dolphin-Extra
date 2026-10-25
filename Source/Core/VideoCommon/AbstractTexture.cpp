@@ -29,6 +29,12 @@ void AbstractTexture::FinishedRendering()
 {
 }
 
+void AbstractTexture::GenerateMipmaps()
+{
+  // No-op by default: backends without GPU mip generation leave the mip chain undefined. The
+  // multipass post-processing executor only allocates mip levels on backends that override this.
+}
+
 bool AbstractTexture::Save(const std::string& filename, unsigned int level, int compression) const
 {
   // We can't dump compressed textures currently (it would mean drawing them to a RGBA8

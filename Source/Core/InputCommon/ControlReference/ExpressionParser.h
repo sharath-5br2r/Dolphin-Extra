@@ -175,6 +175,11 @@ public:
   virtual ControlState GetValue() = 0;
   virtual void SetValue(ControlState state) = 0;
   virtual int CountNumControls() const = 0;
+  // Read physical buttons/axes without evaluating stateful functions (toggle, pulse, etc.).
+  // Literals and variables cannot be held by a menu-opening/closing chord.
+  virtual bool IsAnyInputActive() const { return false; }
+  // Release only this expression tree's hotkey suppressions, without evaluating bindings.
+  virtual void ClearHotkeySuppressions() {}
   virtual void UpdateReferences(ControlEnvironment& finder) = 0;
 
   // Perform any side effects and return Expression to be SetValue'd.

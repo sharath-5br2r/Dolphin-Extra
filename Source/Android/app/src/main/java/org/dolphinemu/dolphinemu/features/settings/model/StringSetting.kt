@@ -102,6 +102,12 @@ enum class StringSetting(
         "DriverLibName",
         ""
     ),
+    GFX_DRIVER_PACKAGE(
+        Settings.FILE_GFX,
+        Settings.SECTION_GFX_SETTINGS,
+        "DriverPackage",
+        ""
+    ),
     ACHIEVEMENTS_USERNAME(
         Settings.FILE_ACHIEVEMENTS,
         Settings.SECTION_ACHIEVEMENTS,

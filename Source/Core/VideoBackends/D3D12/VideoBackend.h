@@ -13,6 +13,8 @@ class VideoBackend final : public VideoBackendBase
 {
 public:
   bool Initialize(const WindowSystemInfo& wsi) override;
+  bool SupportsUI() const override { return true; }
+  bool InitializeUI(const WindowSystemInfo& wsi) override;
   void Shutdown() override;
 
   std::string GetConfigName() const override;
@@ -23,5 +25,7 @@ public:
 
 private:
   void FillBackendInfo();
+
+  bool InitializeInternal(const WindowSystemInfo& wsi);
 };
 }  // namespace DX12

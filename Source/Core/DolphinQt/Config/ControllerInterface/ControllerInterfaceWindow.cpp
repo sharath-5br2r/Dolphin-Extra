@@ -3,43 +3,32 @@
 
 #include "DolphinQt/Config/ControllerInterface/ControllerInterfaceWindow.h"
 
+#include <memory>
+
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QTabWidget>
-#include <QVBoxLayout>
 
 #if defined(CIFACE_USE_DUALSHOCKUDPCLIENT)
 #include "DolphinQt/Config/ControllerInterface/DualShockUDPClientWidget.h"
 #endif
 
-ControllerInterfaceWindow::ControllerInterfaceWindow(QWidget* parent) : QDialog(parent)
+#include "ui_ControllerInterfaceWindow.h"
+
+ControllerInterfaceWindow::ControllerInterfaceWindow(QWidget* parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::ControllerInterfaceWindow>())
 {
-  CreateMainLayout();
+  m_ui->setupUi(this);
+  connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-  setWindowTitle(tr("Alternate Input Sources"));
-}
-
-void ControllerInterfaceWindow::CreateMainLayout()
-{
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Close);
-  connect(m_button_box, &QDialogButtonBox::rejected, this, &QDialog::reject);
-
-  m_tab_widget = new QTabWidget();
 #if defined(CIFACE_USE_DUALSHOCKUDPCLIENT)
   m_dsuclient_widget = new DualShockUDPClientWidget();
-  m_tab_widget->addTab(m_dsuclient_widget, tr("DSU Client"));  // TODO: use GetWrappedWidget()?
+  m_ui->tabWidget->addTab(m_dsuclient_widget, tr("DSU Client"));  // TODO: use GetWrappedWidget()?
 #endif
 
-  auto* main_layout = new QVBoxLayout();
-  if (m_tab_widget->count() > 0)
-  {
-    main_layout->addWidget(m_tab_widget);
-  }
-  else
-  {
-    main_layout->addWidget(new QLabel(tr("Nothing to configure")), 0,
-                           Qt::AlignVCenter | Qt::AlignHCenter);
-  }
-  main_layout->addWidget(m_button_box);
-  setLayout(main_layout);
+  const bool has_configuration = m_ui->tabWidget->count() > 0;
+  m_ui->tabWidget->setVisible(has_configuration);
+  m_ui->nothingToConfigureLabel->setVisible(!has_configuration);
 }
+
+ControllerInterfaceWindow::~ControllerInterfaceWindow() = default;

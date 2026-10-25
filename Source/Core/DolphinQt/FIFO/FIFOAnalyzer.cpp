@@ -9,7 +9,6 @@
 #include <utility>
 
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
@@ -24,13 +23,14 @@
 #include "Common/Swap.h"
 #include "Core/FifoPlayer/FifoPlayer.h"
 
-#include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/Settings.h"
 
 #include "VideoCommon/BPMemory.h"
 #include "VideoCommon/CPMemory.h"
 #include "VideoCommon/OpcodeDecoding.h"
 #include "VideoCommon/XFStructs.h"
+
+#include "ui_FIFOAnalyzer.h"
 
 // Values range from 0 to number of frames - 1
 constexpr int FRAME_ROLE = Qt::UserRole;
@@ -39,18 +39,22 @@ constexpr int PART_START_ROLE = Qt::UserRole + 1;
 // Values range from 1 to number of parts
 constexpr int PART_END_ROLE = Qt::UserRole + 2;
 
-FIFOAnalyzer::FIFOAnalyzer(FifoPlayer& fifo_player) : m_fifo_player(fifo_player)
+FIFOAnalyzer::FIFOAnalyzer(FifoPlayer& fifo_player)
+    : m_fifo_player(fifo_player), m_ui(std::make_unique<Ui::FIFOAnalyzer>())
 {
-  CreateWidgets();
+  m_ui->setupUi(this);
+  m_ui->treeWidget->header()->hide();
+  m_ui->searchBox->setMaximumHeight(m_ui->searchBox->minimumSizeHint().height());
+
   ConnectWidgets();
 
   UpdateTree();
 
   const auto& settings = Settings::GetQSettings();
 
-  m_object_splitter->restoreState(
+  m_ui->objectSplitter->restoreState(
       settings.value(QStringLiteral("fifoanalyzer/objectsplitter")).toByteArray());
-  m_search_splitter->restoreState(
+  m_ui->searchSplitter->restoreState(
       settings.value(QStringLiteral("fifoanalyzer/searchsplitter")).toByteArray());
 
   OnDebugFontChanged(Settings::Instance().GetDebugFont());
@@ -62,66 +66,22 @@ FIFOAnalyzer::~FIFOAnalyzer()
 {
   auto& settings = Settings::GetQSettings();
 
-  settings.setValue(QStringLiteral("fifoanalyzer/objectsplitter"), m_object_splitter->saveState());
-  settings.setValue(QStringLiteral("fifoanalyzer/searchsplitter"), m_search_splitter->saveState());
-}
-
-void FIFOAnalyzer::CreateWidgets()
-{
-  m_tree_widget = new QTreeWidget;
-  m_detail_list = new QListWidget;
-  m_entry_detail_browser = new QTextBrowser;
-
-  m_object_splitter = new QSplitter(Qt::Horizontal);
-
-  m_object_splitter->addWidget(m_tree_widget);
-  m_object_splitter->addWidget(m_detail_list);
-
-  m_tree_widget->header()->hide();
-
-  m_search_box = new QGroupBox(tr("Search Current Object"));
-  m_search_edit = new QLineEdit;
-  m_search_new = new NonDefaultQPushButton(tr("Search"));
-  m_search_next = new NonDefaultQPushButton(tr("Next Match"));
-  m_search_previous = new NonDefaultQPushButton(tr("Previous Match"));
-  m_search_label = new QLabel;
-
-  m_search_next->setEnabled(false);
-  m_search_previous->setEnabled(false);
-
-  auto* box_layout = new QHBoxLayout;
-
-  box_layout->addWidget(m_search_edit);
-  box_layout->addWidget(m_search_new);
-  box_layout->addWidget(m_search_next);
-  box_layout->addWidget(m_search_previous);
-  box_layout->addWidget(m_search_label);
-
-  m_search_box->setLayout(box_layout);
-
-  m_search_box->setMaximumHeight(m_search_box->minimumSizeHint().height());
-
-  m_search_splitter = new QSplitter(Qt::Vertical);
-
-  m_search_splitter->addWidget(m_object_splitter);
-  m_search_splitter->addWidget(m_entry_detail_browser);
-  m_search_splitter->addWidget(m_search_box);
-
-  auto* layout = new QHBoxLayout;
-  layout->addWidget(m_search_splitter);
-
-  setLayout(layout);
+  settings.setValue(QStringLiteral("fifoanalyzer/objectsplitter"),
+                    m_ui->objectSplitter->saveState());
+  settings.setValue(QStringLiteral("fifoanalyzer/searchsplitter"),
+                    m_ui->searchSplitter->saveState());
 }
 
 void FIFOAnalyzer::ConnectWidgets()
 {
-  connect(m_tree_widget, &QTreeWidget::itemSelectionChanged, this, &FIFOAnalyzer::UpdateDetails);
-  connect(m_detail_list, &QListWidget::currentRowChanged, this, &FIFOAnalyzer::UpdateDescription);
+  connect(m_ui->treeWidget, &QTreeWidget::itemSelectionChanged, this, &FIFOAnalyzer::UpdateDetails);
+  connect(m_ui->detailList, &QListWidget::currentRowChanged, this,
+          &FIFOAnalyzer::UpdateDescription);
 
-  connect(m_search_edit, &QLineEdit::returnPressed, this, &FIFOAnalyzer::BeginSearch);
-  connect(m_search_new, &QPushButton::clicked, this, &FIFOAnalyzer::BeginSearch);
-  connect(m_search_next, &QPushButton::clicked, this, &FIFOAnalyzer::FindNext);
-  connect(m_search_previous, &QPushButton::clicked, this, &FIFOAnalyzer::FindPrevious);
+  connect(m_ui->searchEdit, &QLineEdit::returnPressed, this, &FIFOAnalyzer::BeginSearch);
+  connect(m_ui->searchButton, &QPushButton::clicked, this, &FIFOAnalyzer::BeginSearch);
+  connect(m_ui->nextMatchButton, &QPushButton::clicked, this, &FIFOAnalyzer::FindNext);
+  connect(m_ui->previousMatchButton, &QPushButton::clicked, this, &FIFOAnalyzer::FindPrevious);
 }
 
 void FIFOAnalyzer::Update()
@@ -133,17 +93,17 @@ void FIFOAnalyzer::Update()
 
 void FIFOAnalyzer::UpdateTree()
 {
-  m_tree_widget->clear();
+  m_ui->treeWidget->clear();
 
   if (!m_fifo_player.IsPlaying())
   {
-    m_tree_widget->addTopLevelItem(new QTreeWidgetItem({tr("No recording loaded.")}));
+    m_ui->treeWidget->addTopLevelItem(new QTreeWidgetItem({tr("No recording loaded.")}));
     return;
   }
 
   auto* recording_item = new QTreeWidgetItem({tr("Recording")});
 
-  m_tree_widget->addTopLevelItem(recording_item);
+  m_ui->treeWidget->addTopLevelItem(recording_item);
 
   const auto* const file = m_fifo_player.GetFile();
 
@@ -326,16 +286,16 @@ void FIFOAnalyzer::UpdateDetails()
   // the wrong data to be used, potentially leading to out of bounds data or other bad things.
   // Clear m_object_data_offsets first, so that UpdateDescription exits immediately.
   m_object_data_offsets.clear();
-  m_detail_list->clear();
+  m_ui->detailList->clear();
   m_search_results.clear();
-  m_search_next->setEnabled(false);
-  m_search_previous->setEnabled(false);
-  m_search_label->clear();
+  m_ui->nextMatchButton->setEnabled(false);
+  m_ui->previousMatchButton->setEnabled(false);
+  m_ui->searchLabel->clear();
 
   if (!m_fifo_player.IsPlaying())
     return;
 
-  const auto items = m_tree_widget->selectedItems();
+  const auto items = m_ui->treeWidget->selectedItems();
 
   if (items.isEmpty() || items[0]->data(0, PART_START_ROLE).isNull())
     return;
@@ -368,26 +328,26 @@ void FIFOAnalyzer::UpdateDetails()
     QString new_label =
         QStringLiteral("%1:  ").arg(object_start + start_offset, 8, 16, QLatin1Char('0')) +
         callback.text;
-    m_detail_list->addItem(new_label);
+    m_ui->detailList->addItem(new_label);
   }
 
   // Needed to ensure the description updates when changing objects
-  m_detail_list->setCurrentRow(0);
+  m_ui->detailList->setCurrentRow(0);
 }
 
 void FIFOAnalyzer::BeginSearch()
 {
-  const QString search_str = m_search_edit->text();
+  const QString search_str = m_ui->searchEdit->text();
 
   if (!m_fifo_player.IsPlaying())
     return;
 
-  const auto items = m_tree_widget->selectedItems();
+  const auto items = m_ui->treeWidget->selectedItems();
 
   if (items.isEmpty() || items[0]->data(0, FRAME_ROLE).isNull() ||
       items[0]->data(0, PART_START_ROLE).isNull())
   {
-    m_search_label->setText(tr("Invalid search parameters (no object selected)"));
+    m_ui->searchLabel->setText(tr("Invalid search parameters (no object selected)"));
     return;
   }
 
@@ -397,7 +357,7 @@ void FIFOAnalyzer::BeginSearch()
   // TODO: Remove even string length limit
   if (search_str.length() % 2)
   {
-    m_search_label->setText(tr("Invalid search string (only even string lengths supported)"));
+    m_ui->searchLabel->setText(tr("Invalid search string (only even string lengths supported)"));
     return;
   }
 
@@ -414,7 +374,7 @@ void FIFOAnalyzer::BeginSearch()
 
     if (!good)
     {
-      m_search_label->setText(tr("Invalid search string (couldn't convert to number)"));
+      m_ui->searchLabel->setText(tr("Invalid search string (couldn't convert to number)"));
       return;
     }
 
@@ -459,13 +419,13 @@ void FIFOAnalyzer::BeginSearch()
 
   ShowSearchResult(0);
 
-  m_search_label->setText(
+  m_ui->searchLabel->setText(
       tr("Found %1 results for \"%2\"").arg(m_search_results.size()).arg(search_str));
 }
 
 void FIFOAnalyzer::FindNext()
 {
-  const int index = m_detail_list->currentRow();
+  const int index = m_ui->detailList->currentRow();
   ASSERT(index >= 0);
 
   const auto next_result = std::ranges::find_if(
@@ -478,7 +438,7 @@ void FIFOAnalyzer::FindNext()
 
 void FIFOAnalyzer::FindPrevious()
 {
-  const int index = m_detail_list->currentRow();
+  const int index = m_ui->detailList->currentRow();
   ASSERT(index >= 0);
 
   const auto prev_result =
@@ -505,13 +465,13 @@ void FIFOAnalyzer::ShowSearchResult(const size_t index)
   const auto& result = m_search_results[index];
 
   QTreeWidgetItem* object_item =
-      m_tree_widget->topLevelItem(0)->child(result.m_frame)->child(result.m_object_idx);
+      m_ui->treeWidget->topLevelItem(0)->child(result.m_frame)->child(result.m_object_idx);
 
-  m_tree_widget->setCurrentItem(object_item);
-  m_detail_list->setCurrentRow(result.m_cmd);
+  m_ui->treeWidget->setCurrentItem(object_item);
+  m_ui->detailList->setCurrentRow(result.m_cmd);
 
-  m_search_next->setEnabled(index + 1 < m_search_results.size());
-  m_search_previous->setEnabled(index > 0);
+  m_ui->nextMatchButton->setEnabled(index + 1 < m_search_results.size());
+  m_ui->previousMatchButton->setEnabled(index > 0);
 }
 
 namespace
@@ -737,12 +697,12 @@ public:
 
 void FIFOAnalyzer::UpdateDescription()
 {
-  m_entry_detail_browser->clear();
+  m_ui->entryDetailBrowser->clear();
 
   if (!m_fifo_player.IsPlaying())
     return;
 
-  const auto items = m_tree_widget->selectedItems();
+  const auto items = m_ui->treeWidget->selectedItems();
 
   if (items.isEmpty() || m_object_data_offsets.empty())
     return;
@@ -753,7 +713,7 @@ void FIFOAnalyzer::UpdateDescription()
   const u32 frame_nr = items[0]->data(0, FRAME_ROLE).toUInt();
   const u32 start_part_nr = items[0]->data(0, PART_START_ROLE).toUInt();
   const u32 end_part_nr = items[0]->data(0, PART_END_ROLE).toUInt();
-  const u32 entry_nr = m_detail_list->currentRow();
+  const u32 entry_nr = m_ui->detailList->currentRow();
 
   const auto& [parts, _part_type_counts] = m_fifo_player.GetAnalyzedFrameInfo(frame_nr);
   const FifoFrameInfo& fifo_frame = m_fifo_player.GetFile()->GetFrame(frame_nr);
@@ -766,11 +726,11 @@ void FIFOAnalyzer::UpdateDescription()
   auto callback = DescriptionCallback(parts[end_part_nr].m_cpmem);
   OpcodeDecoder::RunCommand(&fifo_frame.fifoData[object_start + entry_start],
                             object_size - entry_start, callback);
-  m_entry_detail_browser->setText(callback.text);
+  m_ui->entryDetailBrowser->setText(callback.text);
 }
 
 void FIFOAnalyzer::OnDebugFontChanged(const QFont& font)
 {
-  m_detail_list->setFont(font);
-  m_entry_detail_browser->setFont(font);
+  m_ui->detailList->setFont(font);
+  m_ui->entryDetailBrowser->setFont(font);
 }

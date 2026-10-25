@@ -456,6 +456,103 @@ void VKTexture::FinishedRendering()
                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
+void VKTexture::GenerateMipmaps()
+{
+  if (GetLevels() <= 1)
+    return;
+
+  StateTracker::GetInstance()->EndRenderPass();
+
+  const VkCommandBuffer command_buffer = g_command_buffer_mgr->GetCurrentCommandBuffer();
+  const VkImageAspectFlags aspect = GetImageAspectForFormat(GetFormat());
+  const u32 layers = GetLayers();
+
+  // Level 0 holds the freshly-rendered content and becomes the first blit source; it may currently
+  // be a color attachment or already shader-readable, so cover both source stages. Levels 1..N-1
+  // are uninitialized and become blit destinations, so their prior contents are irrelevant.
+  const VkImageMemoryBarrier initial_barriers[2] = {
+      {
+          .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+          .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT,
+          .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+          .oldLayout = m_layout,
+          .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+          .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+          .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+          .image = m_image,
+          .subresourceRange = {aspect, 0, 1, 0, layers},
+      },
+      {
+          .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+          .srcAccessMask = 0,
+          .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+          .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+          .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+          .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+          .image = m_image,
+          .subresourceRange = {aspect, 1, GetLevels() - 1, 0, layers},
+      },
+  };
+  vkCmdPipelineBarrier(command_buffer,
+                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                       VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 2,
+                       initial_barriers);
+
+  for (u32 level = 1; level < GetLevels(); ++level)
+  {
+    const s32 src_width = std::max(1, static_cast<s32>(GetWidth() >> (level - 1)));
+    const s32 src_height = std::max(1, static_cast<s32>(GetHeight() >> (level - 1)));
+    const s32 dst_width = std::max(1, static_cast<s32>(GetWidth() >> level));
+    const s32 dst_height = std::max(1, static_cast<s32>(GetHeight() >> level));
+
+    VkImageBlit blit = {};
+    blit.srcSubresource = {aspect, level - 1, 0, layers};
+    blit.srcOffsets[0] = {0, 0, 0};
+    blit.srcOffsets[1] = {src_width, src_height, 1};
+    blit.dstSubresource = {aspect, level, 0, layers};
+    blit.dstOffsets[0] = {0, 0, 0};
+    blit.dstOffsets[1] = {dst_width, dst_height, 1};
+    vkCmdBlitImage(command_buffer, m_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m_image,
+                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+
+    // The level just written becomes the source for the next (smaller) level.
+    const VkImageMemoryBarrier to_src = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = m_image,
+        .subresourceRange = {aspect, level, 1, 0, layers},
+    };
+    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &to_src);
+  }
+
+  // Every level is now in TRANSFER_SRC; move the whole image to shader-read so it can be sampled.
+  const VkImageMemoryBarrier final_barrier = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+      .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+      .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+      .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+      .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+      .image = m_image,
+      .subresourceRange = {aspect, 0, GetLevels(), 0, layers},
+  };
+  vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+                       &final_barrier);
+
+  m_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  m_written_since_last_layout_change = false;
+}
+
 void VKTexture::OverrideImageLayout(VkImageLayout new_layout)
 {
   m_layout = new_layout;

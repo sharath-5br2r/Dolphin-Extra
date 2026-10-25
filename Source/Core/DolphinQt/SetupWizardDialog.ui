@@ -1,0 +1,666 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SetupWizardDialog</class>
+ <widget class="QDialog" name="SetupWizardDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>880</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>760</width>
+    <height>540</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Dolphin Setup</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <layout class="QHBoxLayout" name="contentLayout" stretch="0,1">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QFrame" name="sidebarFrame">
+       <property name="minimumSize">
+        <size>
+         <width>190</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>220</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Shape::StyledPanel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Shadow::Plain</enum>
+       </property>
+       <layout class="QVBoxLayout" name="sidebarLayout">
+        <property name="spacing">
+         <number>12</number>
+        </property>
+        <property name="leftMargin">
+         <number>24</number>
+        </property>
+        <property name="topMargin">
+         <number>24</number>
+        </property>
+        <property name="rightMargin">
+         <number>24</number>
+        </property>
+        <property name="bottomMargin">
+         <number>24</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="logoLabel">
+          <property name="accessibleName">
+           <string>Dolphin logo</string>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>112</width>
+            <height>112</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>112</width>
+            <height>112</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="appearancePageLabel">
+          <property name="text">
+           <string>Appearance</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="gameFoldersPageLabel">
+          <property name="text">
+           <string>Game Folders</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="controllersPageLabel">
+          <property name="text">
+           <string>Controllers</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="privacyPageLabel">
+          <property name="text">
+           <string>Privacy</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="completePageLabel">
+          <property name="text">
+           <string>Complete</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="sidebarSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QStackedWidget" name="pages">
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+       <widget class="QWidget" name="appearancePage">
+        <layout class="QVBoxLayout" name="appearanceLayout">
+         <property name="spacing">
+          <number>16</number>
+         </property>
+         <property name="leftMargin">
+          <number>32</number>
+         </property>
+         <property name="topMargin">
+          <number>28</number>
+         </property>
+         <property name="rightMargin">
+          <number>32</number>
+         </property>
+         <property name="bottomMargin">
+          <number>28</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="welcomeTitleLabel">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Welcome to Dolphin</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="welcomeTextLabel">
+           <property name="text">
+            <string>This setup will help you choose the basic options needed to start using Dolphin. You can change every option later in Settings.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QFormLayout" name="appearanceFormLayout">
+           <property name="fieldGrowthPolicy">
+            <enum>QFormLayout::FieldGrowthPolicy::AllNonFixedFieldsGrow</enum>
+           </property>
+           <item row="0" column="0">
+            <widget class="QLabel" name="languageLabel">
+             <property name="text">
+              <string>&amp;Language:</string>
+             </property>
+             <property name="buddy">
+              <cstring>languageComboBox</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="languageComboBox">
+             <property name="accessibleName">
+              <string>Interface language</string>
+             </property>
+             <property name="sizeAdjustPolicy">
+              <enum>QComboBox::SizeAdjustPolicy::AdjustToMinimumContentsLengthWithIcon</enum>
+             </property>
+             <property name="minimumContentsLength">
+              <number>20</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="styleLabel">
+             <property name="text">
+              <string>&amp;Style:</string>
+             </property>
+             <property name="buddy">
+              <cstring>styleComboBox</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QComboBox" name="styleComboBox">
+             <property name="accessibleName">
+              <string>Interface style</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QLabel" name="languageRestartLabel">
+           <property name="text">
+            <string>Language changes take effect the next time Dolphin starts.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="appearanceSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="gameFoldersPage">
+        <layout class="QVBoxLayout" name="gameFoldersLayout">
+         <property name="spacing">
+          <number>16</number>
+         </property>
+         <property name="leftMargin">
+          <number>32</number>
+         </property>
+         <property name="topMargin">
+          <number>28</number>
+         </property>
+         <property name="rightMargin">
+          <number>32</number>
+         </property>
+         <property name="bottomMargin">
+          <number>28</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="gameFoldersTitleLabel">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Choose Game Folders</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="gameFoldersIntroLabel">
+           <property name="text">
+            <string>Dolphin scans these folders for GameCube and Wii games and adds them to the game library. You can leave the list empty and open games individually.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListWidget" name="gameFoldersListWidget">
+           <property name="accessibleName">
+            <string>Game folders</string>
+           </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="gameFolderButtonsLayout">
+           <item>
+            <widget class="QCheckBox" name="recursivePathsCheckBox">
+             <property name="text">
+              <string>Search subfolders</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="gameFolderButtonsSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="addGameFolderButton">
+             <property name="text">
+              <string>&amp;Add...</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="removeGameFolderButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>&amp;Remove</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="controllersPage">
+        <layout class="QVBoxLayout" name="controllersLayout">
+         <property name="spacing">
+          <number>16</number>
+         </property>
+         <property name="leftMargin">
+          <number>32</number>
+         </property>
+         <property name="topMargin">
+          <number>28</number>
+         </property>
+         <property name="rightMargin">
+          <number>32</number>
+         </property>
+         <property name="bottomMargin">
+          <number>28</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="controllersTitleLabel">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Set Up Controllers</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="controllersIntroLabel">
+           <property name="text">
+            <string>Dolphin supports GameCube controllers, Wii Remotes, keyboards, and many standard gamepads. Default keyboard bindings are created when the main window opens.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="controllersDetailLabel">
+           <property name="text">
+            <string>Controller Settings lets you select devices, configure ports, and change individual bindings. Connect any gamepads you plan to use before opening it.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="openControllerSettingsCheckBox">
+           <property name="text">
+            <string>Open Controller Settings after setup</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="controllersSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="privacyPage">
+        <layout class="QVBoxLayout" name="privacyLayout">
+         <property name="spacing">
+          <number>16</number>
+         </property>
+         <property name="leftMargin">
+          <number>32</number>
+         </property>
+         <property name="topMargin">
+          <number>28</number>
+         </property>
+         <property name="rightMargin">
+          <number>32</number>
+         </property>
+         <property name="bottomMargin">
+          <number>28</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="privacyTitleLabel">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Usage Statistics</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="privacyIntroLabel">
+           <property name="text">
+            <string>Dolphin can report information about performance, feature usage, configuration, hardware, and operating system to its developers. This helps identify uncommon configurations and prioritize improvements.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="privacyDetailLabel">
+           <property name="text">
+            <string>No private data is collected. This choice can be changed at any time in Settings.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="analyticsCheckBox">
+           <property name="text">
+            <string>Allow Dolphin to send anonymous usage statistics</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="privacySpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="completePage">
+        <layout class="QVBoxLayout" name="completeLayout">
+         <property name="spacing">
+          <number>16</number>
+         </property>
+         <property name="leftMargin">
+          <number>32</number>
+         </property>
+         <property name="topMargin">
+          <number>28</number>
+         </property>
+         <property name="rightMargin">
+          <number>32</number>
+         </property>
+         <property name="bottomMargin">
+          <number>28</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="completeTitleLabel">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Setup Complete</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="completeIntroLabel">
+           <property name="text">
+            <string>Dolphin is ready to use. Add or open a game from the main window, then use Settings whenever you want to adjust emulation, graphics, audio, or input options.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="completeDetailLabel">
+           <property name="text">
+            <string>Select Finish to save these choices and open Dolphin.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="completeSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QFrame" name="footerFrame">
+     <property name="frameShape">
+      <enum>QFrame::Shape::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Shadow::Plain</enum>
+     </property>
+     <layout class="QHBoxLayout" name="footerLayout">
+      <property name="leftMargin">
+       <number>12</number>
+      </property>
+      <property name="topMargin">
+       <number>10</number>
+      </property>
+      <property name="rightMargin">
+       <number>12</number>
+      </property>
+      <property name="bottomMargin">
+       <number>10</number>
+      </property>
+      <item>
+       <spacer name="footerSpacer">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="backButton">
+        <property name="text">
+         <string>&amp;Back</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="nextButton">
+        <property name="text">
+         <string>&amp;Next</string>
+        </property>
+        <property name="default">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="cancelButton">
+        <property name="text">
+         <string>&amp;Cancel</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>languageComboBox</tabstop>
+  <tabstop>styleComboBox</tabstop>
+  <tabstop>gameFoldersListWidget</tabstop>
+  <tabstop>recursivePathsCheckBox</tabstop>
+  <tabstop>addGameFolderButton</tabstop>
+  <tabstop>removeGameFolderButton</tabstop>
+  <tabstop>openControllerSettingsCheckBox</tabstop>
+  <tabstop>analyticsCheckBox</tabstop>
+  <tabstop>backButton</tabstop>
+  <tabstop>nextButton</tabstop>
+  <tabstop>cancelButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

@@ -9,6 +9,7 @@
 #include "Common/Logging/LogManager.h"
 
 #include "VideoBackends/OGL/OGLConfig.h"
+#include "VideoBackends/OGL/OGLLibrashaderRuntime.h"
 #include "VideoBackends/OGL/OGLPipeline.h"
 #include "VideoBackends/OGL/OGLShader.h"
 #include "VideoBackends/OGL/OGLTexture.h"
@@ -18,6 +19,7 @@
 #include "VideoCommon/AsyncShaderCompiler.h"
 #include "VideoCommon/DriverDetails.h"
 #include "VideoCommon/Present.h"
+#include "VideoCommon/VertexManagerBase.h"
 #include "VideoCommon/VideoConfig.h"
 
 #include <algorithm>
@@ -248,6 +250,11 @@ std::unique_ptr<AbstractPipeline> OGLGfx::CreatePipeline(const AbstractPipelineC
                                                          size_t cache_data_length)
 {
   return OGLPipeline::Create(config, cache_data, cache_data_length);
+}
+
+std::unique_ptr<VideoCommon::LibrashaderRuntime> OGLGfx::CreateLibrashaderRuntime()
+{
+  return std::make_unique<OGLLibrashaderRuntime>();
 }
 
 void OGLGfx::SetScissorRect(const MathUtil::Rectangle<int>& rc)
@@ -652,6 +659,17 @@ void OGLGfx::SetTexture(u32 index, const AbstractTexture* texture)
   m_bound_textures[index] = gl_texture;
 }
 
+static_assert(GL_MUTABLE_TEXTURE_UNIT < VideoCommon::MAX_PIXEL_SHADER_SAMPLERS,
+              "The scratch unit is assumed to be a sampler slot whose binding cache needs "
+              "invalidating; if it moves outside the range, InvalidateTextureBinding would be an "
+              "out-of-bounds write and this call would no longer be needed at all.");
+
+void ActivateMutableTextureUnit()
+{
+  glActiveTexture(GL_MUTABLE_TEXTURE_INDEX);
+  GetOGLGfx()->InvalidateTextureBinding(GL_MUTABLE_TEXTURE_UNIT);
+}
+
 void OGLGfx::SetSamplerState(u32 index, const SamplerState& state)
 {
   g_sampler_cache->SetSamplerState(index, state);
@@ -723,6 +741,39 @@ void OGLGfx::RestoreFramebufferBinding()
   glBindFramebuffer(
       GL_FRAMEBUFFER,
       m_current_framebuffer ? static_cast<OGLFramebuffer*>(m_current_framebuffer)->GetFBO() : 0);
+}
+
+void OGLGfx::InvalidateCachedState()
+{
+  // Sampler bindings, then the texture bindings behind them.
+  for (u32 stage = 0; stage < VideoCommon::MAX_PIXEL_SHADER_SAMPLERS; stage++)
+    g_sampler_cache->InvalidateBinding(stage);
+  m_bound_textures.fill(nullptr);
+
+  // The program and the VAO, both cached in ProgramShaderCache rather than here.
+  ProgramShaderCache::InvalidateLastProgram();
+  ProgramShaderCache::InvalidateVertexFormat();
+
+  // SetPipeline() early-outs on the pointer and its Apply*State() helpers early-out on the states,
+  // so all four have to go: a pipeline whose states match what we recorded would otherwise leave
+  // the enable flags, blend equation and depth func as the foreign code left them.
+  m_current_pipeline = nullptr;
+  m_current_rasterization_state = RenderState::GetInvalidRasterizationState();
+  m_current_depth_state = RenderState::GetInvalidDepthState();
+  m_current_blend_state = RenderState::GetInvalidBlendingState();
+
+  // The indexed GL_UNIFORM_BUFFER binding points are not tracked here, and foreign code rebinds
+  // them at whatever index its own shaders reflect -- which can collide with 1 through 4, the range
+  // ProgramShaderCache uses: 1 pixel, 2 vertex, 3 custom constants (only when there are any) and
+  // 4 geometry. It only re-binds them when a shader manager is dirty, so marking the constants
+  // dirty is what forces the re-bind, for all of them at once.
+  VertexManagerBase::InvalidateConstants();
+
+  // Deliberately not invalidated:
+  //  - m_bound_image_textures, only bound by compute dispatches, which no foreign GL code here
+  //    touches.
+  //  - m_current_framebuffer, which is not a cache of GL state but the record of what the caller
+  //    asked for; RestoreFramebufferBinding() makes GL agree with it again.
 }
 
 SurfaceInfo OGLGfx::GetSurfaceInfo() const

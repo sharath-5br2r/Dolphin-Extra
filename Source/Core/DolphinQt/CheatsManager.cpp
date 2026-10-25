@@ -4,7 +4,6 @@
 #include "DolphinQt/CheatsManager.h"
 
 #include <QDialogButtonBox>
-#include <QVBoxLayout>
 
 #include "Core/CheatSearch.h"
 #include "Core/ConfigManager.h"
@@ -23,11 +22,11 @@
 
 #include "VideoCommon/VideoEvents.h"
 
-CheatsManager::CheatsManager(Core::System& system, QWidget* parent)
-    : QDialog(parent), m_system(system)
-{
-  setWindowTitle(tr("Cheats Manager"));
+#include "ui_CheatsManager.h"
 
+CheatsManager::CheatsManager(Core::System& system, QWidget* parent)
+    : QDialog(parent), m_system(system), m_ui(std::make_unique<Ui::CheatsManager>())
+{
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
           &CheatsManager::OnStateChanged);
 
@@ -124,8 +123,9 @@ void CheatsManager::RefreshCodeTabs(Core::State state)
 
 void CheatsManager::CreateWidgets()
 {
-  m_tab_widget = new PartiallyClosableTabWidget;
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::Close);
+  m_ui->setupUi(this);
+  m_tab_widget = m_ui->tabWidget;
+  m_button_box = m_ui->buttonBox;
 
   int tab_index = 0;
 
@@ -141,12 +141,6 @@ void CheatsManager::CreateWidgets()
   tab_index =
       m_tab_widget->addTab(GetWrappedWidget(m_cheat_search_new), tr("Start New Cheat Search"));
   m_tab_widget->setTabUnclosable(tab_index);
-
-  auto* layout = new QVBoxLayout;
-  layout->addWidget(m_tab_widget);
-  layout->addWidget(m_button_box);
-
-  setLayout(layout);
 }
 
 void CheatsManager::OnNewSessionCreated(const Cheats::CheatSearchSessionBase& session)

@@ -3,15 +3,16 @@
 
 #pragma once
 
+#include <memory>
+
 #include <QWidget>
 
 #include "Core/CheatSearch.h"
 
-class QCheckBox;
-class QComboBox;
-class QLineEdit;
-class QPushButton;
-class QRadioButton;
+namespace Ui
+{
+class CheatSearchFactoryWidget;
+}
 
 class CheatSearchFactoryWidget : public QWidget
 {
@@ -32,18 +33,5 @@ private:
   void OnAddressSpaceRadioChanged();
   void OnNewSearchClicked();
 
-  QRadioButton* m_standard_address_space;
-  QRadioButton* m_custom_address_space;
-
-  QRadioButton* m_custom_virtual_address_space;
-  QRadioButton* m_custom_physical_address_space;
-  QRadioButton* m_custom_effective_address_space;
-
-  QLineEdit* m_custom_address_start;
-  QLineEdit* m_custom_address_end;
-
-  QComboBox* m_data_type_dropdown;
-  QCheckBox* m_data_type_aligned;
-
-  QPushButton* m_new_search;
+  std::unique_ptr<Ui::CheatSearchFactoryWidget> m_ui;
 };

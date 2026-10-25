@@ -5,7 +5,6 @@
 
 #include "DolphinQt/DiscordJoinRequestDialog.h"
 
-#include <QGridLayout>
 #include <QLabel>
 #include <QPixmap>
 #include <QPushButton>
@@ -15,12 +14,15 @@
 
 #include "Common/HttpRequest.h"
 
+#include "ui_DiscordJoinRequestDialog.h"
+
 DiscordJoinRequestDialog::DiscordJoinRequestDialog(QWidget* parent, const std::string& id,
                                                    const std::string& discord_tag,
                                                    const std::string& avatar)
-    : QDialog(parent), m_user_id(id), m_close_timestamp(std::time(nullptr) + s_max_lifetime_seconds)
+    : QDialog(parent), m_ui(std::make_unique<Ui::DiscordJoinRequestDialog>()), m_user_id(id),
+      m_close_timestamp(std::time(nullptr) + s_max_lifetime_seconds)
 {
-  setWindowTitle(tr("Request to Join Your Party"));
+  m_ui->setupUi(this);
 
   QPixmap avatar_pixmap;
 
@@ -36,47 +38,29 @@ DiscordJoinRequestDialog::DiscordJoinRequestDialog(QWidget* parent, const std::s
       avatar_pixmap.loadFromData(response->data(), static_cast<uint>(response->size()), "png");
   }
 
-  CreateLayout(discord_tag, avatar_pixmap);
+  m_ui->requestLabel->setText(
+      tr("%1\nwants to join your party.").arg(QString::fromStdString(discord_tag)));
+  if (!avatar_pixmap.isNull())
+  {
+    m_ui->avatarLabel->setPixmap(avatar_pixmap);
+    m_ui->avatarLabel->show();
+  }
+
   ConnectWidgets();
 }
+
+DiscordJoinRequestDialog::~DiscordJoinRequestDialog() = default;
 
 std::time_t DiscordJoinRequestDialog::GetCloseTimestamp() const
 {
   return m_close_timestamp;
 }
 
-void DiscordJoinRequestDialog::CreateLayout(const std::string& discord_tag, const QPixmap& avatar)
-{
-  m_main_layout = new QGridLayout;
-
-  m_invite_button = new QPushButton(tr("\u2714 Invite"));
-  m_decline_button = new QPushButton(tr("\u2716 Decline"));
-  m_ignore_button = new QPushButton(tr("Ignore"));
-
-  QLabel* text =
-      new QLabel(tr("%1\nwants to join your party.").arg(QString::fromStdString(discord_tag)));
-  text->setAlignment(Qt::AlignCenter);
-
-  if (!avatar.isNull())
-  {
-    QLabel* picture = new QLabel();
-    picture->setPixmap(avatar);
-    m_main_layout->addWidget(picture, 1, 0, 1, 3, Qt::AlignHCenter);
-  }
-
-  m_main_layout->addWidget(text, 2, 0, 3, 3, Qt::AlignHCenter);
-  m_main_layout->addWidget(m_invite_button, 8, 0);
-  m_main_layout->addWidget(m_decline_button, 8, 1);
-  m_main_layout->addWidget(m_ignore_button, 8, 2);
-
-  setLayout(m_main_layout);
-}
-
 void DiscordJoinRequestDialog::ConnectWidgets()
 {
-  connect(m_invite_button, &QPushButton::clicked, [this] { Reply(DISCORD_REPLY_YES); });
-  connect(m_decline_button, &QPushButton::clicked, [this] { Reply(DISCORD_REPLY_NO); });
-  connect(m_ignore_button, &QPushButton::clicked, [this] { Reply(DISCORD_REPLY_IGNORE); });
+  connect(m_ui->inviteButton, &QPushButton::clicked, [this] { Reply(DISCORD_REPLY_YES); });
+  connect(m_ui->declineButton, &QPushButton::clicked, [this] { Reply(DISCORD_REPLY_NO); });
+  connect(m_ui->ignoreButton, &QPushButton::clicked, [this] { Reply(DISCORD_REPLY_IGNORE); });
   connect(this, &QDialog::rejected, [this] { Reply(DISCORD_REPLY_IGNORE); });
 }
 

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditSymbolDialog</class>
+ <widget class="QDialog" name="EditSymbolDialog">
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QLabel" name="infoLabel"/>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="nameEdit"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="sizeLayout">
+     <item>
+      <widget class="QLabel" name="addressEndLabel">
+       <property name="text">
+        <string extracomment="The address where a symbol ends">End Address</string>
+       </property>
+       <property name="buddy">
+        <cstring>addressEndEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="addressEndEdit"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="sizeHexLabel">
+       <property name="text">
+        <string extracomment="There's a text field immediately to the right of this label where 8 hexadecimal digits can be entered. The &quot;0x&quot; in this string acts as a prefix to the digits to indicate that they are hexadecimal.">Size: 0x</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignVCenter</set>
+       </property>
+       <property name="buddy">
+        <cstring>sizeHexEdit</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="sizeHexEdit">
+       <property name="maxLength">
+        <number>7</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="sizeLinesLabel">
+       <property name="text">
+        <string extracomment="The number of lines of code">Lines</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignVCenter</set>
+       </property>
+       <property name="buddy">
+        <cstring>sizeLinesSpinBox</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="sizeLinesSpinBox">
+       <property name="maximum">
+        <number>99999</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>nameEdit</tabstop>
+  <tabstop>addressEndEdit</tabstop>
+  <tabstop>sizeHexEdit</tabstop>
+  <tabstop>sizeLinesSpinBox</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

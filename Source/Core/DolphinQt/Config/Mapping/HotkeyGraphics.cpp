@@ -3,10 +3,9 @@
 
 #include "DolphinQt/Config/Mapping/HotkeyGraphics.h"
 
-#include <QGridLayout>
-#include <QGroupBox>
-
 #include "Core/HotkeyManager.h"
+
+#include "ui_MappingGridPage.h"
 
 HotkeyGraphics::HotkeyGraphics(MappingWindow* window) : MappingWidget(window)
 {
@@ -15,18 +14,17 @@ HotkeyGraphics::HotkeyGraphics(MappingWindow* window) : MappingWidget(window)
 
 void HotkeyGraphics::CreateMainLayout()
 {
-  m_main_layout = new QGridLayout();
+  Ui::MappingGridPage ui;
+  ui.setupUi(this);
 
-  m_main_layout->addWidget(CreateGroupBox(tr("Graphics Toggles"),
-                                          HotkeyManagerEmu::GetHotkeyGroup(HKGP_GRAPHICS_TOGGLES)),
-                           0, 0, -1, 1);
+  ui.groupLayout->addWidget(CreateGroupBox(tr("Graphics Toggles"),
+                                           HotkeyManagerEmu::GetHotkeyGroup(HKGP_GRAPHICS_TOGGLES)),
+                            0, 0, -1, 1);
 
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("FreeLook"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_FREELOOK)), 0, 1);
-  m_main_layout->addWidget(
+  ui.groupLayout->addWidget(
       CreateGroupBox(tr("Internal Resolution"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_IR)), 1, 1);
-
-  setLayout(m_main_layout);
 }
 
 InputConfig* HotkeyGraphics::GetConfig()

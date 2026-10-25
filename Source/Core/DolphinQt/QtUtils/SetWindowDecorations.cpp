@@ -18,11 +18,8 @@ namespace
 
 void SetQWidgetWindowDecorations(QWidget* widget)
 {
-  if (!Settings::Instance().IsThemeDark())
-    return;
-
   constexpr DWORD attribute = 20;  // DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE
-  constexpr BOOL use_dark_title_bar = TRUE;
+  const BOOL use_dark_title_bar = Settings::Instance().IsThemeDark() ? TRUE : FALSE;
 
   DwmSetWindowAttribute(HWND(widget->winId()), attribute, &use_dark_title_bar,
                         DWORD(sizeof(use_dark_title_bar)));

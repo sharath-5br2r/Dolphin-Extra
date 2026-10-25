@@ -8,17 +8,16 @@
 #include <fmt/format.h>
 
 #include <QComboBox>
-#include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMetaType>
 #include <QPushButton>
-#include <QScrollArea>
 #include <QVBoxLayout>
 
 #include "Common/FileSearch.h"
@@ -28,6 +27,8 @@
 #include "DiscIO/RiivolutionPatcher.h"
 #include "DolphinQt/Config/HardcoreWarningWidget.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
+
+#include "ui_RiivolutionBootWidget.h"
 
 struct GuiRiivolutionPatchIndex
 {
@@ -43,56 +44,30 @@ RiivolutionBootWidget::RiivolutionBootWidget(std::string game_id, std::optional<
                                              std::optional<u8> disc, std::string base_game_path,
                                              QWidget* parent)
     : QDialog(parent), m_game_id(std::move(game_id)), m_revision(revision), m_disc_number(disc),
-      m_base_game_path(std::move(base_game_path))
+      m_base_game_path(std::move(base_game_path)),
+      m_ui(std::make_unique<Ui::RiivolutionBootWidget>())
 {
-  setWindowTitle(tr("Start with Riivolution Patches"));
-
   CreateWidgets();
   ConnectWidgets();
   LoadMatchingXMLs();
-
-  resize(QSize(400, 600));
 }
 
 RiivolutionBootWidget::~RiivolutionBootWidget() = default;
 
 void RiivolutionBootWidget::CreateWidgets()
 {
+  m_ui->setupUi(this);
+  m_patch_section_layout = m_ui->patchSectionLayout;
+
 #ifdef USE_RETRO_ACHIEVEMENTS
   m_hc_warning = new HardcoreWarningWidget(this);
+  m_ui->hardcoreWarningLayout->addWidget(m_hc_warning);
 #endif  // USE_RETRO_ACHIEVEMENTS
-  auto* open_xml_button = new QPushButton(tr("Open Riivolution XML..."));
-  auto* boot_game_button = new QPushButton(tr("Start"));
-  boot_game_button->setDefault(true);
-  auto* save_preset_button = new QPushButton(tr("Save as Preset..."));
-  auto* group_box = new QGroupBox();
-  auto* scroll_area = new QScrollArea();
 
-  auto* stretch_helper = new QVBoxLayout();
-  m_patch_section_layout = new QVBoxLayout();
-  stretch_helper->addLayout(m_patch_section_layout);
-  stretch_helper->addStretch();
-  group_box->setLayout(stretch_helper);
-  scroll_area->setWidget(group_box);
-  scroll_area->setWidgetResizable(true);
-
-  auto* button_layout = new QHBoxLayout();
-  button_layout->addStretch();
-  button_layout->addWidget(open_xml_button, 0, Qt::AlignRight);
-  button_layout->addWidget(save_preset_button, 0, Qt::AlignRight);
-  button_layout->addWidget(boot_game_button, 0, Qt::AlignRight);
-
-  auto* layout = new QVBoxLayout();
-#ifdef USE_RETRO_ACHIEVEMENTS
-  layout->addWidget(m_hc_warning);
-#endif  // USE_RETRO_ACHIEVEMENTS
-  layout->addWidget(scroll_area);
-  layout->addLayout(button_layout);
-  setLayout(layout);
-
-  connect(open_xml_button, &QPushButton::clicked, this, &RiivolutionBootWidget::OpenXML);
-  connect(boot_game_button, &QPushButton::clicked, this, &RiivolutionBootWidget::BootGame);
-  connect(save_preset_button, &QPushButton::clicked, this, &RiivolutionBootWidget::SaveAsPreset);
+  connect(m_ui->openXmlButton, &QPushButton::clicked, this, &RiivolutionBootWidget::OpenXML);
+  connect(m_ui->bootGameButton, &QPushButton::clicked, this, &RiivolutionBootWidget::BootGame);
+  connect(m_ui->savePresetButton, &QPushButton::clicked, this,
+          &RiivolutionBootWidget::SaveAsPreset);
 }
 
 void RiivolutionBootWidget::ConnectWidgets()

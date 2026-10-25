@@ -19,7 +19,6 @@ class QAbstractButton;
 class QDialogButtonBox;
 class QLineEdit;
 class QTableWidget;
-class QVBoxLayout;
 class QWidget;
 class QPlainTextEdit;
 class QPushButton;
@@ -96,9 +95,6 @@ private:
   };
 
   void UpdateExpression(std::string new_expression, UpdateMode mode = UpdateMode::Normal);
-
-  // Main Layout
-  QVBoxLayout* m_main_layout;
 
   // Devices
   QComboBox* m_devices_combo;

@@ -23,13 +23,13 @@
 #include "VideoBackends/D3D/D3DBoundingBox.h"
 #include "VideoBackends/D3D/D3DState.h"
 #include "VideoBackends/D3D/D3DSwapChain.h"
+#include "VideoBackends/D3D/DXLibrashaderRuntime.h"
 #include "VideoBackends/D3D/DXPipeline.h"
 #include "VideoBackends/D3D/DXShader.h"
 #include "VideoBackends/D3D/DXTexture.h"
 
 #include "VideoCommon/BPFunctions.h"
 #include "VideoCommon/FramebufferManager.h"
-#include "VideoCommon/PostProcessing.h"
 #include "VideoCommon/Present.h"
 #include "VideoCommon/RenderState.h"
 #include "VideoCommon/VideoConfig.h"
@@ -68,6 +68,11 @@ Gfx::CreateFramebuffer(AbstractTexture* color_attachment, AbstractTexture* depth
   return DXFramebuffer::Create(static_cast<DXTexture*>(color_attachment),
                                static_cast<DXTexture*>(depth_attachment),
                                std::move(additional_color_attachments));
+}
+
+std::unique_ptr<VideoCommon::LibrashaderRuntime> Gfx::CreateLibrashaderRuntime()
+{
+  return std::make_unique<DXLibrashaderRuntime>();
 }
 
 std::unique_ptr<AbstractShader>
@@ -168,6 +173,7 @@ bool Gfx::BindBackbuffer(const ClearColor& clear_color)
 void Gfx::PresentBackbuffer()
 {
   m_swap_chain->Present();
+  D3D::stateman->InvalidateFramebuffer();
 }
 
 void Gfx::OnConfigChanged(u32 bits)

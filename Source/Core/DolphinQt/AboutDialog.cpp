@@ -4,8 +4,6 @@
 #include "DolphinQt/AboutDialog.h"
 
 #include <QLabel>
-#include <QTextEdit>
-#include <QVBoxLayout>
 #include <QtGlobal>
 #ifdef HAVE_SDL3
 #include <SDL3/SDL_version.h>
@@ -15,9 +13,12 @@
 
 #include "DolphinQt/Resources.h"
 
-AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
+#include "ui_AboutDialog.h"
+
+AboutDialog::AboutDialog(QWidget* parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::AboutDialog>())
 {
-  setWindowTitle(tr("About Dolphin"));
+  m_ui->setupUi(this);
 
   QString branch_str = QString::fromStdString(Common::GetScmBranchStr());
   const int commits_ahead = Common::GetScmCommitsAheadMaster();
@@ -94,11 +95,8 @@ Built on Dolphin 2606a. %CHECK_FOR_UPDATES%: <a href='https://dolphin-emu.org'>d
           .replace(QStringLiteral("%AUTHORS%"), tr("Authors"))
           .replace(QStringLiteral("%SUPPORT%"), tr("Support"));
 
-  QLabel* text_label = new QLabel(text);
-  text_label->setTextInteractionFlags(Qt::TextBrowserInteraction);
-  text_label->setOpenExternalLinks(true);
-
-  QLabel* copyright = new QLabel(
+  m_ui->textLabel->setText(text);
+  m_ui->copyrightLabel->setText(
       QStringLiteral("<small>%1</small>")
           .arg(
               // i18n: This message uses curly quotes in English. If you want to use curly quotes
@@ -108,21 +106,7 @@ Built on Dolphin 2606a. %CHECK_FOR_UPDATES%: <a href='https://dolphin-emu.org'>d
               tr("\u00A9 2003-2025+ Dolphin Team. \u201cGameCube\u201d and \u201cWii\u201d are "
                  "trademarks of Nintendo. Dolphin is not affiliated with Nintendo in any way.")));
 
-  QLabel* logo = new QLabel();
-  logo->setPixmap(Resources::GetAppIcon().pixmap(200, 200));
-  logo->setContentsMargins(30, 0, 30, 0);
-
-  QVBoxLayout* main_layout = new QVBoxLayout;
-  QHBoxLayout* h_layout = new QHBoxLayout;
-
-  setLayout(main_layout);
-  main_layout->setSizeConstraint(QLayout::SetFixedSize);
-  main_layout->addLayout(h_layout);
-  main_layout->addWidget(copyright);
-  copyright->setAlignment(Qt::AlignCenter);
-  copyright->setContentsMargins(0, 15, 0, 0);
-
-  h_layout->setAlignment(Qt::AlignLeft);
-  h_layout->addWidget(logo);
-  h_layout->addWidget(text_label);
+  m_ui->logoLabel->setPixmap(Resources::GetAppIcon().pixmap(200, 200));
 }
+
+AboutDialog::~AboutDialog() = default;

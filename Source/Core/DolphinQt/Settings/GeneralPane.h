@@ -3,23 +3,18 @@
 
 #pragma once
 
-#include <QWidget>
+#include <memory>
 
-class ConfigBool;
-class QCheckBox;
-class QComboBox;
-class QLabel;
-class QPushButton;
-class QRadioButton;
-class QSlider;
-class QVBoxLayout;
-class ToolTipCheckBox;
-class ToolTipComboBox;
-class ToolTipPushButton;
+#include <QWidget>
 
 namespace Core
 {
 enum class State;
+}
+
+namespace Ui
+{
+class GeneralPane;
 }
 
 class GeneralPane final : public QWidget
@@ -27,13 +22,12 @@ class GeneralPane final : public QWidget
   Q_OBJECT
 public:
   explicit GeneralPane(QWidget* parent = nullptr);
+  ~GeneralPane() override;
 
 private:
-  void CreateLayout();
   void ConnectLayout();
-  void CreateBasic();
-  // void CreateAutoUpdate(); // disabled, as we do not have separate update tracks for P+
-  void CreateFallbackRegion();
+  void BindSettings();
+  void PopulateSpeedLimit();
   void AddDescriptions();
 
   void LoadConfig();
@@ -41,26 +35,10 @@ private:
   void OnEmulationStateChanged(Core::State state);
   void UpdateDescriptionsUsingHardcoreStatus();
 
-  // Widgets
-  QVBoxLayout* m_main_layout;
-  ToolTipComboBox* m_combobox_speedlimit;
-  // ToolTipComboBox* m_combobox_update_track;
-  ToolTipComboBox* m_combobox_fallback_region;
-  ConfigBool* m_checkbox_dualcore;
-  ConfigBool* m_checkbox_cheats;
-  ConfigBool* m_checkbox_load_games_into_memory;
-  ConfigBool* m_checkbox_override_region_settings;
-  ConfigBool* m_checkbox_auto_disc_change;
-#ifdef USE_DISCORD_PRESENCE
-  ToolTipCheckBox* m_checkbox_discord_presence;
-#endif
+  std::unique_ptr<Ui::GeneralPane> m_ui;
 
 // Analytics related
 #if defined(USE_ANALYTICS) && USE_ANALYTICS
-  void CreateAnalytics();
   void GenerateNewIdentity();
-
-  ToolTipPushButton* m_button_generate_new_identity;
-  ToolTipCheckBox* m_checkbox_enable_analytics;
 #endif
 };

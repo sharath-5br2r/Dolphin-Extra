@@ -35,6 +35,7 @@ public:
   std::unique_ptr<AbstractFramebuffer>
   CreateFramebuffer(AbstractTexture* color_attachment, AbstractTexture* depth_attachment,
                     std::vector<AbstractTexture*> additional_color_attachments) override;
+  std::unique_ptr<VideoCommon::LibrashaderRuntime> CreateLibrashaderRuntime() override;
 
   std::unique_ptr<AbstractShader>
   CreateShaderFromSource(ShaderStage stage, std::string_view source,
@@ -79,6 +80,11 @@ public:
   // Completes the current render pass, executes the command buffer, and restores state ready for
   // next render. Use when you want to kick the current buffer to make room for new data.
   void ExecuteCommandList(bool wait_for_completion);
+
+  // Marks every piece of cached state dirty. Call after another component (librashader) has
+  // recorded its own root signature, pipeline, descriptor heaps and viewport onto our command list,
+  // since Dolphin otherwise believes its own bindings are still in effect.
+  void InvalidateCachedState();
 
   // Setting constant buffer handles.
   void SetConstantBuffer(u32 index, D3D12_GPU_VIRTUAL_ADDRESS address);

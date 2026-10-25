@@ -14,6 +14,7 @@
 #include "Common/HookableEvent.h"
 #include "Core/Config/MainSettings.h"
 #include "DiscIO/Enums.h"
+#include "DolphinQt/ApplicationTheme.h"
 
 namespace Core
 {
@@ -39,6 +40,8 @@ class Settings final : public QObject
   Q_OBJECT
 
 public:
+  static constexpr bool DEFAULT_PREFERRED_VIEW_IS_LIST = false;
+
   Settings(const Settings&) = delete;
   Settings& operator=(const Settings&) = delete;
   Settings(Settings&&) = delete;
@@ -60,19 +63,7 @@ public:
   void SetUserStyleName(const QString& stylesheet_name);
   QString GetUserStyleName() const;
 
-  enum class StyleType : int
-  {
-    System = 0,
-    Light = 1,
-    Dark = 2,
-    User = 3,
-    FusionLight = 4,
-    FusionDarkGray = 5,
-    FusionDark = 6,
-
-    MinValue = 0,
-    MaxValue = 6,
-  };
+  using StyleType = ApplicationTheme::Type;
 
   void SetStyleType(StyleType type);
   StyleType GetStyleType() const;
@@ -106,6 +97,7 @@ public:
   QString GetLauncherPath() const;
   void SetLauncherPath(QString path);
   void RefreshGameList();
+  void RefreshMetadata();
   void NotifyRefreshGameListStarted();
   void NotifyRefreshGameListComplete();
   void NotifyMetadataRefreshComplete();

@@ -10,12 +10,18 @@
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QEventLoop>
 #include <QFileInfo>
 #include <QIcon>
+#include <QMenuBar>
 #include <QMimeData>
 #include <QStackedWidget>
+#include <QStandardPaths>
+#include <QStatusBar>
 #include <QStyleHints>
-#include <QVBoxLayout>
+#include <QThread>
+#include <QTimer>
+#include <QToolBar>
 #include <QWindow>
 #include <QMessageBox>
 #include <QByteArray>
@@ -23,6 +29,7 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <future>
 #include <optional>
 #include <utility>
@@ -36,6 +43,8 @@
 
 #ifndef _WIN32
 #include <qpa/qplatformnativeinterface.h>
+#else
+#include <windows.h>
 #endif
 
 #include "Common/Config/Config.h"
@@ -57,8 +66,10 @@
 #include "Core/Config/NetplaySettings.h"
 #include "Core/Config/UISettings.h"
 #include "Core/Config/WiimoteSettings.h"
+#include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/FreeLookManager.h"
+#include "Core/HW/CPU.h"
 #include "Core/HW/DVD/DVDInterface.h"
 #include "Core/HW/GBAPad.h"
 #include "Core/HW/GCKeyboard.h"
@@ -81,8 +92,10 @@
 #include "DiscIO/NANDImporter.h"
 #include "DiscIO/RiivolutionPatcher.h"
 
+#include "Common/BigPicture/PresentationState.h"
 #include "DolphinQt/AboutDialog.h"
 #include "DolphinQt/Achievements/AchievementsWindow.h"
+#include "DolphinQt/BigPictureHost.h"
 #include "DolphinQt/CheatsManager.h"
 #include "DolphinQt/Config/FreeLookWindow.h"
 #include "DolphinQt/Config/LogConfigWidget.h"
@@ -102,6 +115,7 @@
 #include "DolphinQt/DiscordHandler.h"
 #include "DolphinQt/EmulatedUSB/LogitechMicWindow.h"
 #include "DolphinQt/EmulatedUSB/WiiSpeakWindow.h"
+#include "DolphinQt/EmulationStatusWidget.h"
 #include "DolphinQt/FIFO/FIFOPlayerWindow.h"
 #include "DolphinQt/GCMemcardManager.h"
 #include "DolphinQt/GameCount.h"
@@ -118,6 +132,7 @@
 #include "DolphinQt/UpdaterDialogs/UpdateDialog.h"
 #include "DolphinQt/QtUtils/DolphinFileDialog.h"
 #include "DolphinQt/QtUtils/FileOpenEventFilter.h"
+#include "DolphinQt/QtUtils/MenuFontFallbacks.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/ParallelProgressDialog.h"
 #include "DolphinQt/QtUtils/QueueOnObject.h"
@@ -127,7 +142,6 @@
 #include "DolphinQt/ResourcePackManager.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/RiivolutionBootWidget.h"
-#include "DolphinQt/SearchBar.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/SkylanderPortal/SkylanderPortalWindow.h"
 #include "DolphinQt/TAS/GBATASInputWindow.h"
@@ -136,6 +150,15 @@
 #include "DolphinQt/ToolBar.h"
 #include "DolphinQt/Updater.h"
 #include "DolphinQt/WiiUpdate.h"
+#include "InputCommon/BigPictureInput.h"
+#include "VideoCommon/BigPicture/Runtime.h"
+#include "VideoCommon/BigPicture/StandaloneSession.h"
+#include "VideoCommon/VideoBackendBase.h"
+#ifdef _WIN32
+#include "DolphinQt/resource.h"
+#endif
+
+#include "ui_MainWindow.h"
 
 #include "UICommon/DiscordPresence.h"
 #include "UICommon/GameFile.h"
@@ -145,6 +168,38 @@
 #include "UICommon/UICommon.h"
 
 #include "VideoCommon/NetPlayChatUI.h"
+#include "VideoCommon/PerformanceMetrics.h"
+#include "VideoCommon/VideoBackendBase.h"
+
+namespace
+{
+constexpr int DEFAULT_GRID_COLUMNS = 7;
+constexpr int DEFAULT_GRID_ROWS = 3;
+constexpr int GRACEFUL_SHUTDOWN_TIMEOUT_MS = 10'000;
+
+#ifdef _WIN32
+void SetWindowsAppIcon(HWND window)
+{
+  const HINSTANCE instance = GetModuleHandleW(nullptr);
+  const auto load_icon = [instance](int width, int height) {
+    return static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(IDI_ICON1), IMAGE_ICON, width,
+                                         height, LR_DEFAULTCOLOR | LR_SHARED));
+  };
+
+  if (const HICON icon = load_icon(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON)))
+  {
+    SendMessageW(window, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(icon));
+    SetClassLongPtrW(window, GCLP_HICON, reinterpret_cast<LONG_PTR>(icon));
+  }
+
+  if (const HICON icon = load_icon(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON)))
+  {
+    SendMessageW(window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
+    SetClassLongPtrW(window, GCLP_HICONSM, reinterpret_cast<LONG_PTR>(icon));
+  }
+}
+#endif
+}  // namespace
 
 #ifdef HAVE_XRANDR
 #include "UICommon/X11Utils.h"
@@ -225,16 +280,229 @@ static std::vector<std::string> StringListToStdVector(const QStringList& list)
 }
 
 MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boot_parameters,
-                       const std::string& movie_path)
-    : QMainWindow(nullptr), m_system(system)
+                       const std::string& movie_path, bool start_big_picture)
+    : QMainWindow(nullptr), m_system(system), m_ui(std::make_unique<Ui::MainWindow>())
 {
+  m_ui->setupUi(this);
+
   setWindowTitle(QString::fromStdString(Common::GetScmRevStr()));
-  setWindowIcon(Resources::GetAppIcon());
-  setUnifiedTitleAndToolBarOnMac(true);
-  setAcceptDrops(true);
   setAttribute(Qt::WA_NativeWindow);
+  setWindowIcon(Resources::GetAppIcon());
+#ifdef _WIN32
+  SetWindowsAppIcon(reinterpret_cast<HWND>(winId()));
+#endif
+
+  m_graceful_shutdown_timer = new QTimer(this);
+  m_graceful_shutdown_timer->setSingleShot(true);
+  connect(m_graceful_shutdown_timer, &QTimer::timeout, this, [this] {
+    if (m_stop_requested && !Core::IsUninitialized(m_system))
+      ForceStop();
+  });
 
   CreateComponents();
+  m_big_picture_requested = start_big_picture && !Settings::Instance().IsBatchModeEnabled();
+
+  m_big_picture_host = new BigPictureHost(
+      this,
+      [this] {
+        BigPicture::HostState state;
+        switch (Core::GetState(m_system))
+        {
+        case Core::State::Uninitialized:
+          state.lifecycle = BigPicture::Lifecycle::Idle;
+          break;
+        case Core::State::Starting:
+          state.lifecycle = BigPicture::Lifecycle::Booting;
+          break;
+        case Core::State::Running:
+          state.lifecycle = BigPicture::Lifecycle::Running;
+          break;
+        case Core::State::Paused:
+          state.lifecycle = BigPicture::Lifecycle::Paused;
+          break;
+        case Core::State::Stopping:
+          state.lifecycle = BigPicture::Lifecycle::Stopping;
+          break;
+        }
+        if (m_stop_requested || m_stop_confirm_showing)
+          state.lifecycle = BigPicture::Lifecycle::Stopping;
+        if (state.lifecycle == BigPicture::Lifecycle::Idle && m_standalone_boot)
+          state.lifecycle = BigPicture::Lifecycle::Booting;
+        state.netplay = NetPlay::IsNetPlayRunning();
+        state.hardcore = AchievementManager::GetInstance().IsHardcoreModeActive();
+        state.pause_revision = m_system.GetCPU().GetPauseRevision();
+        state.game_title = SConfig::GetInstance().GetTitleDescription();
+        state.can_change_disc = m_big_picture_disc_game;
+        state.state_slots_ready = m_big_picture_state_slots_ready;
+        state.state_slots = m_big_picture_state_slots;
+        if (state.lifecycle == BigPicture::Lifecycle::Idle)
+        {
+          if (const auto game = m_game_list->GetSelectedGame())
+          {
+            state.launch_path = game->GetFilePath();
+            state.launch_title = game->GetLongName();
+          }
+          else
+          {
+            state.launch_path = Config::Get(Config::MAIN_DEFAULT_ISO);
+            if (!File::Exists(state.launch_path))
+              state.launch_path.clear();
+            state.launch_title =
+                QFileInfo(QString::fromStdString(state.launch_path)).fileName().toStdString();
+          }
+        }
+#ifdef RC_CLIENT_SUPPORTS_RAINTEGRATION
+        state.stop_requires_desktop = AchievementManager::GetInstance().CheckForModifications();
+#endif
+        return state;
+      },
+      [this](const BigPicture::Command& command) -> BigPicture::Result {
+        using BigPicture::Action;
+        using BigPicture::ResultStatus;
+        switch (command.action)
+        {
+        case Action::Boot:
+          if (!File::Exists(command.path))
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                    tr("The selected game is no longer available: %1")
+                        .arg(QString::fromStdString(command.path))
+                        .toStdString()};
+          StartGame(command.path, ScanForSecondDisc::Yes);
+          if (Core::IsUninitialized(m_system) && !m_standalone_boot)
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                    tr("Failed to init core").toStdString()};
+          break;
+        case Action::Resume:
+          Core::SetState(m_system, Core::State::Running);
+          return {command, Core::GetState(m_system) == Core::State::Running ?
+                               ResultStatus::Succeeded :
+                               ResultStatus::Failed};
+        case Action::Stop:
+        case Action::Exit:
+          if (command.action == Action::Exit)
+          {
+            m_exit_requested = true;
+            if (Core::IsUninitialized(m_system))
+            {
+              StopStandalone(StandaloneStop::Exit);
+              return {command, ResultStatus::Dispatched};
+            }
+          }
+          if (!RequestStopWithConfirmation(true))
+          {
+            if (command.action == Action::Exit)
+              m_exit_requested = false;
+            return {command, ResultStatus::Cancelled};
+          }
+          break;
+        case Action::Reset:
+          Reset();
+          break;
+        case Action::SaveState:
+          if (State::GetSlotInfo(command.slot).exists && command.confirmation_id != command.id)
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                    tr("This slot changed. Refresh the slots and confirm the overwrite.")
+                        .toStdString()};
+          StateSaveSlotAt(command.slot);
+          break;
+        case Action::LoadState:
+          if (!State::GetSlotInfo(command.slot).readable)
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::EmptySlot,
+                    tr("This slot is empty or unreadable. Refresh the slots and choose another.")
+                        .toStdString()};
+          StateLoadSlotAt(command.slot);
+          break;
+        case Action::RefreshStates:
+          RefreshBigPictureStateSlots();
+          return {command, ResultStatus::Succeeded};
+        case Action::Screenshot:
+          ScreenShot();
+          break;
+        case Action::DesktopSettings:
+          QTimer::singleShot(0, this, [this, generation = command.generation] {
+            if (m_big_picture_host->GetSnapshot()->generation != generation)
+              return;
+            if (m_standalone)
+            {
+              StopStandalone(StandaloneStop::Settings);
+              return;
+            }
+            if (LeaveBigPictureForDesktop(generation))
+              ShowSettingsWindow();
+          });
+          break;
+        case Action::ChangeDisc:
+        {
+          // Let the dispatch finish before entering a native dialog's nested event loop.
+          // Session/policy checks after selection reject a dialog left open across stop/boot.
+          QTimer::singleShot(0, this, [this, generation = command.generation] {
+            if (!LeaveBigPictureForDesktop(generation))
+              return;
+            const auto paths = StringListToStdVector(PromptFileNames());
+            const auto snapshot = m_big_picture_host->GetSnapshot();
+            if (paths.empty() || snapshot->generation != generation ||
+                BigPicture::GetAvailability(Action::ChangeDisc, snapshot->host) !=
+                    BigPicture::UnavailableReason::None ||
+                NetPlay::IsNetPlayRunning() || !Core::IsRunning(m_system))
+              return;
+            m_system.GetDVDInterface().ChangeDisc(Core::CPUThreadGuard{m_system}, paths);
+          });
+          break;
+        }
+        case Action::OpenGame:
+          QTimer::singleShot(0, this, [this, generation = command.generation] {
+            const auto snapshot = m_big_picture_host->GetSnapshot();
+            if (snapshot->generation == generation && m_standalone &&
+                m_standalone_stop == StandaloneStop::None &&
+                BigPicture::GetAvailability(Action::OpenGame, snapshot->host) ==
+                    BigPicture::UnavailableReason::None)
+              StopStandalone(StandaloneStop::OpenGame);
+          });
+          break;
+        case Action::Fullscreen:
+          QTimer::singleShot(0, this, [this, generation = command.generation] {
+            if (m_standalone && m_standalone_ready && m_standalone_stop == StandaloneStop::None &&
+                m_big_picture_host->GetSnapshot()->generation == generation)
+              FullScreen();
+          });
+          return {command, ResultStatus::Succeeded};
+        default:
+          return {command, ResultStatus::Unavailable,
+                  BigPicture::UnavailableReason::InvalidArgument};
+        }
+        return {command, ResultStatus::Dispatched};
+      },
+      [this](bool paused) {
+        Core::SetState(m_system, paused ? Core::State::Paused : Core::State::Running);
+        if (paused && Core::GetState(m_system) == Core::State::Paused)
+        {
+          // Finish accepted guest presents before the menu starts its retained-frame redraws.
+          const Core::CPUThreadGuard guard(m_system);
+        }
+      },
+      [this](std::shared_ptr<const BigPicture::Snapshot> snapshot) {
+        BigPicture::GetPresentationState().Publish(snapshot);
+        if (snapshot)
+          m_render_widget->RefreshInputCapture();
+        VideoCommon::BigPicture::Wakeup();
+      });
+  connect(&Settings::Instance(), &Settings::ConfigChanged, m_big_picture_host,
+          &BigPictureHost::Refresh);
+  m_standalone_timer = new QTimer(this);
+  m_standalone_timer->setInterval(16);
+  connect(m_standalone_timer, &QTimer::timeout, this, &MainWindow::PollStandalone);
+  connect(&Settings::Instance(), &Settings::ConfigChanged, this, [this] {
+    if (!m_standalone || m_standalone_restart_queued || m_standalone_stop != StandaloneStop::None ||
+        !Core::IsUninitialized(m_system))
+      return;
+    m_standalone_restart_queued = true;
+    QTimer::singleShot(75, this, [this, serial = m_standalone_serial] {
+      m_standalone_restart_queued = false;
+      if (m_standalone && serial == m_standalone_serial && m_big_picture_requested &&
+          Core::IsUninitialized(m_system) && m_standalone_stop == StandaloneStop::None)
+        StopStandalone(StandaloneStop::Restart);
+    });
+  });
 
   ConnectGameList();
   ConnectHost();
@@ -245,7 +513,10 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
 
   QSettings& settings = Settings::GetQSettings();
   restoreState(settings.value(QStringLiteral("mainwindow/state")).toByteArray());
-  restoreGeometry(settings.value(QStringLiteral("mainwindow/geometry")).toByteArray());
+  const QString geometry_key = QStringLiteral("mainwindow/geometry");
+  if (!settings.contains(geometry_key) ||
+      !restoreGeometry(settings.value(geometry_key).toByteArray()))
+    resize(sizeHint());
   if (!Settings::Instance().IsBatchModeEnabled())
   {
     show();
@@ -346,10 +617,26 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
     StartGame(std::move(m_pending_boot));
     m_pending_boot.reset();
   }
+  else if (m_big_picture_requested)
+    QTimer::singleShot(0, this, &MainWindow::EnterBigPicture);
 }
 
 MainWindow::~MainWindow()
 {
+  m_shutting_down = true;
+  if (m_standalone)
+  {
+    m_standalone_timer->stop();
+    m_standalone->Stop();
+    // Normal closes finish asynchronously before reaching here. External application quits
+    // must also keep pumping native messages until the graphics owner has released the window.
+    while (!m_standalone->IsFinished())
+    {
+      QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+      QThread::msleep(1);
+    }
+    m_standalone.reset();
+  }
   // Shut down NetPlay first to avoid race condition segfault
   Settings::Instance().ResetNetPlayClient();
   Settings::Instance().ResetNetPlayServer();
@@ -395,6 +682,85 @@ void MainWindow::InitControllers()
     return;
 
   UICommon::InitControllers(::GetWindowSystemInfo(windowHandle()));
+  BigPicture::GetPresentationState().SetMenuFontPaths(QtUtils::FindMenuFontFallbacks(
+      QStandardPaths::standardLocations(QStandardPaths::FontsLocation)));
+
+  BigPicture::NavigationText menu_text{
+      tr("Big Picture").toStdString(),
+      tr("Menu Preferences").toStdString(),
+      tr("Close Menu").toStdString(),
+      tr("Swap Confirm and Back").toStdString(),
+      tr("Interface Scale").toStdString(),
+      tr("Safe Area").toStdString(),
+      tr("Back").toStdString(),
+      tr("Select").toStdString(),
+      tr("Previous Page").toStdString(),
+      tr("Next Page").toStdString(),
+      tr("On").toStdString(),
+      tr("Off").toStdString(),
+      tr("Enter: Select   Esc: Back   Page Up/Down: Previous/Next Page").toStdString()};
+  menu_text.actions = {tr("Open Menu").toStdString(),
+                       tr("Back").toStdString(),
+                       tr("Settings").toStdString(),
+                       tr("Save State").toStdString(),
+                       tr("Load State").toStdString(),
+                       tr("Return to Desktop").toStdString(),
+                       tr("Start Game").toStdString(),
+                       tr("Resume").toStdString(),
+                       tr("Stop Emulation").toStdString(),
+                       tr("Reset").toStdString(),
+                       tr("Save State").toStdString(),
+                       tr("Load State").toStdString(),
+                       tr("Confirm").toStdString(),
+                       tr("Cancel").toStdString(),
+                       tr("Screenshot").toStdString(),
+                       tr("Change Disc (Desktop)").toStdString(),
+                       tr("Advanced Settings (Desktop)").toStdString(),
+                       tr("Refresh Slots").toStdString(),
+                       tr("Exit Dolphin").toStdString(),
+                       tr("Open Game (Desktop)").toStdString(),
+                       tr("Toggle Fullscreen").toStdString()};
+  menu_text.reasons = {
+      std::string{},
+      tr("An operation is in progress.").toStdString(),
+      tr("No game is running.").toStdString(),
+      tr("A game is already running.").toStdString(),
+      tr("Unavailable during NetPlay.").toStdString(),
+      tr("Unavailable in hardcore mode.").toStdString(),
+      tr("Unavailable here.").toStdString(),
+      tr("Available when running a disc game.").toStdString(),
+      tr("Return to the desktop to review unsaved achievement modifications.").toStdString(),
+      tr("This slot is empty or unreadable.").toStdString()};
+  for (std::size_t slot = 0; slot < menu_text.slot_labels.size(); ++slot)
+    menu_text.slot_labels[slot] = tr("Slot %1").arg(slot + 1).toStdString();
+  menu_text.confirm = tr("Confirm").toStdString();
+  menu_text.cancel = tr("Cancel").toStdString();
+  menu_text.confirm_stop =
+      tr("Stop the current emulation? Unsaved progress will be lost.").toStdString();
+  menu_text.confirm_reset =
+      tr("Reset the current game? Unsaved progress will be lost.").toStdString();
+  menu_text.confirm_exit =
+      tr("Stop emulation and exit Dolphin? Unsaved progress will be lost.").toStdString();
+  menu_text.confirm_overwrite = tr("Overwrite this save-state slot?").toStdString();
+  menu_text.error = tr("Operation Failed").toStdString();
+  menu_text.requested = tr("Request sent. Watch the on-screen message for the result. Screenshots "
+                           "finish on the next game frame.")
+                            .toStdString();
+  menu_text.loading_slots =
+      tr("Open or refresh this browser to read slot information.").toStdString();
+  menu_text.empty_slot = tr("Empty").toStdString();
+  menu_text.unknown_slot = tr("Unreadable state header").toStdString();
+  menu_text.state_browser_help = tr("Choose a slot. Refresh Slots updates saved dates. Older or "
+                                    "incompatible states may not load.")
+                                     .toStdString();
+  menu_text.desktop_settings_help = tr("Open desktop Configuration.").toStdString();
+  menu_text.desktop_disc_help = tr("Choose a disc using the desktop file picker.").toStdString();
+  menu_text.stop_help = tr("Return to the desktop game list.").toStdString();
+  menu_text.standalone_help =
+      tr("Open a game using the desktop picker, or return to the desktop game library.")
+          .toStdString();
+  menu_text.confirm_exit_idle = tr("Exit Dolphin?").toStdString();
+  BigPicture::GetPresentationState().SetNavigationText(std::move(menu_text));
 
   m_hotkey_scheduler = new HotkeyScheduler();
   m_hotkey_scheduler->Start();
@@ -431,6 +797,7 @@ void MainWindow::ShutdownControllers()
 void MainWindow::InitCoreCallbacks()
 {
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this](Core::State state) {
+    m_big_picture_host->Refresh();
     if (state == Core::State::Uninitialized)
       OnStopComplete();
 
@@ -463,13 +830,13 @@ static void InstallHotkeyFilter(QWidget* dialog)
 
 void MainWindow::CreateComponents()
 {
-  m_menu_bar = new MenuBar(this);
-  m_tool_bar = new ToolBar(this);
-  m_search_bar = new SearchBar(this);
-  m_game_count = new GameCount(this);
-  m_game_list = new GameList(this);
+  m_menu_bar = new MenuBar(*m_ui, this);
+  m_tool_bar = new ToolBar(*m_ui, this);
+  m_game_list = new GameList(m_ui->gameListPage);
+  m_emulation_status = new EmulationStatusWidget(m_ui->statusBar);
+  m_ui->statusBar->addPermanentWidget(m_emulation_status);
   m_render_widget = new RenderWidget;
-  m_stack = new QStackedWidget(this);
+  m_stack = m_ui->mainStack;
 
   for (int i = 0; i < 4; i++)
   {
@@ -533,7 +900,6 @@ void MainWindow::CreateComponents()
 
 void MainWindow::ConnectMenuBar()
 {
-  setMenuBar(m_menu_bar);
   // File
   connect(m_menu_bar, &MenuBar::Open, this, &MainWindow::Open);
   connect(m_menu_bar, &MenuBar::Exit, this, &MainWindow::close);
@@ -568,6 +934,8 @@ void MainWindow::ConnectMenuBar()
   connect(m_menu_bar, &MenuBar::ConfigureAudio, this, &MainWindow::ShowAudioWindow);
   connect(m_menu_bar, &MenuBar::ConfigureControllers, this, &MainWindow::ShowControllersWindow);
   connect(m_menu_bar, &MenuBar::ConfigureHotkeys, this, &MainWindow::ShowHotkeyDialog);
+  connect(m_menu_bar, &MenuBar::ConfigureBigPicture, this, &MainWindow::ShowBigPictureInputDialog);
+  connect(m_menu_bar, &MenuBar::EnterBigPicture, this, &MainWindow::EnterBigPicture);
   connect(m_menu_bar, &MenuBar::ConfigureFreelook, this, &MainWindow::ShowFreeLookWindow);
 
   // Tools
@@ -603,8 +971,10 @@ void MainWindow::ConnectMenuBar()
   // View
   connect(m_menu_bar, &MenuBar::ShowList, m_game_list, &GameList::SetListView);
   connect(m_menu_bar, &MenuBar::ShowGrid, m_game_list, &GameList::SetGridView);
+  connect(m_game_list, &GameList::PreferredViewChanged, m_menu_bar,
+          &MenuBar::SetPreferredViewChecked);
   connect(m_menu_bar, &MenuBar::PurgeGameListCache, m_game_list, &GameList::PurgeCache);
-  connect(m_menu_bar, &MenuBar::ShowSearch, m_search_bar, &SearchBar::Show);
+  connect(m_menu_bar, &MenuBar::ShowSearch, m_game_list, &GameList::ShowSearch);
 
   connect(m_menu_bar, &MenuBar::ColumnVisibilityToggled, m_game_list,
           &GameList::OnColumnVisibilityToggled);
@@ -624,8 +994,206 @@ void MainWindow::ConnectMenuBar()
   connect(this, &MainWindow::RecordingStatusChanged, m_menu_bar, &MenuBar::RecordingStatusChanged);
 }
 
+void MainWindow::EnterBigPicture()
+{
+  if (m_shutting_down || Settings::Instance().IsBatchModeEnabled())
+    return;
+  const auto state = Core::GetState(m_system);
+  if (state == Core::State::Starting || state == Core::State::Stopping)
+    return;
+  if (m_standalone)
+  {
+    m_render_widget->window()->raise();
+    m_render_widget->window()->activateWindow();
+    return;
+  }
+  m_big_picture_requested = true;
+  if (!Core::IsUninitialized(m_system))
+  {
+    if (!g_video_backend->SupportsUI())
+    {
+      m_big_picture_requested = false;
+      ModalMessageBox::warning(this, tr("Big Picture"),
+                               tr("Big Picture is unavailable with this graphics backend."));
+      return;
+    }
+    m_big_picture_host->RequestAction(m_big_picture_host->GetSnapshot()->generation,
+                                      BigPicture::Action::OpenMenu);
+    return;
+  }
+
+  // Uninitialized is published at the end of core teardown. Join that owner before creating
+  // any new graphics globals, including when the stop notification arrived just beforehand.
+  Core::Shutdown(m_system);
+  ShowRenderWidget();
+  if (!m_rendering_to_main && m_render_widget_geometry.isEmpty())
+    m_render_widget->resize(1280, 720);
+  auto wsi = ::GetWindowSystemInfo(m_render_widget->windowHandle());
+  VideoBackendBase::PopulateBackendInfo(wsi);
+  g_video_backend->PrepareWindow(wsi);
+  m_big_picture_host->InvalidatePresentation();
+  if (m_big_picture_host->GetSnapshot()->mode == BigPicture::Mode::Desktop)
+    m_big_picture_host->RequestAction(m_big_picture_host->GetSnapshot()->generation,
+                                      BigPicture::Action::OpenMenu);
+  m_standalone_ready = false;
+  m_standalone_stop = StandaloneStop::None;
+  ++m_standalone_serial;
+  m_standalone = VideoCommon::BigPicture::StandaloneSession::Create(g_video_backend, wsi);
+  m_standalone_timer->start();
+}
+
+void MainWindow::StopStandalone(StandaloneStop next)
+{
+  if (m_shutting_down || m_standalone_stop == StandaloneStop::Exit)
+    return;
+  if (next == StandaloneStop::Restart && m_standalone_stop != StandaloneStop::None)
+    return;
+  if (next == StandaloneStop::Desktop || next == StandaloneStop::Settings ||
+      next == StandaloneStop::Exit)
+  {
+    m_big_picture_requested = false;
+    m_standalone_boot.reset();
+  }
+  m_standalone_stop = next;
+  if (m_standalone)
+    m_standalone->Stop();
+  else
+  {
+    m_standalone_stop = StandaloneStop::None;
+    CompleteStandaloneStop(next, false);
+  }
+}
+
+void MainWindow::PollStandalone()
+{
+  if (!m_standalone || m_shutting_down)
+    return;
+  using Status = VideoCommon::BigPicture::StandaloneSession::Status;
+  const auto status = m_standalone->GetStatus();
+  if (status == Status::Ready && !m_standalone_ready && m_standalone_stop == StandaloneStop::None)
+  {
+    m_standalone_ready = true;
+    m_menu_bar->SetBigPictureActive(true);
+    m_big_picture_host->Refresh();
+  }
+  if (status == Status::Ready && m_standalone_stop == StandaloneStop::None &&
+      m_big_picture_host->GetSnapshot()->mode == BigPicture::Mode::Desktop)
+    StopStandalone(StandaloneStop::Desktop);
+  if (!m_standalone->IsFinished())
+    return;
+  const bool failed = m_standalone->GetStatus() == Status::Failed;
+  const auto next =
+      m_standalone_stop == StandaloneStop::None ? StandaloneStop::Desktop : m_standalone_stop;
+  m_standalone.reset();  // IsFinished acknowledges all graphics destruction; joining is now safe.
+  m_standalone_timer->stop();
+  m_standalone_stop = StandaloneStop::None;
+  CompleteStandaloneStop(next, failed);
+}
+
+void MainWindow::CompleteStandaloneStop(StandaloneStop next, bool failed)
+{
+  m_menu_bar->SetBigPictureActive(false);
+  HideRenderWidget(next != StandaloneStop::Exit, next == StandaloneStop::Exit);
+  SetFullScreenResolution(false);
+  if (failed)
+  {
+    m_big_picture_requested = false;
+    ModalMessageBox::warning(
+        this, tr("Big Picture"),
+        tr("Big Picture could not initialize or continue using the selected graphics backend. "
+           "Dolphin has returned to the desktop."));
+  }
+  if (next == StandaloneStop::Boot)
+  {
+    auto boot = std::move(m_standalone_boot);
+    if (boot)
+      StartGame(std::move(boot));
+    m_big_picture_host->Refresh();
+    if (Core::IsUninitialized(m_system) && m_big_picture_requested)
+      QTimer::singleShot(0, this, &MainWindow::EnterBigPicture);
+    return;
+  }
+  if (next == StandaloneStop::Restart && !failed && m_big_picture_requested)
+  {
+    EnterBigPicture();
+    return;
+  }
+  m_big_picture_host->FinishStopToDesktop();
+  show();
+  raise();
+  if (next == StandaloneStop::Exit)
+  {
+    if (m_assembler_widget->ApplicationCloseRequest())
+      QGuiApplication::exit(0);
+    else
+      m_exit_requested = false;
+  }
+  else if (next == StandaloneStop::Settings)
+    ShowSettingsWindow();
+  else if (next == StandaloneStop::OpenGame)
+  {
+    Open();
+    if (Core::IsUninitialized(m_system) && m_big_picture_requested)
+      QTimer::singleShot(0, this, &MainWindow::EnterBigPicture);
+  }
+}
+
+bool MainWindow::LeaveBigPictureForDesktop(std::uint64_t generation)
+{
+  if (m_big_picture_host->GetSnapshot()->generation != generation)
+    return false;
+  // A desktop handoff leaves a local game paused. In NetPlay the menu never owned a pause.
+  m_big_picture_requested = false;
+  m_big_picture_host->InvalidatePauseOwnership();
+  m_big_picture_host->RequestAction(generation, BigPicture::Action::ReturnToDesktop);
+  if (m_render_widget->isFullScreen())
+    FullScreen();
+  show();
+  raise();
+  activateWindow();
+  return true;
+}
+
+void MainWindow::RefreshBigPictureStateSlots()
+{
+  static_assert(BigPicture::STATE_SLOT_COUNT == State::NUM_STATES);
+  if (!Core::IsRunning(m_system))
+    return;
+  for (std::size_t slot = 0; slot < m_big_picture_state_slots.size(); ++slot)
+  {
+    const auto info = State::GetSlotInfo(static_cast<u32>(slot + 1));
+    m_big_picture_state_slots[slot] = {info.exists, info.readable, info.description};
+  }
+  m_big_picture_state_slots_ready = true;
+}
+
 void MainWindow::ConnectHotkeys()
 {
+  connect(m_hotkey_scheduler, &HotkeyScheduler::BigPictureAction, this,
+          [this](int action_value, quint64 generation, quint64 input_epoch, int slot,
+                 quint64 confirmation_id, const QString& path) {
+            const auto action = static_cast<BigPicture::Action>(action_value);
+            if ((action == BigPicture::Action::SaveStates ||
+                 action == BigPicture::Action::LoadStates) &&
+                generation == m_big_picture_host->GetSnapshot()->generation &&
+                BigPicture::GetPresentationState().IsInputCurrent(input_epoch) &&
+                Core::IsRunning(m_system))
+              RefreshBigPictureStateSlots();
+            m_big_picture_host->RequestAction(generation, action, input_epoch, slot,
+                                              confirmation_id, path.toStdString());
+          });
+  connect(
+      m_hotkey_scheduler, &HotkeyScheduler::BigPictureOptions, this,
+      [this](bool swap, double scale, double safe_area, quint64 generation, quint64 input_epoch) {
+        const auto snapshot = m_big_picture_host->GetSnapshot();
+        if (snapshot->generation != generation || snapshot->mode == BigPicture::Mode::Desktop ||
+            !BigPicture::GetPresentationState().IsInputCurrent(input_epoch))
+          return;
+        BigPictureInput::SetOptions(
+            {swap, static_cast<float>(scale), static_cast<float>(safe_area)});
+        BigPicture::GetPresentationState().RequestFrames();
+        VideoCommon::BigPicture::Wakeup();
+      });
   connect(m_hotkey_scheduler, &HotkeyScheduler::Open, this, &MainWindow::Open);
   connect(m_hotkey_scheduler, &HotkeyScheduler::ChangeDisc, this, &MainWindow::ChangeDisc);
   connect(m_hotkey_scheduler, &HotkeyScheduler::EjectDisc, this, &MainWindow::EjectDisc);
@@ -704,8 +1272,6 @@ void MainWindow::ConnectHotkeys()
 
 void MainWindow::ConnectToolBar()
 {
-  addToolBar(m_tool_bar);
-
   connect(m_tool_bar, &ToolBar::OpenPressed, this, &MainWindow::Open);
   connect(m_tool_bar, &ToolBar::RefreshPressed, this, &MainWindow::RefreshGameList);
 
@@ -748,6 +1314,8 @@ void MainWindow::ConnectRenderWidget()
   m_render_widget->hide();
   connect(m_render_widget, &RenderWidget::Closed, this, &MainWindow::ForceStop);
   connect(m_render_widget, &RenderWidget::FocusChanged, this, [this](bool focus) {
+    if (!focus)
+      m_big_picture_host->InvalidatePauseOwnership();
     if (m_render_widget->isFullScreen())
       SetFullScreenResolution(focus);
   });
@@ -760,40 +1328,24 @@ void MainWindow::ConnectHost()
 
 void MainWindow::ConnectStack()
 {
-  auto* widget = new QWidget;
-  auto* layout = new QVBoxLayout;
-  widget->setLayout(layout);
-
-  layout->addWidget(m_game_list);
-  layout->addWidget(m_search_bar);
-  layout->addWidget(m_game_count);
-  layout->setSpacing(0);
-  layout->setContentsMargins(0, 0, 0, 0);
-
-  connect(m_search_bar, &SearchBar::Search, m_game_list, &GameList::SetSearchTerm);
-  connect(m_game_list, &GameList::GameCountUpdated, m_game_count, &GameCount::OnGameCountUpdated);
+  m_ui->gameListLayout->addWidget(m_game_list);
+  connect(m_game_list, &GameList::GameCountUpdated, this,
+          [this](const int total_games, const int visible_games) {
+            m_total_games = total_games;
+            m_visible_games = visible_games;
+            UpdateStatusBar();
+          });
 
   m_game_list->UpdateGameCount();
 
-  const auto update_spacing = [this](const bool game_count_is_visible) {
-    // The bottom margin of the search bar and the top margin of the game count are both suitable
-    // when the other widget is hidden, but when both are visible the gap created by the combination
-    // is too large. To fix this we set the bottom margin of the search bar to 0 when the game count
-    // is visible and set it to the top margin when the game count is hidden.
-    m_game_count->setVisible(game_count_is_visible);
-    auto* const search_layout = m_search_bar->layout();
-    QMargins search_margins = search_layout->contentsMargins();
-    const int new_bottom_margin = game_count_is_visible ? 0 : search_margins.top();
-    search_margins.setBottom(new_bottom_margin);
-    search_layout->setContentsMargins(search_margins);
-  };
-  update_spacing(Settings::Instance().IsGameCountVisible());
+  connect(&Settings::Instance(), &Settings::GameCountVisibilityChanged, this,
+          [this] { UpdateStatusBar(); });
+  connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
+          [this] { UpdateStatusBar(); });
 
-  connect(&Settings::Instance(), &Settings::GameCountVisibilityChanged, update_spacing);
-
-  m_stack->addWidget(widget);
-
-  setCentralWidget(m_stack);
+  auto* const status_timer = new QTimer(this);
+  connect(status_timer, &QTimer::timeout, this, &MainWindow::UpdateStatusBar);
+  status_timer->start(500);
 
   setDockOptions(DockOption::AllowNestedDocks | DockOption::AllowTabbedDocks);
   setTabPosition(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea, QTabWidget::North);
@@ -819,6 +1371,48 @@ void MainWindow::ConnectStack()
   tabifyDockWidget(m_log_widget, m_network_widget);
   tabifyDockWidget(m_log_widget, m_jit_widget);
   tabifyDockWidget(m_log_widget, m_assembler_widget);
+}
+
+void MainWindow::UpdateStatusBar()
+{
+  const Core::State state = Core::GetState(m_system);
+  const bool is_emulating = state == Core::State::Running || state == Core::State::Paused;
+
+  if (!is_emulating)
+  {
+    m_emulation_status->SetStatus({});
+
+    if (Settings::Instance().IsGameCountVisible())
+    {
+      m_ui->statusBar->OnGameCountUpdated(m_total_games, m_visible_games);
+      m_ui->statusBar->show();
+    }
+    else
+    {
+      m_ui->statusBar->clearMessage();
+      m_ui->statusBar->hide();
+    }
+    return;
+  }
+
+  EmulationStatus status;
+  status.active = true;
+  if (g_video_backend)
+    status.renderer = tr(g_video_backend->GetDisplayName().c_str());
+
+  auto& performance_metrics = m_system.GetPerfMetrics();
+  const auto [width, height] = performance_metrics.GetLatestFrameBufferSize();
+  status.width = width;
+  status.height = height;
+  status.fps = performance_metrics.GetFPS();
+  status.vps = performance_metrics.GetVPS();
+  status.speed = performance_metrics.GetSpeed();
+  status.volume = Config::Get(Config::MAIN_AUDIO_VOLUME);
+  status.muted = Config::Get(Config::MAIN_AUDIO_MUTED);
+
+  m_ui->statusBar->clearMessage();
+  m_ui->statusBar->show();
+  m_emulation_status->SetStatus(status);
 }
 
 void MainWindow::RefreshGameList()
@@ -947,7 +1541,11 @@ void MainWindow::TogglePause()
 
 void MainWindow::OnStopComplete()
 {
+  m_big_picture_state_slots_ready = false;
+  m_big_picture_state_slots = {};
+  m_graceful_shutdown_timer->stop();
   m_stop_requested = false;
+  m_big_picture_host->FinishStopToDesktop();
   HideRenderWidget(!m_exit_requested, m_exit_requested);
 #ifdef USE_DISCORD_PRESENCE
   if (!m_netplay_dialog->isVisible())
@@ -982,9 +1580,17 @@ void MainWindow::OnStopComplete()
   {
     StartGame(BootParameters::GenerateFromFile(forwarder_boot_path));
   }
+  else if (m_big_picture_requested && !m_exit_requested &&
+           !Settings::Instance().IsBatchModeEnabled())
+    QTimer::singleShot(0, this, &MainWindow::EnterBigPicture);
 }
 
 bool MainWindow::RequestStop()
+{
+  return RequestStopWithConfirmation(false);
+}
+
+bool MainWindow::RequestStopWithConfirmation(bool confirmed)
 {
   if (Core::IsUninitialized(m_system))
   {
@@ -1005,7 +1611,7 @@ bool MainWindow::RequestStop()
   else
     FullScreen();
 
-  bool confirm_on_stop = Config::Get(Config::MAIN_CONFIRM_ON_STOP);
+  bool confirm_on_stop = !confirmed && Config::Get(Config::MAIN_CONFIRM_ON_STOP);
 #ifdef RC_CLIENT_SUPPORTS_RAINTEGRATION
   confirm_on_stop = confirm_on_stop || AchievementManager::GetInstance().CheckForModifications();
 #endif  // RC_CLIENT_SUPPORTS_RAINTEGRATION
@@ -1100,6 +1706,7 @@ bool MainWindow::RequestStop()
     if (NetPlay::IsNetPlayRunning())
       NetPlay::SendPowerButtonEvent();
 
+    m_graceful_shutdown_timer->start(GRACEFUL_SHUTDOWN_TIMEOUT_MS);
     return true;
   }
 
@@ -1113,6 +1720,7 @@ bool MainWindow::RequestStop()
 
 void MainWindow::ForceStop()
 {
+  m_graceful_shutdown_timer->stop();
   Core::Stop(m_system);
 }
 
@@ -1207,6 +1815,15 @@ void MainWindow::StartGame(const std::vector<std::string>& paths,
 
 void MainWindow::StartGame(std::unique_ptr<BootParameters>&& parameters)
 {
+  if (m_shutting_down)
+    return;
+  if (Core::IsUninitialized(m_system) && m_standalone)
+  {
+    m_standalone_boot = std::move(parameters);
+    StopStandalone(StandaloneStop::Boot);
+    m_big_picture_host->Refresh();
+    return;
+  }
   if (parameters && std::holds_alternative<BootParameters::Disc>(parameters->parameters))
   {
     if (std::get<BootParameters::Disc>(parameters->parameters).volume->IsNKit())
@@ -1257,11 +1874,22 @@ void MainWindow::StartGame(std::unique_ptr<BootParameters>&& parameters)
   ShowRenderWidget();
 
   // Boot up, show an error if it fails to load the game.
+  m_big_picture_state_slots_ready = false;
+  m_big_picture_state_slots = {};
+  m_big_picture_disc_game =
+      parameters && std::holds_alternative<BootParameters::Disc>(parameters->parameters);
+  const auto snapshot = m_big_picture_host->GetSnapshot();
+  const bool menu_boot = snapshot->pending && snapshot->pending->action == BigPicture::Action::Boot;
+  m_big_picture_host->PrepareForBoot();
   if (!BootManager::BootCore(m_system, std::move(parameters),
                              ::GetWindowSystemInfo(m_render_widget->windowHandle())))
   {
-    ModalMessageBox::critical(this, tr("Error"), tr("Failed to init core"), QMessageBox::Ok);
+    if (!menu_boot)
+      ModalMessageBox::critical(this, tr("Error"), tr("Failed to init core"), QMessageBox::Ok);
     HideRenderWidget();
+    m_big_picture_host->Refresh();
+    if (m_big_picture_requested)
+      QTimer::singleShot(0, this, &MainWindow::EnterBigPicture);
     return;
   }
 
@@ -1422,6 +2050,8 @@ void MainWindow::ShowSettingsWindow()
     }
 #endif
     m_settings_window = new SettingsWindow(this);
+    connect(m_settings_window, &SettingsWindow::ConfigureBigPictureInput, this,
+            &MainWindow::ShowBigPictureInputDialog);
     InstallHotkeyFilter(m_settings_window);
   }
 
@@ -1539,6 +2169,21 @@ void MainWindow::ShowHotkeyDialog()
   m_hotkey_window->show();
   m_hotkey_window->raise();
   m_hotkey_window->activateWindow();
+}
+
+void MainWindow::ShowBigPictureInputDialog(int controller)
+{
+  if (controller < 0 || controller >= static_cast<int>(m_big_picture_input_windows.size()))
+    return;
+  auto*& window = m_big_picture_input_windows[controller];
+  if (!window)
+  {
+    window = new MappingWindow(this, MappingWindow::Type::MAPPING_BIG_PICTURE, controller);
+    InstallHotkeyFilter(window);
+  }
+  window->show();
+  window->raise();
+  window->activateWindow();
 }
 
 void MainWindow::ShowGraphicsWindow()
@@ -1900,6 +2545,12 @@ bool MainWindow::eventFilter(QObject* object, QEvent* event)
 {
   if (event->type() == QEvent::Close)
   {
+    if (m_standalone)
+    {
+      StopStandalone(object == this ? StandaloneStop::Exit : StandaloneStop::Desktop);
+      static_cast<QCloseEvent*>(event)->ignore();
+      return true;
+    }
     if (RequestStop() && object == this)
       m_exit_requested = true;
 
@@ -1972,7 +2623,22 @@ void MainWindow::dropEvent(QDropEvent* event)
 
 QSize MainWindow::sizeHint() const
 {
-  return QSize(800, 600);
+  if (!m_game_list)
+    return QSize(800, 600);
+
+  QSize size = m_game_list->GetSizeForGrid(DEFAULT_GRID_COLUMNS, DEFAULT_GRID_ROWS);
+
+  if (!m_ui->toolbar->isHidden())
+  {
+    size.setWidth(std::max(size.width(), m_ui->toolbar->sizeHint().width()));
+    size.rheight() += m_ui->toolbar->sizeHint().height();
+  }
+  if (!m_ui->menubar->isNativeMenuBar() && !m_ui->menubar->isHidden())
+    size.rheight() += m_ui->menubar->sizeHint().height();
+  if (!m_ui->statusBar->isHidden())
+    size.rheight() += m_ui->statusBar->sizeHint().height();
+
+  return size;
 }
 
 void MainWindow::OnBootGameCubeIPL(DiscIO::Region region)
@@ -2138,8 +2804,8 @@ void MainWindow::OnExportRecording()
 
 void MainWindow::OnActivateChat()
 {
-  if (g_netplay_chat_ui)
-    g_netplay_chat_ui->Activate();
+  if (const auto chat = g_netplay_chat_ui.load())
+    chat->Activate();
 }
 
 void MainWindow::OnCollapseChat()

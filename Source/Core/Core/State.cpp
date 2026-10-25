@@ -4,6 +4,7 @@
 #include "Core/State.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <map>
 #include <mutex>
@@ -19,6 +20,7 @@
 #include <lz4.h>
 #include <lzo/lzo1x.h>
 
+#include "Common/BigPicture/PresentationState.h"
 #include "Common/Buffer.h"
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
@@ -28,6 +30,7 @@
 #include "Common/LocaleUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
+#include "Common/ScopeGuard.h"
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
 #include "Common/TimeUtil.h"
@@ -40,6 +43,7 @@
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/GeckoCode.h"
+#include "Core/HW/CPU.h"
 #include "Core/HW/HW.h"
 #include "Core/HW/Memmap.h"
 #include "Core/HW/Wiimote.h"
@@ -50,6 +54,7 @@
 
 #include "UICommon/UICommon.h"
 
+#include "VideoCommon/BigPicture/Runtime.h"
 #include "VideoCommon/FrameDumpFFMpeg.h"
 #include "VideoCommon/OnScreenDisplay.h"
 #include "VideoCommon/VideoBackendBase.h"
@@ -471,8 +476,18 @@ static void CompressAndDumpState(Core::System& system, const CompressAndDumpStat
   }
 }
 
+static auto SuspendUIPresentation()
+{
+  BigPicture::GetPresentationState().Suspend();
+  return Common::ScopeGuard([] {
+    BigPicture::GetPresentationState().Resume();
+    VideoCommon::BigPicture::Wakeup();
+  });
+}
+
 static void SaveAsFromCore(Core::System& system, std::string filename)
 {
+  const auto ui_lock = SuspendUIPresentation();
   // Try with a buffer a bit larger than the previous state.
   // This will often avoid the "Measure" step.
   const auto buffer_size_estimate = static_cast<std::size_t>(s_last_state_size) * 110 / 100;
@@ -635,6 +650,25 @@ u64 GetUnixTimeOfSlot(u32 slot)
   constexpr u64 MS_PER_SEC = 1000;
   return static_cast<u64>(header.legacy_header.time * MS_PER_SEC) +
          (DOUBLE_TIME_OFFSET * MS_PER_SEC);
+}
+
+SlotInfo GetSlotInfo(u32 slot)
+{
+  std::lock_guard lk{s_state_saves_in_progress};
+  const auto filename = MakeStateFilename(slot);
+  if (!File::Exists(filename))
+    return {};
+  StateHeader header;
+  if (!ReadHeader(filename, header))
+    return {true, false, {}};
+  // Corrupt timestamps must not reach the floating-point to time_t conversion. The menu only
+  // needs a display date here; payload and version validation remain in the normal loader.
+  const double unix_time = header.legacy_header.time + DOUBLE_TIME_OFFSET;
+  if (!std::isfinite(unix_time) || unix_time < 0 || unix_time > 253402300799.0)
+    return {true, false, {}};
+  auto description = SystemTimeAsDoubleToString(header.legacy_header.time);
+  const bool readable = !description.empty();
+  return {true, readable, std::move(description)};
 }
 
 static bool DecompressLZ4(Common::UniqueBuffer<u8>& raw_buffer, u64 size, File::IOFile& f)
@@ -810,6 +844,7 @@ static void LoadFileStateData(const std::string& filename, Common::UniqueBuffer<
 
 static void LoadAsFromCore(Core::System& system, std::string filename)
 {
+  const auto ui_lock = SuspendUIPresentation();
   // Ensure all data has reached the filesystem before trying to use it.
   s_compress_and_dump_thread.WaitForCompletion();
 
@@ -866,6 +901,7 @@ static void LoadAsFromCore(Core::System& system, std::string filename)
     }
   }
 
+  system.GetCPU().InvalidatePauseOwnership();
   if (s_on_after_load_callback)
     s_on_after_load_callback();
 }
@@ -874,6 +910,8 @@ void LoadAs(Core::System& system, std::string filename)
 {
   if (!CheckIfStateLoadIsAllowed(system))
     return;
+
+  system.GetCPU().InvalidatePauseOwnership();
 
   Core::RunOnCPUThread(system, [&system, filename = std::move(filename)]() mutable {
     LoadAsFromCore(system, std::move(filename));
@@ -918,6 +956,8 @@ void LoadLastSaved(Core::System& system, int i)
   if (!CheckIfStateLoadIsAllowed(system))
     return;
 
+  system.GetCPU().InvalidatePauseOwnership();
+
   Core::RunOnCPUThread(system, [&system, i] {
     // Data must reach the filesystem for up to date "UsedSlots".
     s_compress_and_dump_thread.WaitForCompletion();
@@ -959,7 +999,10 @@ void UndoLoadState(Core::System& system)
   if (!CheckIfStateLoadIsAllowed(system))
     return;
 
+  system.GetCPU().InvalidatePauseOwnership();
+
   Core::RunOnCPUThread(system, [&system] {
+    const auto ui_lock = SuspendUIPresentation();
     if (s_undo_load_buffer.empty())
     {
       PanicAlertFmtT("There is nothing to undo!");

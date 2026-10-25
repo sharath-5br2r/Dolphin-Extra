@@ -5,10 +5,8 @@
 
 #include "DolphinQt/TAS/TASInputWindow.h"
 
-class QGroupBox;
 class QHideEvent;
 class QShowEvent;
-class QSpinBox;
 class TASCheckBox;
 
 class GCTASInputWindow : public TASInputWindow
@@ -37,8 +35,4 @@ private:
   TASCheckBox* m_up_button;
   TASCheckBox* m_down_button;
   TASCheckBox* m_right_button;
-  QGroupBox* m_main_stick_box;
-  QGroupBox* m_c_stick_box;
-  QGroupBox* m_triggers_box;
-  QGroupBox* m_buttons_box;
 };

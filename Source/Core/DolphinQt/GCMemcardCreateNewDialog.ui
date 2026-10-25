@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GCMemcardCreateNewDialog</class>
+ <widget class="QDialog" name="GCMemcardCreateNewDialog">
+  <property name="windowTitle">
+   <string>Create New Memory Card</string>
+  </property>
+  <layout class="QGridLayout" name="mainLayout">
+   <item row="0" column="0">
+    <widget class="QLabel" name="cardSizeLabel">
+     <property name="text">
+      <string>Card Size</string>
+     </property>
+     <property name="buddy">
+      <cstring>cardSizeComboBox</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="cardSizeComboBox">
+     <property name="currentIndex">
+      <number>5</number>
+     </property>
+     <item>
+      <property name="text">
+       <string>4 Mbit (59 blocks)</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>8 Mbit (123 blocks)</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>16 Mbit (251 blocks)</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>32 Mbit (507 blocks)</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>64 Mbit (1019 blocks)</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>128 Mbit (2043 blocks)</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="encodingLabel">
+     <property name="text">
+      <string extracomment="Character encoding">Encoding</string>
+     </property>
+     <property name="buddy">
+      <cstring>westernRadioButton</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QRadioButton" name="westernRadioButton">
+     <property name="text">
+      <string>Western (Windows-1252)</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QRadioButton" name="shiftJisRadioButton">
+     <property name="text">
+      <string extracomment="The translation of this string should be consistent with the translation of the string &quot;Western (Windows-1252)&quot;. Because of this, you may want to parse &quot;Japanese&quot; as &quot;a character encoding which is from Japan / used in Japan&quot; rather than &quot;the Japanese language&quot;.">Japanese (Shift-JIS)</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="2" alignment="Qt::AlignmentFlag::AlignRight">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>cardSizeComboBox</tabstop>
+  <tabstop>westernRadioButton</tabstop>
+  <tabstop>shiftJisRadioButton</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

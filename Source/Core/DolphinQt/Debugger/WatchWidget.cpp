@@ -8,7 +8,6 @@
 #include <QMenu>
 #include <QTableWidget>
 #include <QToolBar>
-#include <QVBoxLayout>
 
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
@@ -22,6 +21,8 @@
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
+
+#include "ui_WatchWidget.h"
 
 WatchWidget::WatchWidget(QWidget* parent)
     : QDockWidget(parent), m_system(Core::System::GetInstance())
@@ -74,19 +75,15 @@ WatchWidget::~WatchWidget()
 
 void WatchWidget::CreateWidgets()
 {
-  m_toolbar = new QToolBar;
-  m_toolbar->setContentsMargins(0, 0, 0, 0);
-  m_toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-
-  m_table = new QTableWidget;
-  m_table->setTabKeyNavigation(false);
+  auto* widget = new QWidget;
+  Ui::WatchWidget ui;
+  ui.setupUi(widget);
+  m_toolbar = ui.toolbar;
+  m_table = ui.table;
 
   m_table->setContentsMargins(0, 0, 0, 0);
   m_table->setColumnCount(NUM_COLUMNS);
   m_table->verticalHeader()->setHidden(true);
-  m_table->setContextMenuPolicy(Qt::CustomContextMenu);
-  m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
-  m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_table->setHorizontalHeaderLabels(
       {tr("Label"), tr("Address"), tr("Hexadecimal"),
        // i18n: The base 10 numeral system. Not related to non-integer numbers
@@ -109,15 +106,6 @@ void WatchWidget::CreateWidgets()
   m_clear->setEnabled(false);
   m_load->setEnabled(false);
   m_save->setEnabled(false);
-
-  auto* layout = new QVBoxLayout;
-  layout->setContentsMargins(2, 2, 2, 2);
-  layout->setSpacing(0);
-  layout->addWidget(m_toolbar);
-  layout->addWidget(m_table);
-
-  QWidget* widget = new QWidget;
-  widget->setLayout(layout);
 
   setWidget(widget);
 }

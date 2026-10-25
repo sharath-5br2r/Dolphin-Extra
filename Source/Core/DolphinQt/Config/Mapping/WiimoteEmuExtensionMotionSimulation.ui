@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WiimoteEmuExtensionMotionSimulation</class>
+ <widget class="QWidget" name="WiimoteEmuExtensionMotionSimulation">
+  <layout class="QHBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QGroupBox" name="nunchukBox">
+     <property name="title">
+      <string>Nunchuk</string>
+     </property>
+     <layout class="QGridLayout" name="nunchukLayout"/>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

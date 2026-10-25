@@ -3,11 +3,13 @@
 
 #include "VideoCommon/OnScreenUI.h"
 
+#include "Common/BigPicture/PresentationState.h"
 #include "Common/CommonPaths.h"
 #include "Common/EnumMap.h"
 #include "Common/FileUtil.h"
 #include "Common/Profiler.h"
 #include "Common/Timer.h"
+#include "VideoCommon/BigPicture/InGameMenu.h"
 
 #include "Core/AchievementManager.h"
 #include "Core/Config/AchievementSettings.h"
@@ -31,6 +33,7 @@
 #include "VideoCommon/Statistics.h"
 #include "VideoCommon/VertexManagerBase.h"
 #include "VideoCommon/VideoConfig.h"
+#include "VideoCommon/VideoEvents.h"
 
 #include <inttypes.h>
 #include <mutex>
@@ -105,6 +108,7 @@ bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
 
   m_imgui_last_frame_time = Common::Timer::NowUs();
   m_ready = true;
+  ::BigPicture::GetPresentationState().SetRendererReady(true);
   BeginImGuiFrameUnlocked(width, height);  // lock is already held
 
   return true;
@@ -112,11 +116,16 @@ bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
 
 OnScreenUI::~OnScreenUI()
 {
+  ::BigPicture::GetPresentationState().SetRendererReady(false);
   std::unique_lock<std::mutex> imgui_lock(m_imgui_mutex);
 
-  ImGui::EndFrame();
-  ImPlot::DestroyContext();
-  ImGui::DestroyContext();
+  if (ImGui::GetCurrentContext())
+  {
+    if (m_ready)
+      ImGui::EndFrame();
+    ImPlot::DestroyContext();
+    ImGui::DestroyContext();
+  }
   m_imgui_textures.clear();
 }
 
@@ -207,6 +216,8 @@ void OnScreenUI::BeginImGuiFrameUnlocked(u32 width, u32 height)
   io.DisplaySize =
       ImVec2(static_cast<float>(m_backbuffer_width), static_cast<float>(m_backbuffer_height));
   io.DeltaTime = time_diff_secs;
+
+  ProcessInput();
 
   ImGui::NewFrame();
 }
@@ -317,11 +328,15 @@ void OnScreenUI::DrawDebugText()
   if (g_ActiveConfig.bOverlayStats)
     g_stats.Display();
 
-  if (Config::Get(Config::GFX_SHOW_NETPLAY_MESSAGES) && g_netplay_chat_ui)
-    g_netplay_chat_ui->Display();
-
-  if (Config::Get(Config::NETPLAY_GOLF_MODE_OVERLAY) && g_netplay_golf_ui)
-    g_netplay_golf_ui->Display();
+  if (!::BigPicture::GetPresentationState().IsModal())
+  {
+    if (const auto chat = g_netplay_chat_ui.load();
+        chat && Config::Get(Config::GFX_SHOW_NETPLAY_MESSAGES))
+      chat->Display();
+    if (const auto golf = g_netplay_golf_ui.load();
+        golf && Config::Get(Config::NETPLAY_GOLF_MODE_OVERLAY))
+      golf->Display();
+  }
 
   if (g_ActiveConfig.bOverlayProjStats)
     g_stats.DisplayProj();
@@ -432,16 +447,25 @@ void OnScreenUI::DrawChallengesAndLeaderboards()
 #endif  // USE_RETRO_ACHIEVEMENTS
 }
 
-void OnScreenUI::Finalize()
+void OnScreenUI::Finalize(bool draw_emulation_overlays)
 {
   auto lock = GetImGuiLock();
 
-  auto& perf_metrics = Core::System::GetInstance().GetPerfMetrics();
-  perf_metrics.DrawImGuiStats(m_backbuffer_scale);
-  DrawDebugText();
+  if (draw_emulation_overlays)
+  {
+    auto& perf_metrics = Core::System::GetInstance().GetPerfMetrics();
+    perf_metrics.DrawImGuiStats(m_backbuffer_scale);
+    DrawDebugText();
+  }
   OSD::DrawMessages();
-  DrawChallengesAndLeaderboards();
+  if (draw_emulation_overlays)
+    DrawChallengesAndLeaderboards();
+  GetVideoEvents().host_ui_frame_event.Trigger();
+  DrawNavigation();
   ImGui::Render();
+  ::BigPicture::GetPresentationState().PublishCapture(
+      m_input_epoch, ImGui::GetIO().WantCaptureKeyboard, ImGui::GetIO().WantCaptureMouse);
+  ::BigPicture::GetPresentationState().FrameCompleted();
 
   // Check for font changes
   ImGuiStyle& style = ImGui::GetStyle();
@@ -563,6 +587,11 @@ void OnScreenUI::SetScale(float backbuffer_scale)
 }
 void OnScreenUI::SetKeyMap(const DolphinKeyMap& key_map)
 {
+  ::BigPicture::GetPresentationState().SetKeyMap({key_map.begin(), key_map.end()});
+}
+
+void OnScreenUI::ProcessInput()
+{
   static constexpr DolphinKeyMap dolphin_to_imgui_map = {
       ImGuiKey_Tab,       ImGuiKey_LeftArrow, ImGuiKey_RightArrow, ImGuiKey_UpArrow,
       ImGuiKey_DownArrow, ImGuiKey_PageUp,    ImGuiKey_PageDown,   ImGuiKey_Home,
@@ -572,10 +601,55 @@ void OnScreenUI::SetKeyMap(const DolphinKeyMap& key_map)
       ImGuiKey_Y,         ImGuiKey_Z,
   };
 
-  auto lock = GetImGuiLock();
-
-  if (!ImGui::GetCurrentContext())
-    return;
+  auto input = ::BigPicture::GetPresentationState().TakeInput();
+  m_input_epoch = input.epoch;
+  const bool mapping_changed =
+      m_navigation.options.swap_confirm_back != input.navigation.options.swap_confirm_back;
+  m_navigation = std::move(input.navigation);
+  auto& io = ImGui::GetIO();
+  const auto snapshot = ::BigPicture::GetPresentationState().GetSnapshot();
+  const bool modal = snapshot && snapshot->mode != ::BigPicture::Mode::Desktop &&
+                     ::BigPicture::GetPresentationState().IsModal();
+  io.ConfigNavCursorVisibleAlways = modal;
+  io.ConfigFlags &= ~(ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad);
+  io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
+  if (modal)
+  {
+    if (!m_menu_font)
+    {
+      // Keep menu text sizes and fallback glyphs independent of diagnostic OSD settings.
+      const auto fallback_paths = ::BigPicture::GetPresentationState().GetMenuFontPaths();
+      auto font_path = File::GetUserPath(D_LOAD_IDX) + "OSD_Font.ttf";
+      if (!File::Exists(font_path))
+        font_path = !fallback_paths.empty() ? fallback_paths.front() :
+                                              File::GetSysDirectory() + DIR_SEP + RESOURCES_DIR +
+                                                  DIR_SEP + "OSD_Font.ttf";
+      if (File::Exists(font_path))
+        m_menu_font = io.Fonts->AddFontFromFileTTF(font_path.c_str());
+      if (!m_menu_font)
+        m_menu_font = io.Fonts->AddFontDefault();
+      for (const auto& path : fallback_paths)
+      {
+        if (path == font_path || !File::Exists(path))
+          continue;
+        ImFontConfig config;
+        config.MergeMode = true;
+        config.DstFont = m_menu_font;
+        io.Fonts->AddFontFromFileTTF(path.c_str(), 0, &config);
+      }
+    }
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+    if (m_navigation.gamepad)
+      io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+  }
+  if (input.reset || mapping_changed)
+  {
+    io.ClearInputKeys();
+    io.ClearInputMouse();
+    io.ClearEventsQueue();
+    ImGui::SetWindowFocus(nullptr);
+    m_navigation_toolkit.InvalidateFocus();
+  }
 
   m_dolphin_to_imgui_map.clear();
   for (int dolphin_key = 0; dolphin_key <= static_cast<int>(DolphinKey::Z); dolphin_key++)
@@ -583,37 +657,131 @@ void OnScreenUI::SetKeyMap(const DolphinKeyMap& key_map)
     const int imgui_key = dolphin_to_imgui_map[DolphinKey(dolphin_key)];
     if (imgui_key >= 0)
     {
-      const int mapped_key = key_map[DolphinKey(dolphin_key)];
-      m_dolphin_to_imgui_map[mapped_key & 0x1FF] = imgui_key;
+      if (static_cast<size_t>(dolphin_key) < input.key_map.size())
+        m_dolphin_to_imgui_map[input.key_map[dolphin_key]] = imgui_key;
+    }
+  }
+  for (const auto& event : input.events)
+  {
+    switch (event.type)
+    {
+    case ::BigPicture::InputEvent::Type::Key:
+      if (event.down)
+        m_navigation_keyboard = true;
+      if (auto it = m_dolphin_to_imgui_map.find(event.key); it != m_dolphin_to_imgui_map.end())
+        io.AddKeyEvent(static_cast<ImGuiKey>(it->second), event.down);
+      [[fallthrough]];
+    case ::BigPicture::InputEvent::Type::Text:
+      if (!event.text.empty())
+        io.AddInputCharactersUTF8(event.text.c_str());
+      break;
+    case ::BigPicture::InputEvent::Type::Navigation:
+      if (modal && event.key < ::BigPicture::NAV_BUTTON_COUNT)
+      {
+        const auto key =
+            BigPicture::GetNavigationKey(static_cast<::BigPicture::NavButton>(event.key),
+                                         m_navigation.options.swap_confirm_back);
+        if (key != ImGuiKey_None)
+          io.AddKeyEvent(key, event.down);
+        if (event.down)
+          m_navigation_keyboard = false;
+      }
+      break;
+    case ::BigPicture::InputEvent::Type::MousePosition:
+      io.AddMousePosEvent(event.x, event.y);
+      break;
+    case ::BigPicture::InputEvent::Type::MouseButtons:
+      for (size_t i = 0; i < std::size(io.MouseDown); ++i)
+        io.AddMouseButtonEvent(static_cast<int>(i), (event.buttons & (1u << i)) != 0);
+      break;
+    case ::BigPicture::InputEvent::Type::Focus:
+      io.AddFocusEvent(event.down);
+      break;
+    case ::BigPicture::InputEvent::Type::Reset:
+      io.ClearInputKeys();
+      io.ClearInputMouse();
+      io.ClearEventsQueue();
+      ImGui::SetWindowFocus(nullptr);
+      break;
     }
   }
 }
 
+void OnScreenUI::DrawNavigation()
+{
+  auto& presentation = ::BigPicture::GetPresentationState();
+  const auto snapshot = presentation.GetSnapshot();
+  if (!snapshot || snapshot->mode == ::BigPicture::Mode::Desktop || !presentation.IsModal())
+  {
+    m_navigation_toolkit.InvalidateFocus();
+    return;
+  }
+  if (m_navigation_generation != snapshot->generation)
+  {
+    m_navigation_toolkit.Reset();
+    m_navigation_generation = snapshot->generation;
+  }
+  const auto text = presentation.GetNavigationText();
+  if (text.title.empty())
+    return;
+  auto options = m_navigation.options;
+  const auto menu = BigPicture::BuildInGameMenu(*snapshot, text, options);
+  const auto prompt = [&](::BigPicture::NavButton button, const std::string& label) {
+    const auto& binding = m_navigation.bindings[static_cast<std::size_t>(button)];
+    return !m_navigation_keyboard && !binding.empty() && binding.size() <= 24 ?
+               binding + ": " + label :
+               label;
+  };
+  const auto confirm =
+      options.swap_confirm_back ? ::BigPicture::NavButton::Back : ::BigPicture::NavButton::Confirm;
+  const auto back =
+      options.swap_confirm_back ? ::BigPicture::NavButton::Confirm : ::BigPicture::NavButton::Back;
+  const std::string prompts = m_navigation_keyboard ?
+                                  text.keyboard_prompts :
+                                  m_navigation.device + "   " + prompt(confirm, text.select) +
+                                      "   " + prompt(back, text.back) + "   " +
+                                      prompt(::BigPicture::NavButton::Previous, text.previous) +
+                                      "   " + prompt(::BigPicture::NavButton::Next, text.next);
+  ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), ImGui::GetIO().DisplaySize,
+                                                IM_COL32(0, 0, 0, 160));
+  const auto result = m_navigation_toolkit.Draw(menu.page, options, prompts, m_menu_font);
+  if (const auto request = menu.Activate(result))
+    presentation.RequestNavigation(*request, m_input_epoch);
+}
+
 void OnScreenUI::SetKey(u32 key, bool is_down, const char* chars)
 {
-  auto lock = GetImGuiLock();
-  if (auto iter = m_dolphin_to_imgui_map.find(key); iter != m_dolphin_to_imgui_map.end())
-    ImGui::GetIO().AddKeyEvent((ImGuiKey)iter->second, is_down);
-
-  if (chars)
-    ImGui::GetIO().AddInputCharactersUTF8(chars);
+  auto& state = ::BigPicture::GetPresentationState();
+  const auto snapshot = state.GetSnapshot();
+  state.Enqueue({::BigPicture::InputEvent::Type::Key, snapshot ? snapshot->generation : 0, key,
+                 is_down, chars ? chars : ""});
 }
 
 void OnScreenUI::SetMousePos(float x, float y)
 {
-  auto lock = GetImGuiLock();
-
-  ImGui::GetIO().AddMousePosEvent(x, y);
+  auto& state = ::BigPicture::GetPresentationState();
+  const auto snapshot = state.GetSnapshot();
+  state.Enqueue({::BigPicture::InputEvent::Type::MousePosition,
+                 snapshot ? snapshot->generation : 0,
+                 0,
+                 false,
+                 {},
+                 x,
+                 y});
 }
 
 void OnScreenUI::SetMousePress(u32 button_mask)
 {
-  auto lock = GetImGuiLock();
-
-  for (size_t i = 0; i < std::size(ImGui::GetIO().MouseDown); i++)
-  {
-    ImGui::GetIO().AddMouseButtonEvent(static_cast<int>(i), (button_mask & (1u << i)) != 0);
-  }
+  auto& state = ::BigPicture::GetPresentationState();
+  const auto snapshot = state.GetSnapshot();
+  state.Enqueue({::BigPicture::InputEvent::Type::MouseButtons,
+                 snapshot ? snapshot->generation : 0,
+                 0,
+                 false,
+                 {},
+                 0,
+                 0,
+                 button_mask});
 }
 
 }  // namespace VideoCommon

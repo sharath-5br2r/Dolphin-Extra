@@ -3,6 +3,8 @@
 
 #include "DolphinQt/Config/FreeLookWidget.h"
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -11,8 +13,7 @@
 #include "Core/AchievementManager.h"
 #include "Core/Config/FreeLookSettings.h"
 
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigChoice.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
 #include "DolphinQt/QtUtils/NonDefaultQPushButton.h"
 #include "DolphinQt/Settings.h"
@@ -28,8 +29,10 @@ void FreeLookWidget::CreateLayout()
 {
   auto* layout = new QVBoxLayout();
 
-  m_enable_freelook = new ConfigBool(tr("Enable"), Config::FREE_LOOK_ENABLED);
-  m_enable_freelook->SetDescription(
+  m_enable_freelook = new QCheckBox(tr("Enable"));
+  ConfigWidget::Bind(m_enable_freelook, Config::FREE_LOOK_ENABLED);
+  ConfigWidget::SetDescription(
+      m_enable_freelook, QString{},
       tr("Allows manipulation of the in-game camera.<br><br><dolphin_emphasis>If unsure, "
          "leave this unchecked.</dolphin_emphasis>"));
 #ifdef USE_RETRO_ACHIEVEMENTS
@@ -38,18 +41,21 @@ void FreeLookWidget::CreateLayout()
 #endif  // USE_RETRO_ACHIEVEMENTS
   m_freelook_controller_configure_button = new NonDefaultQPushButton(tr("Configure Controller"));
 
-  m_freelook_control_type = new ConfigChoice({tr("Six Axis"), tr("First Person"), tr("Orbital")},
-                                             Config::FL1_CONTROL_TYPE);
-  m_freelook_control_type->SetTitle(tr("Free Look Control Type"));
-  m_freelook_control_type->SetDescription(tr(
-      "Changes the in-game camera type during Free Look.<br><br>"
-      "Six Axis: Offers full camera control on all axes, akin to moving a spacecraft in zero "
-      "gravity. This is the most powerful Free Look option but is the most challenging to use.<br> "
-      "<br>"
-      "First Person: Controls the free camera similarly to a first person video game. The camera "
-      "can rotate and travel, but roll is impossible. Easy to use, but limiting.<br><br>"
-      "Orbital: Rotates the free camera around the original camera. Has no lateral movement, only "
-      "rotation and you may zoom up to the camera's origin point."));
+  m_freelook_control_type = new QComboBox;
+  m_freelook_control_type->addItems({tr("Six Axis"), tr("First Person"), tr("Orbital")});
+  ConfigWidget::Bind(m_freelook_control_type, Config::FL1_CONTROL_TYPE);
+  ConfigWidget::SetDescription(
+      m_freelook_control_type, tr("Free Look Control Type"),
+      tr("Changes the in-game camera type during Free Look.<br><br>"
+         "Six Axis: Offers full camera control on all axes, akin to moving a spacecraft in zero "
+         "gravity. This is the most powerful Free Look option but is the most challenging to "
+         "use.<br> "
+         "<br>"
+         "First Person: Controls the free camera similarly to a first person video game. The "
+         "camera can rotate and travel, but roll is impossible. Easy to use, but "
+         "limiting.<br><br>"
+         "Orbital: Rotates the free camera around the original camera. Has no lateral movement, "
+         "only rotation and you may zoom up to the camera's origin point."));
 
   auto* description =
       new QLabel(tr("Free Look allows for manipulation of the in-game camera. "
@@ -62,8 +68,8 @@ void FreeLookWidget::CreateLayout()
   description->setTextInteractionFlags(Qt::TextBrowserInteraction);
   description->setOpenExternalLinks(true);
 
-  m_freelook_background_input =
-      new ConfigBool(tr("Background Input"), Config::FREE_LOOK_BACKGROUND_INPUT);
+  m_freelook_background_input = new QCheckBox(tr("Background Input"));
+  ConfigWidget::Bind(m_freelook_background_input, Config::FREE_LOOK_BACKGROUND_INPUT);
 
   auto* hlayout = new QHBoxLayout();
   hlayout->addWidget(new QLabel(tr("Camera 1")));

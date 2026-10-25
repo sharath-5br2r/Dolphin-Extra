@@ -105,6 +105,9 @@ endif()
 
 if (ENABLE_TESTS)
   add_subdirectory(UnitTests)
+  if (ENABLE_QT)
+    add_subdirectory(QtTests)
+  endif()
 endif()
 
 if (DSPTOOL)

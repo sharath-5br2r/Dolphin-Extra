@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WiiPane</class>
+ <widget class="QWidget" name="WiiPane">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>930</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QGroupBox" name="miscGroup">
+     <property name="title">
+      <string>Misc Settings</string>
+     </property>
+     <layout class="QGridLayout" name="miscLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="pal60ModeCheckBox">
+        <property name="text">
+         <string>Use PAL60 Mode (EuRGB60)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="connectKeyboardCheckBox">
+        <property name="text">
+         <string>Connect USB Keyboard</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="screenSaverCheckBox">
+        <property name="text">
+         <string>Enable Screen Saver</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="wiiLinkCheckBox">
+        <property name="text">
+         <string>Enable WiiConnect24 via WiiLink</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="aspectRatioLabel">
+        <property name="text">
+         <string>Aspect Ratio:</string>
+        </property>
+        <property name="buddy">
+         <cstring>aspectRatioComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="aspectRatioComboBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>4:3</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>16:9</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="systemLanguageLabel">
+        <property name="text">
+         <string>System Language:</string>
+        </property>
+        <property name="buddy">
+         <cstring>systemLanguageComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="systemLanguageComboBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Japanese</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>English</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>German</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>French</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Spanish</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Italian</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Dutch</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Simplified Chinese</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Traditional Chinese</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Korean</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="soundModeLabel">
+        <property name="text">
+         <string>Sound:</string>
+        </property>
+        <property name="buddy">
+         <cstring>soundModeComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QComboBox" name="soundModeComboBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string extracomment="Mono audio">Mono</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string extracomment="Stereo audio">Stereo</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string extracomment="Surround audio (Dolby Pro Logic II)">Surround</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="sdCardGroup">
+     <property name="title">
+      <string>SD Card Settings</string>
+     </property>
+     <layout class="QGridLayout" name="sdCardLayout">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="insertSdCardCheckBox">
+        <property name="text">
+         <string>Insert SD Card</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1" colspan="2">
+       <widget class="QCheckBox" name="allowSdWritesCheckBox">
+        <property name="text">
+         <string>Allow Writes to SD Card</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="sdCardPathLabel">
+        <property name="text">
+         <string>SD Card Path:</string>
+        </property>
+        <property name="buddy">
+         <cstring>sdCardPathLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="sdCardPathLineEdit"/>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="sdCardPathBrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0" colspan="3">
+       <widget class="QCheckBox" name="syncSdFolderCheckBox">
+        <property name="text">
+         <string>Automatically Sync with Folder</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="sdSyncFolderLabel">
+        <property name="text">
+         <string>SD Sync Folder:</string>
+        </property>
+        <property name="buddy">
+         <cstring>sdSyncFolderLineEdit</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="sdSyncFolderLineEdit"/>
+      </item>
+      <item row="3" column="2">
+       <widget class="QPushButton" name="sdSyncFolderBrowseButton">
+        <property name="text">
+         <string notr="true">...</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="sdCardSizeLabel">
+        <property name="text">
+         <string>SD Card File Size:</string>
+        </property>
+        <property name="buddy">
+         <cstring>sdCardSizeComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1" colspan="2">
+       <widget class="QComboBox" name="sdCardSizeComboBox">
+        <item>
+         <property name="text">
+          <string>Auto</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>64 MiB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>128 MiB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>256 MiB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>512 MiB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>1 GiB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>2 GiB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>4 GiB (SDHC)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>8 GiB (SDHC)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>16 GiB (SDHC)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>32 GiB (SDHC)</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="5" column="0" colspan="3">
+       <layout class="QHBoxLayout" name="sdCardActionLayout">
+        <item>
+         <spacer name="sdCardActionSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="sdPackButton">
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="sdUnpackButton">
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="usbPassthroughGroup">
+     <property name="title">
+      <string>Whitelisted USB Passthrough Devices</string>
+     </property>
+     <layout class="QVBoxLayout" name="usbPassthroughLayout">
+      <item>
+       <widget class="MinimumSizeHintListWidget" name="usbPassthroughList"/>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="usbPassthroughButtonLayout">
+        <item>
+         <spacer name="usbPassthroughButtonSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QPushButton" name="usbPassthroughAddButton">
+          <property name="text">
+           <string>Add...</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="usbPassthroughRemoveButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Remove</string>
+          </property>
+          <property name="autoDefault">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="wiiRemoteGroup">
+     <property name="title">
+      <string>Wii Remote Settings</string>
+     </property>
+     <layout class="QGridLayout" name="wiiRemoteLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="sensorBarPositionLabel">
+        <property name="text">
+         <string>Sensor Bar Position:</string>
+        </property>
+        <property name="buddy">
+         <cstring>sensorBarPositionComboBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="sensorBarPositionComboBox">
+        <item>
+         <property name="text">
+          <string>Top</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Bottom</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="irSensitivityLabel">
+        <property name="text">
+         <string extracomment="IR stands for infrared and refers to the pointer functionality of Wii Remotes">IR Sensitivity:</string>
+        </property>
+        <property name="buddy">
+         <cstring>irSensitivitySlider</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QSlider" name="irSensitivitySlider">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>5</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="speakerVolumeLabel">
+        <property name="text">
+         <string>Speaker Volume:</string>
+        </property>
+        <property name="buddy">
+         <cstring>speakerVolumeSlider</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QSlider" name="speakerVolumeSlider">
+        <property name="maximum">
+         <number>127</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="2">
+       <widget class="QCheckBox" name="wiiRemoteRumbleCheckBox">
+        <property name="text">
+         <string>Enable Rumble</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>MinimumSizeHintListWidget</class>
+   <extends>QListWidget</extends>
+   <header>DolphinQt/Settings/WiiPane.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>pal60ModeCheckBox</tabstop>
+  <tabstop>connectKeyboardCheckBox</tabstop>
+  <tabstop>screenSaverCheckBox</tabstop>
+  <tabstop>wiiLinkCheckBox</tabstop>
+  <tabstop>aspectRatioComboBox</tabstop>
+  <tabstop>systemLanguageComboBox</tabstop>
+  <tabstop>soundModeComboBox</tabstop>
+  <tabstop>insertSdCardCheckBox</tabstop>
+  <tabstop>allowSdWritesCheckBox</tabstop>
+  <tabstop>sdCardPathLineEdit</tabstop>
+  <tabstop>sdCardPathBrowseButton</tabstop>
+  <tabstop>syncSdFolderCheckBox</tabstop>
+  <tabstop>sdSyncFolderLineEdit</tabstop>
+  <tabstop>sdSyncFolderBrowseButton</tabstop>
+  <tabstop>sdCardSizeComboBox</tabstop>
+  <tabstop>sdPackButton</tabstop>
+  <tabstop>sdUnpackButton</tabstop>
+  <tabstop>usbPassthroughList</tabstop>
+  <tabstop>usbPassthroughAddButton</tabstop>
+  <tabstop>usbPassthroughRemoveButton</tabstop>
+  <tabstop>sensorBarPositionComboBox</tabstop>
+  <tabstop>irSensitivitySlider</tabstop>
+  <tabstop>speakerVolumeSlider</tabstop>
+  <tabstop>wiiRemoteRumbleCheckBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

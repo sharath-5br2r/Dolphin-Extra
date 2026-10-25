@@ -7,16 +7,16 @@
 #include <functional>
 
 #include <QDialogButtonBox>
-#include <QGroupBox>
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QVBoxLayout>
 
 #include "Core/NetPlayClient.h"
 #include "Core/NetPlayServer.h"
 
 #include "DolphinQt/Settings.h"
+
+#include "ui_GameDigestDialog.h"
 
 static QString GetPlayerNameFromPID(int pid)
 {
@@ -36,56 +36,42 @@ static QString GetPlayerNameFromPID(int pid)
   return player_name;
 }
 
-GameDigestDialog::GameDigestDialog(QWidget* parent) : QDialog(parent)
+GameDigestDialog::GameDigestDialog(QWidget* parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::GameDigestDialog>())
 {
-  CreateWidgets();
+  m_ui->setupUi(this);
   ConnectWidgets();
-  setWindowTitle(tr("SHA1 Digest"));
   setWindowFlags(Qt::Sheet | Qt::Dialog);
   setWindowModality(Qt::WindowModal);
 }
 
-void GameDigestDialog::CreateWidgets()
-{
-  m_main_layout = new QVBoxLayout;
-  m_progress_box = new QGroupBox;
-  m_progress_layout = new QVBoxLayout;
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::NoButton);
-  m_check_label = new QLabel;
-
-  m_progress_box->setLayout(m_progress_layout);
-
-  m_main_layout->addWidget(m_progress_box);
-  m_main_layout->addWidget(m_check_label);
-  m_main_layout->addWidget(m_button_box);
-  setLayout(m_main_layout);
-}
+GameDigestDialog::~GameDigestDialog() = default;
 
 void GameDigestDialog::ConnectWidgets()
 {
-  connect(m_button_box, &QDialogButtonBox::rejected, this, &GameDigestDialog::reject);
+  connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &GameDigestDialog::reject);
 }
 
 void GameDigestDialog::show(const QString& title)
 {
-  m_progress_box->setTitle(title);
+  m_ui->progressBox->setTitle(title);
 
   for (const auto& pair : m_progress_bars)
   {
-    m_progress_layout->removeWidget(pair.second);
+    m_ui->progressLayout->removeWidget(pair.second);
     pair.second->deleteLater();
   }
 
   for (const auto& pair : m_status_labels)
   {
-    m_progress_layout->removeWidget(pair.second);
+    m_ui->progressLayout->removeWidget(pair.second);
     pair.second->deleteLater();
   }
 
   m_progress_bars.clear();
   m_status_labels.clear();
   m_results.clear();
-  m_check_label->setText(QString::fromStdString(""));
+  m_ui->checkLabel->clear();
 
   const auto client = Settings::Instance().GetNetPlayClient();
   if (!client)
@@ -93,15 +79,15 @@ void GameDigestDialog::show(const QString& title)
 
   if (Settings::Instance().GetNetPlayServer())
   {
-    m_button_box->setStandardButtons(QDialogButtonBox::Cancel);
-    QPushButton* cancel_button = m_button_box->button(QDialogButtonBox::Cancel);
+    m_ui->buttonBox->setStandardButtons(QDialogButtonBox::Cancel);
+    QPushButton* cancel_button = m_ui->buttonBox->button(QDialogButtonBox::Cancel);
     cancel_button->setAutoDefault(false);
     cancel_button->setDefault(false);
   }
   else
   {
-    m_button_box->setStandardButtons(QDialogButtonBox::Close);
-    QPushButton* close_button = m_button_box->button(QDialogButtonBox::Close);
+    m_ui->buttonBox->setStandardButtons(QDialogButtonBox::Close);
+    QPushButton* close_button = m_ui->buttonBox->button(QDialogButtonBox::Close);
     close_button->setAutoDefault(false);
     close_button->setDefault(false);
   }
@@ -111,8 +97,8 @@ void GameDigestDialog::show(const QString& title)
     m_progress_bars[player->pid] = new QProgressBar;
     m_status_labels[player->pid] = new QLabel;
 
-    m_progress_layout->addWidget(m_progress_bars[player->pid]);
-    m_progress_layout->addWidget(m_status_labels[player->pid]);
+    m_ui->progressLayout->addWidget(m_progress_bars[player->pid]);
+    m_ui->progressLayout->addWidget(m_status_labels[player->pid]);
   }
 
   QDialog::show();
@@ -147,15 +133,15 @@ void GameDigestDialog::SetResult(int pid, const std::string& result)
   {
     if (std::ranges::adjacent_find(m_results, std::ranges::not_equal_to{}) == m_results.end())
     {
-      m_check_label->setText(tr("The hashes match!"));
+      m_ui->checkLabel->setText(tr("The hashes match!"));
     }
     else
     {
-      m_check_label->setText(tr("The hashes do not match!"));
+      m_ui->checkLabel->setText(tr("The hashes do not match!"));
     }
 
-    m_button_box->setStandardButtons(QDialogButtonBox::Close);
-    QPushButton* close_button = m_button_box->button(QDialogButtonBox::Close);
+    m_ui->buttonBox->setStandardButtons(QDialogButtonBox::Close);
+    QPushButton* close_button = m_ui->buttonBox->button(QDialogButtonBox::Close);
     close_button->setAutoDefault(false);
     close_button->setDefault(false);
   }

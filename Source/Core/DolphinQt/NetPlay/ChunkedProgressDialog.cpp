@@ -8,17 +8,17 @@
 #include <fmt/format.h>
 
 #include <QDialogButtonBox>
-#include <QGroupBox>
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
-#include <QVBoxLayout>
 
 #include "Common/Contains.h"
 #include "Core/NetPlayClient.h"
 #include "Core/NetPlayServer.h"
 
 #include "DolphinQt/Settings.h"
+
+#include "ui_ChunkedProgressDialog.h"
 
 static QString GetPlayerNameFromPID(int pid)
 {
@@ -38,47 +38,35 @@ static QString GetPlayerNameFromPID(int pid)
   return player_name;
 }
 
-ChunkedProgressDialog::ChunkedProgressDialog(QWidget* parent) : QDialog(parent)
+ChunkedProgressDialog::ChunkedProgressDialog(QWidget* parent)
+    : QDialog(parent), m_ui(std::make_unique<Ui::ChunkedProgressDialog>())
 {
-  CreateWidgets();
+  m_ui->setupUi(this);
   ConnectWidgets();
-  setWindowTitle(tr("Data Transfer"));
 }
 
-void ChunkedProgressDialog::CreateWidgets()
-{
-  m_main_layout = new QVBoxLayout;
-  m_progress_box = new QGroupBox;
-  m_progress_layout = new QVBoxLayout;
-  m_button_box = new QDialogButtonBox(QDialogButtonBox::NoButton);
-
-  m_progress_box->setLayout(m_progress_layout);
-
-  m_main_layout->addWidget(m_progress_box);
-  m_main_layout->addWidget(m_button_box);
-  setLayout(m_main_layout);
-}
+ChunkedProgressDialog::~ChunkedProgressDialog() = default;
 
 void ChunkedProgressDialog::ConnectWidgets()
 {
-  connect(m_button_box, &QDialogButtonBox::rejected, this, &ChunkedProgressDialog::reject);
+  connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &ChunkedProgressDialog::reject);
 }
 
 void ChunkedProgressDialog::show(const QString& title, const u64 data_size,
                                  std::span<const int> players)
 {
-  m_progress_box->setTitle(title);
+  m_ui->progressBox->setTitle(title);
   m_data_size = data_size;
 
   for (const auto& pair : m_progress_bars)
   {
-    m_progress_layout->removeWidget(pair.second);
+    m_ui->progressLayout->removeWidget(pair.second);
     pair.second->deleteLater();
   }
 
   for (const auto& pair : m_status_labels)
   {
-    m_progress_layout->removeWidget(pair.second);
+    m_ui->progressLayout->removeWidget(pair.second);
     pair.second->deleteLater();
   }
 
@@ -91,15 +79,15 @@ void ChunkedProgressDialog::show(const QString& title, const u64 data_size,
 
   if (Settings::Instance().GetNetPlayServer())
   {
-    m_button_box->setStandardButtons(QDialogButtonBox::Cancel);
-    QPushButton* cancel_button = m_button_box->button(QDialogButtonBox::Cancel);
+    m_ui->buttonBox->setStandardButtons(QDialogButtonBox::Cancel);
+    QPushButton* cancel_button = m_ui->buttonBox->button(QDialogButtonBox::Cancel);
     cancel_button->setAutoDefault(false);
     cancel_button->setDefault(false);
   }
   else
   {
-    m_button_box->setStandardButtons(QDialogButtonBox::Close);
-    QPushButton* close_button = m_button_box->button(QDialogButtonBox::Close);
+    m_ui->buttonBox->setStandardButtons(QDialogButtonBox::Close);
+    QPushButton* close_button = m_ui->buttonBox->button(QDialogButtonBox::Close);
     close_button->setAutoDefault(false);
     close_button->setDefault(false);
   }
@@ -112,8 +100,8 @@ void ChunkedProgressDialog::show(const QString& title, const u64 data_size,
     m_progress_bars[player->pid] = new QProgressBar;
     m_status_labels[player->pid] = new QLabel;
 
-    m_progress_layout->addWidget(m_progress_bars[player->pid]);
-    m_progress_layout->addWidget(m_status_labels[player->pid]);
+    m_ui->progressLayout->addWidget(m_progress_bars[player->pid]);
+    m_ui->progressLayout->addWidget(m_status_labels[player->pid]);
   }
 
   QDialog::show();

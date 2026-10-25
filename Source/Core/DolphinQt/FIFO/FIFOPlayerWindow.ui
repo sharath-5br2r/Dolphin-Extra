@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FIFOPlayerWindow</class>
+ <widget class="QWidget" name="FIFOPlayerWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>580</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>FIFO Player</string>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="playRecordTab">
+      <attribute name="title">
+       <string>Play / Record</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="playRecordLayout">
+       <item>
+        <widget class="QGroupBox" name="fileInfoGroup">
+         <property name="title">
+          <string>File Info</string>
+         </property>
+         <layout class="QHBoxLayout" name="fileInfoLayout">
+          <item>
+           <widget class="QLabel" name="infoLabel">
+            <property name="text">
+             <string notr="true"/>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="playbackGroup">
+         <property name="title">
+          <string>Playback Options</string>
+         </property>
+         <layout class="QGridLayout" name="playbackLayout">
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="objectRangeGroup">
+            <property name="title">
+             <string>Object Range</string>
+            </property>
+            <layout class="QHBoxLayout" name="objectRangeLayout">
+             <item>
+              <widget class="QLabel" name="objectRangeFromLabel">
+               <property name="text">
+                <string>From:</string>
+               </property>
+               <property name="buddy">
+                <cstring>objectRangeFromSpinBox</cstring>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="objectRangeFromSpinBox"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="objectRangeToLabel">
+               <property name="text">
+                <string>To:</string>
+               </property>
+               <property name="buddy">
+                <cstring>objectRangeToSpinBox</cstring>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="objectRangeToSpinBox"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QGroupBox" name="frameRangeGroup">
+            <property name="title">
+             <string>Frame Range</string>
+            </property>
+            <layout class="QHBoxLayout" name="frameRangeLayout">
+             <item>
+              <widget class="QLabel" name="frameRangeFromLabel">
+               <property name="text">
+                <string>From:</string>
+               </property>
+               <property name="buddy">
+                <cstring>frameRangeFromSpinBox</cstring>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="frameRangeFromSpinBox"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="frameRangeToLabel">
+               <property name="text">
+                <string>To:</string>
+               </property>
+               <property name="buddy">
+                <cstring>frameRangeToSpinBox</cstring>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="frameRangeToSpinBox"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="earlyMemoryUpdatesCheckBox">
+            <property name="text">
+             <string>Early Memory Updates</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QCheckBox" name="loopCheckBox">
+            <property name="text">
+             <string>Loop</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="recordingGroup">
+         <property name="title">
+          <string>Recording Options</string>
+         </property>
+         <layout class="QHBoxLayout" name="recordingLayout">
+          <item>
+           <widget class="QLabel" name="frameRecordCountLabel">
+            <property name="text">
+             <string>Frames to Record:</string>
+            </property>
+            <property name="buddy">
+             <cstring>frameRecordCountSpinBox</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="frameRecordCountSpinBox">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>3600</number>
+            </property>
+            <property name="value">
+             <number>3</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QDialogButtonBox" name="buttonBox">
+         <property name="standardButtons">
+          <set>QDialogButtonBox::StandardButton::Close</set>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>objectRangeFromSpinBox</tabstop>
+  <tabstop>objectRangeToSpinBox</tabstop>
+  <tabstop>frameRangeFromSpinBox</tabstop>
+  <tabstop>frameRangeToSpinBox</tabstop>
+  <tabstop>earlyMemoryUpdatesCheckBox</tabstop>
+  <tabstop>loopCheckBox</tabstop>
+  <tabstop>frameRecordCountSpinBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

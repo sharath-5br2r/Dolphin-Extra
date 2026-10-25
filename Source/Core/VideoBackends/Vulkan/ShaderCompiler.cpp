@@ -30,7 +30,7 @@ static const char SHADER_HEADER[] = R"(
   #define FRAGMENT_OUTPUT_LOCATION_INDEXED(x, y) layout(location = x, index = y)
   #define UBO_BINDING(packing, x) layout(packing, set = 0, binding = (x - 1))
   #define SAMPLER_BINDING(x) layout(set = 1, binding = x)
-  #define TEXEL_BUFFER_BINDING(x) layout(set = 1, binding = (x + 8))
+  #define TEXEL_BUFFER_BINDING(x) layout(set = 1, binding = (x + 16))
   #define SSBO_BINDING(x) layout(std430, set = 2, binding = x)
   #define INPUT_ATTACHMENT_BINDING(x, y, z) layout(set = x, binding = y, input_attachment_index = z)
   #define VARYING_LOCATION(x) layout(location = x)

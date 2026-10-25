@@ -2,11 +2,47 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <atomic>
+#include <chrono>
 #include <thread>
 
 #include <gtest/gtest.h>
 
 #include "Common/BlockingLoop.h"
+
+TEST(BlockingLoop, DynamicTimeoutSleepsWhenHiddenAndWakesForVisibleUI)
+{
+  using namespace std::chrono_literals;
+  Common::BlockingLoop loop;
+  std::atomic<bool> visible{false};
+  std::atomic<unsigned> calls{0};
+  loop.Prepare();
+  std::thread worker([&] {
+    loop.RunWithTimeout(
+        [&] {
+          ++calls;
+          loop.AllowSleep();
+        },
+        [&] { return visible ? 5 : 0; });
+  });
+  loop.Wait();
+  const auto sleeping = calls.load();
+  std::this_thread::sleep_for(25ms);
+  EXPECT_EQ(calls, sleeping);
+  visible = true;
+  loop.Wakeup();
+  const auto deadline = std::chrono::steady_clock::now() + 2s;
+  while (calls < sleeping + 4 && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(1ms);
+  EXPECT_GE(calls.load(), sleeping + 4);
+  visible = false;
+  loop.Wakeup();
+  loop.Wait();
+  const auto hidden = calls.load();
+  std::this_thread::sleep_for(25ms);
+  EXPECT_EQ(calls, hidden);
+  loop.Stop();
+  worker.join();
+}
 
 TEST(BlockingLoop, MultiThreaded)
 {

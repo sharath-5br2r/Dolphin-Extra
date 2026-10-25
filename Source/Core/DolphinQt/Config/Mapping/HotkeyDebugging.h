@@ -5,8 +5,6 @@
 
 #include "DolphinQt/Config/Mapping/MappingWidget.h"
 
-class QGridLayout;
-
 class HotkeyDebugging final : public MappingWidget
 {
   Q_OBJECT
@@ -19,7 +17,4 @@ private:
   void LoadSettings() override;
   void SaveSettings() override;
   void CreateMainLayout();
-
-  // Main
-  QGridLayout* m_main_layout;
 };

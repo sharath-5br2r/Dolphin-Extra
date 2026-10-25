@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoCommon/NetPlayChatUI.h"
+#include "Common/BigPicture/PresentationState.h"
 #include "Core/Config/GraphicsSettings.h"
+#include "VideoCommon/BigPicture/Runtime.h"
 
 #include <imgui.h>
 
@@ -11,7 +13,7 @@ constexpr float DEFAULT_WINDOW_HEIGHT = 220.0f;
 
 constexpr size_t MAX_BACKLOG_SIZE = 100;
 
-std::unique_ptr<NetPlayChatUI> g_netplay_chat_ui;
+std::atomic<std::shared_ptr<NetPlayChatUI>> g_netplay_chat_ui;
 
 NetPlayChatUI::NetPlayChatUI(std::function<void(const std::string&)> callback)
     : m_message_callback{std::move(callback)}
@@ -22,6 +24,18 @@ NetPlayChatUI::~NetPlayChatUI() = default;
 
 void NetPlayChatUI::Display()
 {
+  {
+    std::lock_guard lock(m_pending_mutex);
+    for (auto& message : m_pending_messages)
+    {
+      if (m_messages.size() >= MAX_BACKLOG_SIZE)
+        m_messages.pop_front();
+      m_messages.push_back(std::move(message));
+      if (m_is_scrolled_to_bottom)
+        m_scroll_to_bottom = true;
+    }
+    m_pending_messages.clear();
+  }
   const float scale = ImGui::GetIO().DisplayFramebufferScale.x;
 
   ImGui::SetNextWindowPos(ImVec2(10.0f * scale, 40.0f * scale), ImGuiCond_FirstUseEver);
@@ -63,10 +77,12 @@ void NetPlayChatUI::Display()
     SendChatMessage();
   }
 
-  if (m_activate)
+  if (m_activate.exchange(false))
   {
-    ImGui::SetKeyboardFocusHere(-1);
-    m_activate = false;
+    if (ImGui::IsItemActive())
+      ImGui::SetWindowFocus(nullptr);
+    else
+      ImGui::SetKeyboardFocusHere(-1);
   }
 
   if (m_collapse)
@@ -91,14 +107,10 @@ void NetPlayChatUI::Display()
 
 void NetPlayChatUI::AppendChat(std::string message, Color color)
 {
-  if (m_messages.size() > MAX_BACKLOG_SIZE)
-    m_messages.pop_front();
-
-  m_messages.emplace_back(std::move(message), color);
-
-  // Only scroll to bottom, if we were at the bottom previously
-  if (m_is_scrolled_to_bottom)
-    m_scroll_to_bottom = true;
+  std::lock_guard lock(m_pending_mutex);
+  if (m_pending_messages.size() >= MAX_BACKLOG_SIZE)
+    m_pending_messages.pop_front();
+  m_pending_messages.emplace_back(std::move(message), color);
 }
 
 void NetPlayChatUI::SendChatMessage()
@@ -116,10 +128,9 @@ void NetPlayChatUI::SendChatMessage()
 
 void NetPlayChatUI::Activate()
 {
-  if (ImGui::IsItemFocused())
-    ImGui::SetWindowFocus(nullptr);
-  else
-    m_activate = true;
+  m_activate = true;
+  BigPicture::GetPresentationState().RequestFrames();
+  VideoCommon::BigPicture::Wakeup();
 }
 
 void NetPlayChatUI::Collapse()

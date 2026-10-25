@@ -12,7 +12,6 @@
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QLabel>
-#include <QScrollArea>
 #include <QShortcut>
 #include <QSlider>
 #include <QSpinBox>
@@ -27,6 +26,8 @@
 
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
 #include "InputCommon/ControllerEmu/StickGate.h"
+
+#include "ui_TASInputWindow.h"
 
 void InputOverrider::AddFunction(std::string_view group_name, std::string_view control_name,
                                  OverrideFunction function)
@@ -47,27 +48,13 @@ TASInputWindow::TASInputWindow(QWidget* parent) : QDialog(parent)
 {
   setWindowIcon(Resources::GetAppIcon());
 
-  QGridLayout* settings_layout = new QGridLayout;
-
-  m_use_controller = new QCheckBox(tr("Enable Controller Inpu&t"));
-  m_use_controller->setToolTip(tr("Warning: Analog inputs may reset to controller values at "
-                                  "random. In some cases this can be fixed by adding a deadzone."));
-  settings_layout->addWidget(m_use_controller, 0, 0, 1, 2);
-
-  QLabel* turbo_press_label = new QLabel(tr("Duration of Turbo Button Press (frames):"));
-  m_turbo_press_frames = new QSpinBox();
-  m_turbo_press_frames->setMinimum(1);
-  settings_layout->addWidget(turbo_press_label, 1, 0);
-  settings_layout->addWidget(m_turbo_press_frames, 1, 1);
-
-  QLabel* turbo_release_label = new QLabel(tr("Duration of Turbo Button Release (frames):"));
-  m_turbo_release_frames = new QSpinBox();
-  m_turbo_release_frames->setMinimum(1);
-  settings_layout->addWidget(turbo_release_label, 2, 0);
-  settings_layout->addWidget(m_turbo_release_frames, 2, 1);
-
-  m_settings_box = new QGroupBox(tr("Settings"));
-  m_settings_box->setLayout(settings_layout);
+  Ui::TASInputWindow ui;
+  ui.setupUi(this);
+  m_scroll_widget = ui.scrollWidget;
+  m_content_layout = ui.contentLayout;
+  m_use_controller = ui.useControllerCheckBox;
+  m_turbo_press_frames = ui.turboPressSpinBox;
+  m_turbo_release_frames = ui.turboReleaseSpinBox;
 }
 
 int TASInputWindow::GetTurboPressFrames() const
@@ -237,24 +224,17 @@ TASSpinBox* TASInputWindow::CreateSliderValuePair(QGridLayout* layout, int defau
   return value;
 }
 
-void TASInputWindow::SetupScrollArea(QLayout* layout)
+void TASInputWindow::AddContentWidget(QWidget* widget)
 {
-  m_scroll_widget = new QWidget;
-  m_scroll_widget->setLayout(layout);
+  m_content_widget = widget;
+  m_content_layout->insertWidget(m_content_layout->count() - 1, widget);
+  ActivateContentLayout();
+}
 
-  auto* scroll_area = new QScrollArea;
-  scroll_area->setWidget(m_scroll_widget);
-  scroll_area->setWidgetResizable(true);
-  scroll_area->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  scroll_area->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-
-  auto* outer_layout = new QVBoxLayout;
-  outer_layout->setContentsMargins(0, 0, 0, 0);
-  outer_layout->addWidget(scroll_area);
-  setLayout(outer_layout);
-
-  layout->activate();
-  m_scroll_widget->layout()->activate();
+void TASInputWindow::ActivateContentLayout()
+{
+  m_content_widget->layout()->activate();
+  m_content_layout->activate();
 }
 
 std::optional<ControlState> TASInputWindow::GetButton(TASCheckBox* checkbox,

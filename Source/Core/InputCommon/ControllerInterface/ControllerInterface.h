@@ -7,7 +7,9 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 
+#include "Common/BigPicture/PresentationState.h"
 #include "Common/HookableEvent.h"
 #include "Common/Matrix.h"
 #include "Common/WindowSystemInfo.h"
@@ -51,6 +53,7 @@ enum class InputChannel
   SerialInterface,
   Bluetooth,
   FreeLook,
+  BigPicture,
   Count,
 };
 
@@ -99,7 +102,9 @@ public:
   // Without this, our devices list might end up in a mixed state.
   void PlatformPopulateDevices(const std::function<void()>& callback);
   bool IsInit() const { return m_is_init; }
-  void UpdateInput();
+  // Publish accumulated relative motion for a companion reader in the same backend sample.
+  void UpdateInput(std::optional<ciface::InputChannel> additional_channel = std::nullopt);
+  static std::optional<ciface::InputChannel> GetAdditionalInputChannel();
 
   // Set adjustment from the full render window aspect-ratio to the drawn aspect-ratio.
   // Used to fit mouse cursor inputs to the relevant region of the render window.
@@ -148,14 +153,33 @@ template <typename T>
 class RelativeInputState
 {
 public:
-  void Update()
+  void Update(std::optional<InputChannel> additional_channel = std::nullopt)
   {
-    const auto channel = int(ControllerInterface::GetCurrentInputChannel());
+    const auto primary = ControllerInterface::GetCurrentInputChannel();
+    UpdateChannel(primary);
+    if (additional_channel && *additional_channel != primary)
+      UpdateChannel(*additional_channel);
+  }
+
+private:
+  void UpdateChannel(InputChannel input_channel)
+  {
+    const auto channel = int(input_channel);
+
+    const auto epoch = BigPicture::GetPresentationState().GetInputEpoch();
+    if (m_input_epochs[channel] != epoch)
+    {
+      m_input_epochs[channel] = epoch;
+      m_value[channel] = {};
+      m_delta[channel] = {};
+      return;
+    }
 
     m_value[channel] = m_delta[channel];
     m_delta[channel] = {};
   }
 
+public:
   T GetValue() const
   {
     const auto channel = int(ControllerInterface::GetCurrentInputChannel());
@@ -170,8 +194,9 @@ public:
   }
 
 private:
-  std::array<T, int(InputChannel::Count)> m_value;
-  std::array<T, int(InputChannel::Count)> m_delta;
+  std::array<T, int(InputChannel::Count)> m_value{};
+  std::array<T, int(InputChannel::Count)> m_delta{};
+  std::array<std::uint64_t, int(InputChannel::Count)> m_input_epochs{};
 };
 }  // namespace ciface
 

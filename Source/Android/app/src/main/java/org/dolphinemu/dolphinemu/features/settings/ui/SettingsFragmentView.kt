@@ -8,7 +8,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.features.settings.model.view.SettingsItem
-import org.dolphinemu.dolphinemu.utils.GpuDriverInstallResult
+import org.dolphinemu.dolphinemu.utils.InstalledGpuDriver
 
 /**
  * Abstraction for a screen showing a list of settings. Instances of
@@ -122,21 +122,14 @@ interface SettingsFragmentView {
     fun setOldControllerSettingsWarningVisibility(visible: Boolean)
 
     /**
-     * Called when the driver installation is finished
-     *
-     * @param result The result of the driver installation
+     * Opens the system file picker so the user can choose a GPU driver package (zip) to install.
      */
-    fun onDriverInstallDone(result: GpuDriverInstallResult)
+    fun askForDriverFile()
 
     /**
-     * Called when the driver uninstall process is finished
+     * Shows a dialog offering to use or delete an installed GPU driver.
      */
-    fun onDriverUninstallDone()
-
-    /**
-     * Shows a dialog asking the user to install or uninstall a GPU driver
-     */
-    fun showGpuDriverDialog()
+    fun showDriverActionDialog(driver: InstalledGpuDriver)
 
     /**
      * Launches the system folder picker so the user can choose a custom user data location.
