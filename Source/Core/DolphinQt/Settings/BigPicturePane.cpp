@@ -7,6 +7,8 @@
 #include <memory>
 
 #include <QCheckBox>
+#include <QComboBox>
+#include <QCoreApplication>
 #include <QDoubleSpinBox>
 #include <QEvent>
 #include <QPushButton>
@@ -14,6 +16,7 @@
 
 #include "Core/Config/UISettings.h"
 #include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
+#include "DolphinQt/Config/Binder/SharedSettings.h"
 #include "InputCommon/BigPictureInput.h"
 
 #include "ui_BigPicturePane.h"
@@ -22,7 +25,12 @@ BigPicturePane::BigPicturePane(QWidget* parent)
     : QWidget(parent), m_ui(std::make_unique<Ui::BigPicturePane>())
 {
   m_ui->setupUi(this);
-  ConfigWidget::Bind(m_ui->startBigPictureCheckBox, Config::MAIN_START_BIG_PICTURE);
+  ConfigWidget::BindCatalog(m_ui->startBigPictureCheckBox, Config::MAIN_START_BIG_PICTURE);
+  const auto theme = ConfigWidget::CatalogDescriptor(Config::MAIN_BIG_PICTURE_THEME.GetLocation());
+  for (const auto& choice : theme.choices)
+    m_ui->themeComboBox->addItem(
+        QCoreApplication::translate("SharedSettings", choice.label.c_str()));
+  ConfigWidget::BindCatalog(m_ui->themeComboBox, Config::MAIN_BIG_PICTURE_THEME);
   const std::array buttons = {m_ui->configureController1Button, m_ui->configureController2Button,
                               m_ui->configureController3Button, m_ui->configureController4Button};
   for (int controller = 0; controller < static_cast<int>(buttons.size()); ++controller)

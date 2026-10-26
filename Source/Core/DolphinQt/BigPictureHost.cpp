@@ -69,10 +69,21 @@ void BigPictureHost::RequestBack()
 
 void BigPictureHost::RequestAction(std::uint64_t generation, BigPicture::Action action,
                                    std::optional<std::uint64_t> input_epoch, int slot,
-                                   std::uint64_t confirmation_id, std::string path)
+                                   std::uint64_t confirmation_id, std::string path,
+                                   BigPicture::LibraryOperation library_operation,
+                                   std::uint64_t library_revision)
 {
-  Submit({generation, m_next_id.fetch_add(1), action, std::move(path), slot, confirmation_id},
+  Submit({generation, m_next_id.fetch_add(1), action, std::move(path), slot, confirmation_id,
+          library_operation, library_revision},
          input_epoch);
+}
+
+void BigPictureHost::RequestSetting(std::uint64_t generation, Common::Settings::Request request,
+                                    std::optional<std::uint64_t> input_epoch)
+{
+  BigPicture::Command command{generation, m_next_id.fetch_add(1), BigPicture::Action::EditSetting};
+  command.setting = std::move(request);
+  Submit(std::move(command), input_epoch);
 }
 
 void BigPictureHost::InvalidatePauseOwnership()
@@ -80,6 +91,15 @@ void BigPictureHost::InvalidatePauseOwnership()
   Q_ASSERT(QThread::currentThread() == thread());
   m_owns_pause = false;
   ++m_pause_invalidation;
+}
+
+void BigPictureHost::RequestSettingsMenu(std::uint64_t generation,
+                                         BigPicture::SettingsRequest request,
+                                         std::optional<std::uint64_t> input_epoch)
+{
+  BigPicture::Command command{generation, m_next_id.fetch_add(1), BigPicture::Action::SettingsMenu};
+  command.settings_menu = std::move(request);
+  Submit(std::move(command), input_epoch);
 }
 
 std::shared_ptr<const BigPicture::Snapshot> BigPictureHost::GetSnapshot() const
@@ -166,7 +186,7 @@ void BigPictureHost::PrepareForBoot()
 {
   Q_ASSERT(QThread::currentThread() == thread());
   const auto snapshot = m_controller.GetSnapshot();
-  if (!snapshot->pending || snapshot->pending->action != BigPicture::Action::Boot)
+  if (!snapshot->pending || !BigPicture::IsBootAction(snapshot->pending->action))
   {
     InvalidateSession();
     m_controller.Submit({m_controller.GetSnapshot()->generation, m_next_id.fetch_add(1),

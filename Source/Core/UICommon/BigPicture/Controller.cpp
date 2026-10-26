@@ -34,6 +34,8 @@ UnavailableReason GetAvailability(Action action, const HostState& state)
     return active        ? UnavailableReason::None :
            transitioning ? UnavailableReason::Busy :
                            UnavailableReason::NoGame;
+  case Action::BootIPL:
+  case Action::BootSystemMenu:
   case Action::Boot:
     if (state.netplay)
       return UnavailableReason::NetPlay;
@@ -57,6 +59,9 @@ UnavailableReason GetAvailability(Action action, const HostState& state)
            transitioning ? UnavailableReason::Busy :
                            UnavailableReason::NoGame;
   case Action::DesktopSettings:
+  case Action::EditSetting:
+  case Action::SettingsMenu:
+  case Action::Library:
     return transitioning ? UnavailableReason::Busy : UnavailableReason::None;
   case Action::OpenGame:
     if (state.netplay)
@@ -110,7 +115,7 @@ void Controller::SetRoot()
   if (m_state.mode == Mode::Desktop)
     return;
   m_state.mode = m_state.host.lifecycle == Lifecycle::Idle ? Mode::Library : Mode::InGame;
-  m_state.screens.push_back(m_state.mode == Mode::Library ? Screen::Library : Screen::Pause);
+  m_state.screens.push_back(m_state.mode == Mode::Library ? Screen::Home : Screen::Pause);
 }
 
 void Controller::Finish(Result result)
@@ -167,7 +172,7 @@ void Controller::Refresh()
   if (m_state.pending)
   {
     const Command command = *m_state.pending;
-    if (command.action == Action::Boot)
+    if (IsBootAction(command.action))
     {
       if (m_state.host.lifecycle == Lifecycle::Running ||
           m_state.host.lifecycle == Lifecycle::Paused)
@@ -199,7 +204,7 @@ void Controller::Refresh()
 
 void Controller::Dispatch(const Command& command)
 {
-  if (command.action == Action::Boot)
+  if (IsBootAction(command.action))
     ++m_state.generation;
   m_state.pending = command;
   m_state.confirmation.reset();
@@ -210,9 +215,9 @@ void Controller::Dispatch(const Command& command)
   Result result = m_host.Execute(command);
   m_dispatching = false;
   // Boot/stop acknowledgments are not completion. State I/O currently has void APIs; keep
-  // their honest Dispatched status until core completion reporting is implemented in slice 9.
+  // their honest Dispatched status until core completion reporting is implemented in slice 10.
   if (result.status == ResultStatus::Dispatched &&
-      (command.action == Action::Boot || command.action == Action::Stop ||
+      (IsBootAction(command.action) || command.action == Action::Stop ||
        command.action == Action::Exit))
   {
     result.status = ResultStatus::Pending;
@@ -221,6 +226,45 @@ void Controller::Dispatch(const Command& command)
   else
   {
     Finish(std::move(result));
+    if (m_state.result->status == ResultStatus::Succeeded)
+    {
+      const auto push = [&](Screen screen) {
+        if (m_state.screens.empty() || m_state.screens.back() != screen)
+          m_state.screens.push_back(screen);
+      };
+      if (command.action == Action::Library)
+      {
+        switch (command.library_operation)
+        {
+        case LibraryOperation::Options:
+          push(Screen::LibraryOptions);
+          break;
+        case LibraryOperation::Search:
+        case LibraryOperation::EditPath:
+          push(Screen::TextInput);
+          break;
+        case LibraryOperation::AddFolder:
+        case LibraryOperation::OpenFile:
+        case LibraryOperation::OpenDisc:
+          push(Screen::FilePicker);
+          break;
+        case LibraryOperation::ChooseFolder:
+        case LibraryOperation::TextDone:
+          if (m_state.screens.size() > 1)
+            m_state.screens.pop_back();
+          break;
+        default:
+          break;
+        }
+      }
+      if (command.action == Action::Settings)
+        push(Screen::Settings);
+    }
+    if (command.action == Action::ChangeDisc && !command.path.empty() &&
+        (m_state.result->status == ResultStatus::Succeeded ||
+         m_state.result->status == ResultStatus::Dispatched) &&
+        !m_state.screens.empty() && m_state.screens.back() == Screen::FilePicker)
+      m_state.screens.pop_back();
     if (command.action == Action::Resume && m_state.result->status == ResultStatus::Succeeded)
     {
       m_state.mode = Mode::Desktop;
@@ -265,6 +309,73 @@ void Controller::Submit(const Command& command)
        (command.slot < 1 || command.slot > 10)))
   {
     m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
+    Publish();
+    return;
+  }
+
+  if (command.action == Action::EditSetting &&
+      (!command.setting || m_state.mode == Mode::Desktop || m_state.screens.empty() ||
+       m_state.screens.back() != Screen::Settings))
+  {
+    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
+    Publish();
+    return;
+  }
+
+  if (command.action == Action::SettingsMenu &&
+      (!command.settings_menu || m_state.mode == Mode::Desktop || m_state.screens.empty() ||
+       m_state.screens.back() != Screen::Settings))
+  {
+    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
+    Publish();
+    return;
+  }
+
+  if (command.action == Action::Library && m_state.mode == Mode::Desktop)
+  {
+    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
+    Publish();
+    return;
+  }
+  if (command.action == Action::Library)
+  {
+    const auto screen = m_state.screens.empty() ? Screen::Library : m_state.screens.back();
+    const auto operation = command.library_operation;
+    bool valid = operation > LibraryOperation::None && operation < LibraryOperation::Count;
+    if (operation == LibraryOperation::TextKey || operation == LibraryOperation::TextErase ||
+        operation == LibraryOperation::TextClear || operation == LibraryOperation::TextReplace ||
+        operation == LibraryOperation::ControllerKeyboard ||
+        operation == LibraryOperation::TextDone)
+      valid = valid && screen == Screen::TextInput;
+    else if (operation == LibraryOperation::EnterDirectory ||
+             operation == LibraryOperation::ChooseFolder ||
+             operation == LibraryOperation::EditPath || operation == LibraryOperation::Recursive ||
+             operation == LibraryOperation::BrowseDiscs)
+      valid = valid && screen == Screen::FilePicker;
+    else if (operation == LibraryOperation::OpenDisc)
+      valid = valid && screen == Screen::Pause &&
+              GetAvailability(Action::ChangeDisc, m_state.host) == UnavailableReason::None;
+    else if (operation == LibraryOperation::Cover && m_state.mode == Mode::InGame)
+      valid = valid && screen == Screen::Pause && m_state.host.library &&
+              command.path == m_state.host.game_path && !command.path.empty();
+    else
+      valid = valid && m_state.mode == Mode::Library &&
+              (screen == Screen::Library || screen == Screen::LibraryOptions ||
+               (screen == Screen::StartGame && operation == LibraryOperation::OpenFile));
+    if (!valid)
+    {
+      m_state.result =
+          Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
+      Publish();
+      return;
+    }
+  }
+  if ((command.action == Action::Boot || command.action == Action::ChangeDisc) &&
+      command.library_revision != 0 &&
+      (!m_state.host.library || m_state.host.library->picker_loading ||
+       command.library_revision != m_state.host.library->picker_revision))
+  {
+    m_state.result = Result{command, ResultStatus::Stale};
     Publish();
     return;
   }
@@ -322,7 +433,12 @@ void Controller::Submit(const Command& command)
     break;
   case Action::Back:
   case Action::Cancel:
-    if (m_state.screens.size() > 1)
+    if (m_state.mode == Mode::Library && m_state.screens.size() == 1 &&
+        m_state.screens.back() == Screen::Home)
+    {
+      m_state.screens.push_back(Screen::ExitMenu);
+    }
+    else if (m_state.screens.size() > 1)
     {
       if (m_state.screens.back() == Screen::Error)
         m_state.error.reset();
@@ -334,11 +450,35 @@ void Controller::Submit(const Command& command)
       SetRoot();
     }
     break;
+  case Action::ShowLibrary:
+  case Action::StartGame:
+  case Action::ExitMenu:
+  case Action::About:
+    if (m_state.mode != Mode::Library || m_state.screens.empty() ||
+        (command.action != Action::ExitMenu && m_state.screens.back() != Screen::Home))
+    {
+      m_state.result =
+          Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
+      Publish();
+      return;
+    }
+    if (m_state.screens.back() != Screen::ExitMenu)
+      m_state.screens.push_back(command.action == Action::About       ? Screen::About :
+                                command.action == Action::ShowLibrary ? Screen::Library :
+                                command.action == Action::StartGame   ? Screen::StartGame :
+                                                                        Screen::ExitMenu);
+    break;
   case Action::ReturnToDesktop:
     m_state.mode = Mode::Desktop;
     SetRoot();
     break;
   case Action::Settings:
+    if (m_state.host.settings_menu && m_state.mode != Mode::Desktop)
+    {
+      Dispatch(command);
+      return;
+    }
+    [[fallthrough]];
   case Action::SaveStates:
   case Action::LoadStates:
     if (m_state.mode == Mode::Desktop)

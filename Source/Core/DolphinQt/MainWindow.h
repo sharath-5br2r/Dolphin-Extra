@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QPointer>
 #include <QStringList>
 
 #include <array>
@@ -12,6 +13,7 @@
 #include <string>
 
 #include "Common/BigPicture/Contracts.h"
+#include "DolphinQt/BigPictureGraphicsConfig.h"
 
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "Common/Config/Config.h"
@@ -21,6 +23,7 @@
 #include "DolphinQt/FIFO/FIFOPlayerWindow.h"
 
 class QMenu;
+class BigPictureSettings;
 class QStackedWidget;
 class QString;
 class QTimer;
@@ -29,6 +32,8 @@ class AchievementsWindow;
 class AssemblerWidget;
 class BreakpointWidget;
 class BigPictureHost;
+class BigPictureLibrary;
+class BigPictureTextInput;
 struct BootParameters;
 class CheatsManager;
 class CodeWidget;
@@ -167,6 +172,8 @@ private:
 
   void InitCoreCallbacks();
   void RefreshBigPictureStateSlots();
+  void RefreshBigPictureLibrary();
+  void PrepareBigPictureSurface();
   bool LeaveBigPictureForDesktop(std::uint64_t generation);
   enum class StandaloneStop
   {
@@ -197,7 +204,7 @@ private:
   void StartGame(const std::vector<std::string>& paths,
                  std::unique_ptr<BootSessionData> boot_session_data = nullptr);
   void StartGame(std::unique_ptr<BootParameters>&& parameters);
-  void ShowRenderWidget();
+  void ShowRenderWidget(bool preserve_window = false);
   void HideRenderWidget(bool reinit = true, bool is_exit = false);
 
   void ShowSettingsWindow();
@@ -274,15 +281,27 @@ private:
   Core::System& m_system;
   std::unique_ptr<Ui::MainWindow> m_ui;
   BigPictureHost* m_big_picture_host = nullptr;
+  std::unique_ptr<BigPictureSettings> m_big_picture_settings;
+  bool m_settings_post_processing = false;
+  BigPictureLibrary* m_big_picture_library = nullptr;
+  QPointer<BigPictureTextInput> m_big_picture_text_input;
+  std::uint64_t m_big_picture_text_generation = 0;
+  bool m_big_picture_text_queued = false;
+  QTimer* m_library_timer = nullptr;
+  bool m_big_picture_system_menu_available = false;
   std::array<BigPicture::StateSlot, BigPicture::STATE_SLOT_COUNT> m_big_picture_state_slots;
   bool m_big_picture_state_slots_ready = false;
   bool m_big_picture_disc_game = false;
+  std::string m_big_picture_disc_path;
+  void ShowBigPictureTextInput(std::uint64_t generation);
   std::unique_ptr<VideoCommon::BigPicture::StandaloneSession> m_standalone;
   QTimer* m_standalone_timer = nullptr;
   StandaloneStop m_standalone_stop = StandaloneStop::None;
   bool m_big_picture_requested = false;
   bool m_standalone_ready = false;
   bool m_standalone_restart_queued = false;
+  Config::LayerMap m_standalone_graphics_config;
+  Config::LayerMap m_big_picture_surface_config;
   bool m_shutting_down = false;
   std::uint64_t m_standalone_serial = 0;
   std::unique_ptr<BootParameters> m_standalone_boot;

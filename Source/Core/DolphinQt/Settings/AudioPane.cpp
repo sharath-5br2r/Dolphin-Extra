@@ -36,6 +36,7 @@
 #include "Core/System.h"
 
 #include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
+#include "DolphinQt/Config/Binder/SharedSettings.h"
 #include "DolphinQt/Settings.h"
 
 #include "ui_AudioPane.h"
@@ -74,7 +75,7 @@ void AudioPane::BindSettings()
   // The state true/false shouldn't normally happen, but is HLE (index 0) when it does.
   dsp_binding->SetDefault(0);
 
-  ConfigWidget::Bind(m_ui->volumeSlider, Config::MAIN_AUDIO_VOLUME);
+  ConfigWidget::BindCatalog(m_ui->volumeSlider, Config::MAIN_AUDIO_VOLUME);
 
   const std::vector<std::string> backends = AudioCommon::GetSoundBackends();
   std::vector<std::pair<QString, QString>> translated_backends;

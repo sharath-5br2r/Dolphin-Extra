@@ -10,6 +10,8 @@ namespace Config
 const Info<bool> MAIN_USE_DISCORD_PRESENCE{{System::Main, "General", "UseDiscordPresence"}, true};
 const Info<bool> MAIN_USE_GAME_COVERS{{System::Main, "General", "UseGameCovers"}, true};
 const Info<bool> MAIN_START_BIG_PICTURE{{System::Main, "General", "StartBigPicture"}, false};
+const Info<std::string> MAIN_BIG_PICTURE_THEME{{System::Main, "General", "BigPictureTheme"},
+                                               "Dark"};
 const Info<bool> MAIN_FOCUSED_HOTKEYS{{System::Main, "General", "HotkeysRequireFocus"}, true};
 const Info<bool> MAIN_RECURSIVE_ISO_PATHS{{System::Main, "General", "RecursiveISOPaths"}, false};
 const Info<std::string> MAIN_CURRENT_STATE_PATH{{System::Main, "General", "CurrentStatePath"}, ""};

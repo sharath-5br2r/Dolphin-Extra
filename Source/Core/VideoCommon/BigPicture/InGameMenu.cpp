@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoCommon/BigPicture/InGameMenu.h"
+#include "VideoCommon/BigPicture/LibraryMenu.h"
+#include "VideoCommon/BigPicture/SettingsMenu.h"
 
 #include <string_view>
 #include <utility>
@@ -21,17 +23,26 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
   using namespace ::BigPicture;
   InGameMenu menu;
   auto& page = menu.page;
+  page.theme = snapshot.host.menu_theme;
+  page.overlay = snapshot.mode == Mode::InGame;
   const auto label = [&](Action action) -> const std::string& {
     return text.actions[static_cast<std::size_t>(action)];
   };
   const auto reason_text = [&](UnavailableReason reason) -> const std::string& {
     return text.reasons[static_cast<std::size_t>(reason)];
   };
-  const auto add = [&](std::string id, Action action, std::string detail = {}) {
+  const auto add = [&](std::string id, Action action, std::string detail = {},
+                       bool toolbar = false) {
     const auto reason = snapshot.availability[static_cast<std::size_t>(action)];
     const bool enabled = reason == UnavailableReason::None;
-    page.items.push_back(
-        {id, label(action), enabled ? std::move(detail) : reason_text(reason), enabled});
+    (toolbar ? page.toolbar : page.items)
+        .push_back({id,
+                    label(action),
+                    enabled ? std::move(detail) : reason_text(reason),
+                    enabled,
+                    {},
+                    false,
+                    GetActionIcon(action)});
     if (enabled)
       menu.requests.emplace(std::move(id), NavigationRequest{snapshot.generation, action});
   };
@@ -39,7 +50,81 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
     menu.requests.emplace("back", NavigationRequest{snapshot.generation, Action::Back});
 
   const auto screen = snapshot.screens.empty() ? Screen::Pause : snapshot.screens.back();
-  if (screen == Screen::Confirmation && snapshot.confirmation)
+  if (screen == Screen::About)
+  {
+    page.id = "about";
+    page.title = text.about_title;
+    page.description = text.about_description;
+    page.dialog = true;
+    add("back", Action::Back);
+  }
+  else if (screen == Screen::Home)
+  {
+    page.id = "home";
+    page.title = "Dolphin";
+    page.presentation = MenuPresentation::Landing;
+    page.columns = 4;
+    page.default_focus = "game-list";
+    page.account_name = snapshot.host.achievements_username;
+    const std::array actions{Action::ShowLibrary, Action::StartGame, Action::Settings,
+                             Action::ExitMenu};
+    const std::array ids{"game-list", "start-game", "preferences", "exit-menu"};
+    const std::array images{"media-cdrom", "start-game", "applications-system", "exit"};
+    for (std::size_t i = 0; i < actions.size(); ++i)
+    {
+      add(ids[i], actions[i], text.home_descriptions[i]);
+      page.items.back().label = text.home_labels[i];
+      page.items.back().image_key = std::string("home:") + images[i];
+    }
+    menu.requests["back"] = {snapshot.generation, Action::ExitMenu};
+  }
+  else if (screen == Screen::StartGame)
+  {
+    page.id = "start-game";
+    page.title = text.home_labels[1];
+    if (snapshot.host.library)
+    {
+      add("open-file", Action::Library);
+      page.items.back().label =
+          text.library_actions[static_cast<std::size_t>(LibraryOperation::OpenFile)];
+      page.items.back().icon = MenuIcon::Folder;
+      if (auto it = menu.requests.find("open-file"); it != menu.requests.end())
+        it->second.library_operation = LibraryOperation::OpenFile;
+    }
+    else
+      add("open-file", Action::OpenGame);
+    if (!snapshot.host.launch_path.empty())
+    {
+      add("boot", Action::Boot, snapshot.host.launch_title);
+      if (auto it = menu.requests.find("boot"); it != menu.requests.end())
+        it->second.path = snapshot.host.launch_path;
+    }
+    for (int i : {0, 1, 2, 5})
+    {
+      if (!snapshot.host.boot_ipl_available[i])
+        continue;
+      const auto id = "ipl-" + std::to_string(i);
+      add(id, Action::BootIPL, i == 0 ? "NTSC-J" : i == 1 ? "NTSC-U" : i == 2 ? "PAL" : "DEV");
+      if (auto it = menu.requests.find(id); it != menu.requests.end())
+        it->second.slot = static_cast<int>(i);
+    }
+    if (snapshot.host.boot_system_menu_available)
+      add("system-menu", Action::BootSystemMenu);
+    add("back", Action::Back);
+  }
+  else if (screen == Screen::ExitMenu)
+  {
+    page.id = "exit-menu";
+    page.title = text.home_labels[3];
+    add("desktop", Action::ReturnToDesktop);
+    add("exit", Action::Exit);
+    add("back", Action::Back);
+  }
+  else if (snapshot.host.library &&
+           (screen == Screen::Library || screen == Screen::LibraryOptions ||
+            screen == Screen::FilePicker || screen == Screen::TextInput))
+    return BuildLibraryMenu(snapshot, text);
+  else if (screen == Screen::Confirmation && snapshot.confirmation)
   {
     const auto& command = *snapshot.confirmation;
     page.id = "confirmation";
@@ -64,7 +149,7 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
     page.items.back().label = text.cancel;
     return menu;
   }
-  if (screen == Screen::Error)
+  else if (screen == Screen::Error)
   {
     page.id = "error";
     page.focus_revision = snapshot.error ? snapshot.error->command.id : 0;
@@ -77,13 +162,14 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
     add("back", Action::Back);
     return menu;
   }
-  if (screen == Screen::SaveStates || screen == Screen::LoadStates)
+  else if (screen == Screen::SaveStates || screen == Screen::LoadStates)
   {
     const bool saving = screen == Screen::SaveStates;
     const auto action = saving ? Action::SaveState : Action::LoadState;
     page.id = saving ? "save-states" : "load-states";
     page.title = label(saving ? Action::SaveStates : Action::LoadStates);
     page.description = text.state_browser_help;
+    page.columns = 4;
     const auto reason = snapshot.availability[static_cast<std::size_t>(action)];
     for (std::size_t slot = 0; slot < STATE_SLOT_COUNT; ++slot)
     {
@@ -97,6 +183,7 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
                           !state.readable                   ? text.unknown_slot :
                                                               state.description;
       page.items.push_back({id, text.slot_labels[slot], detail, enabled});
+      page.items.back().icon = GetActionIcon(action);
       if (enabled)
       {
         NavigationRequest request{snapshot.generation, action};
@@ -104,11 +191,13 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
         menu.requests.emplace(id, std::move(request));
       }
     }
-    add("refresh", Action::RefreshStates);
-    add("back", Action::Back);
+    add("refresh", Action::RefreshStates, {}, true);
+    add("back", Action::Back, {}, true);
   }
   else if (screen == Screen::Settings)
   {
+    if (snapshot.host.settings_menu)
+      return BuildSettingsMenu(snapshot, text, options);
     page.id = "preferences";
     page.title = text.preferences;
     page.items = {
@@ -133,6 +222,8 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
   else if (snapshot.mode == Mode::Library)
   {
     page.id = "standalone";
+    page.presentation = MenuPresentation::Landing;
+    page.columns = 3;
     page.title = text.title;
     page.description = text.standalone_help;
     if (!snapshot.host.launch_path.empty())
@@ -150,27 +241,38 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
   else
   {
     page.id = "root";
+    page.presentation = MenuPresentation::Pause;
     page.title = text.title;
-    page.description = snapshot.host.game_title;
+    page.context.label = snapshot.host.game_title;
+    page.context.image_key = snapshot.host.game_path;
     page.default_focus = "resume";
     add("resume", Action::Resume);
     add("save", Action::SaveStates);
     add("load", Action::LoadStates);
     add("preferences", Action::Settings);
     add("disc", Action::ChangeDisc, text.desktop_disc_help);
+    if (snapshot.host.library && menu.requests.contains("disc"))
+    {
+      menu.requests["disc"].action = Action::Library;
+      menu.requests["disc"].library_operation = LibraryOperation::OpenDisc;
+      page.items.back().detail.clear();
+    }
     add("reset", Action::Reset);
     add("screenshot", Action::Screenshot);
     add("stop", Action::Stop, text.stop_help);
     add("exit", Action::Exit);
     page.items.push_back({"close", text.close});
+    page.items.back().icon = MenuIcon::Back;
     menu.requests.emplace("close", NavigationRequest{snapshot.generation, Action::Back});
   }
   if (snapshot.result && (snapshot.result->status == ResultStatus::Dispatched ||
                           snapshot.result->status == ResultStatus::Unavailable))
   {
-    const auto detail = snapshot.result->status == ResultStatus::Dispatched ?
-                            text.requested :
-                            reason_text(snapshot.result->reason);
+    const auto detail =
+        snapshot.result->status == ResultStatus::Dispatched ?
+            (snapshot.result->command.action == Action::ChangeDisc ? text.disc_change_requested :
+                                                                     text.requested) :
+            reason_text(snapshot.result->reason);
     if (!detail.empty())
       page.description += "\n" + detail;
   }
@@ -178,6 +280,8 @@ InGameMenu BuildInGameMenu(const ::BigPicture::Snapshot& snapshot,
   {
     menu.requests.clear();
     for (auto& item : page.items)
+      item.enabled = false;
+    for (auto& item : page.toolbar)
       item.enabled = false;
   }
   return menu;

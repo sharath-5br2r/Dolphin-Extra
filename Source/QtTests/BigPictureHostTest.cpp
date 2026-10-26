@@ -381,7 +381,7 @@ TEST(BigPictureHostTest, RendererRecreationPreservesAnInlineBootErrorAndRejectsO
   EXPECT_TRUE(host.GetSnapshot()->error);
   host.RequestBack();
   QCoreApplication::processEvents();
-  EXPECT_EQ(host.GetSnapshot()->screens.back(), Screen::Library);
+  EXPECT_EQ(host.GetSnapshot()->screens.back(), Screen::Home);
 }
 
 TEST(BigPictureHostTest, NativeBootFromTheIdleMenuDoesNotAcquireAPlayPause)

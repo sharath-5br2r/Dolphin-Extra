@@ -3,6 +3,8 @@
 
 #include "DolphinQt/RenderWidget.h"
 
+#include "DolphinQt/QtUtils/RenderSurfaceHost.h"
+
 #include <QApplication>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -46,6 +48,7 @@ RenderWidget::RenderWidget(QWidget* parent) : QWidget(parent)
   setWindowIcon(Resources::GetAppIcon());
   setWindowRole(QStringLiteral("renderer"));
   setAcceptDrops(true);
+  setFocusPolicy(Qt::StrongFocus);
 
   QPalette p;
   p.setColor(QPalette::Window, Qt::black);
@@ -100,7 +103,28 @@ RenderWidget::RenderWidget(QWidget* parent) : QWidget(parent)
 
 QPaintEngine* RenderWidget::paintEngine() const
 {
-  return nullptr;
+  return m_surface_host ? QWidget::paintEngine() : nullptr;
+}
+
+RenderWidget::~RenderWidget() = default;
+
+void RenderWidget::PrepareRenderSurface(bool recreate)
+{
+  if (!m_surface_host)
+  {
+    // The persistent shell paints a plain background while no graphics owner exists.
+    // The native child alone uses direct graphics rendering.
+    setAttribute(Qt::WA_PaintOnScreen, false);
+    setAutoFillBackground(true);
+    m_surface_host = std::make_unique<QtUtils::RenderSurfaceHost>(
+        this, [this](void* handle) { emit HandleChanged(handle); });
+  }
+  m_surface_host->Prepare(recreate);
+}
+
+QWindow* RenderWidget::GetRenderSurfaceWindow() const
+{
+  return m_surface_host ? m_surface_host->GetWindow() : windowHandle();
 }
 
 void RenderWidget::dragEnterEvent(QDragEnterEvent* event)
@@ -141,11 +165,11 @@ void RenderWidget::OnHandleChanged(void* handle)
 #ifdef _WIN32
     // Remove rounded corners from the render window on Windows 11
     const DWM_WINDOW_CORNER_PREFERENCE corner_preference = DWMWCP_DONOTROUND;
-    DwmSetWindowAttribute(static_cast<HWND>(handle), DWMWA_WINDOW_CORNER_PREFERENCE,
+    DwmSetWindowAttribute(reinterpret_cast<HWND>(winId()), DWMWA_WINDOW_CORNER_PREFERENCE,
                           &corner_preference, sizeof(corner_preference));
 #endif
   }
-  Host::GetInstance()->SetRenderHandle(handle);
+  Host::GetInstance()->SetRenderHandle(handle, reinterpret_cast<void*>(winId()));
 }
 
 void RenderWidget::OnHideCursorChanged()
@@ -444,7 +468,8 @@ bool RenderWidget::event(QEvent* event)
     }
     break;
   case QEvent::WinIdChange:
-    emit HandleChanged(reinterpret_cast<void*>(winId()));
+    if (!m_surface_host)
+      emit HandleChanged(reinterpret_cast<void*>(winId()));
     break;
   case QEvent::Show:
     SetPresenterKeyMap();
@@ -618,7 +643,7 @@ void RenderWidget::SetPresenterKeyMap()
       Qt::Key_Delete, Qt::Key_Backspace, Qt::Key_Space, Qt::Key_Return, Qt::Key_Escape,
       Qt::Key_Enter,  // Keypad enter
       Qt::Key_A,      Qt::Key_C,         Qt::Key_V,     Qt::Key_X,      Qt::Key_Y,
-      Qt::Key_Z,
+      Qt::Key_Z,      Qt::Key_F11,       Qt::Key_F1,
   };
 
   BigPicture::GetPresentationState().SetKeyMap({key_map.begin(), key_map.end()});

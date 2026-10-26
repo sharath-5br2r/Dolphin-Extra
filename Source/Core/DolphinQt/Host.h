@@ -28,7 +28,7 @@ public:
   bool GetTASInputFocus() const;
 
   void SetMainWindowHandle(void* handle);
-  void SetRenderHandle(void* handle);
+  void SetRenderHandle(void* handle, void* input_handle = nullptr);
   void SetRenderFocus(bool focus);
   void SetRenderFullFocus(bool focus);
   void SetRenderFullscreen(bool fullscreen);

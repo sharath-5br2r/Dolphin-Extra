@@ -22,6 +22,7 @@
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
+#include "Common/WindowSystemInfo.h"
 
 #include "Core/AchievementManager.h"
 #include "Core/Boot/Boot.h"
@@ -46,7 +47,7 @@ namespace BootManager
 {
 // Boot the ISO or file
 bool BootCore(Core::System& system, std::unique_ptr<BootParameters> boot,
-              const WindowSystemInfo& wsi)
+              const WindowSystemInfo& wsi, const std::function<WindowSystemInfo()>& prepare_window)
 {
   if (!boot)
     return false;
@@ -186,6 +187,7 @@ bool BootCore(Core::System& system, std::unique_ptr<BootParameters> boot,
 
   AchievementManager::GetInstance().CloseGame();
 
+  const auto prepared_wsi = prepare_window ? prepare_window() : wsi;
   const bool load_ipl = !system.IsWii() && !Config::Get(Config::MAIN_SKIP_IPL) &&
                         std::holds_alternative<BootParameters::Disc>(boot->parameters);
   if (load_ipl)
@@ -196,9 +198,9 @@ bool BootCore(Core::System& system, std::unique_ptr<BootParameters> boot,
             BootParameters::IPL{StartUp.m_region,
                                 std::move(std::get<BootParameters::Disc>(boot->parameters))},
             std::move(boot->boot_session_data)),
-        wsi);
+        prepared_wsi);
   }
-  return Core::Init(system, std::move(boot), wsi);
+  return Core::Init(system, std::move(boot), prepared_wsi);
 }
 
 void RestoreConfig()

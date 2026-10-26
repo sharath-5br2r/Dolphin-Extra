@@ -19,6 +19,7 @@
 #include "Core/System.h"
 
 #include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
+#include "DolphinQt/Config/Binder/SharedSettings.h"
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Settings.h"
@@ -57,13 +58,14 @@ void GeneralWidget::BindSettings()
   }
   ConfigWidget::BindStringChoice(m_ui->backendComboBox, Config::MAIN_GFX_BACKEND, options,
                                  m_game_layer);
-  ConfigWidget::Bind(m_ui->aspectRatioComboBox, Config::GFX_ASPECT_RATIO, m_game_layer);
+  ConfigWidget::BindCatalog(m_ui->aspectRatioComboBox, Config::GFX_ASPECT_RATIO, m_game_layer);
   ConfigWidget::Bind(m_ui->customAspectWidthSpinBox, Config::GFX_CUSTOM_ASPECT_RATIO_WIDTH,
                      m_game_layer);
   ConfigWidget::Bind(m_ui->customAspectHeightSpinBox, Config::GFX_CUSTOM_ASPECT_RATIO_HEIGHT,
                      m_game_layer);
-  ConfigWidget::Bind(m_ui->integerScalingCheckBox, Config::GFX_INTEGER_SCALING, m_game_layer);
-  ConfigWidget::Bind(m_ui->vsyncCheckBox, Config::GFX_VSYNC, m_game_layer);
+  ConfigWidget::BindCatalog(m_ui->integerScalingCheckBox, Config::GFX_INTEGER_SCALING,
+                            m_game_layer);
+  ConfigWidget::BindCatalog(m_ui->vsyncCheckBox, Config::GFX_VSYNC, m_game_layer);
   ConfigWidget::Bind(m_ui->fullscreenCheckBox, Config::MAIN_FULLSCREEN, m_game_layer);
   ConfigWidget::Bind(m_ui->precisionFrameTimingCheckBox, Config::MAIN_PRECISION_FRAME_TIMING);
   ConfigWidget::Bind(m_ui->autoAdjustWindowSizeCheckBox, Config::MAIN_RENDER_WINDOW_AUTOSIZE,

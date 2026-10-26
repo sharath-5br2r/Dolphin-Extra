@@ -159,7 +159,16 @@ void HotkeyScheduler::Run()
         HotkeyManagerEmu::IsEnabled() && Host_RendererHasFocus(), presentation.IsModal());
     for (const auto& request : presentation.TakeNavigationRequests())
     {
-      if (request.options)
+      if (request.settings_menu)
+      {
+        emit BigPictureSettingsMenu(*request.settings_menu, request.generation,
+                                    request.input_epoch);
+      }
+      else if (request.setting)
+      {
+        emit BigPictureSetting(*request.setting, request.generation, request.input_epoch);
+      }
+      else if (request.options)
       {
         const auto& options = *request.options;
         emit BigPictureOptions(options.swap_confirm_back, options.scale, options.safe_area,
@@ -167,9 +176,10 @@ void HotkeyScheduler::Run()
       }
       else
       {
-        emit BigPictureAction(static_cast<int>(request.action), request.generation,
-                              request.input_epoch, request.slot, request.confirmation_id,
-                              QString::fromStdString(request.path));
+        emit BigPictureAction(
+            static_cast<int>(request.action), request.generation, request.input_epoch, request.slot,
+            request.confirmation_id, QString::fromStdString(request.path),
+            static_cast<int>(request.library_operation), request.library_revision);
       }
     }
     if (toggle)

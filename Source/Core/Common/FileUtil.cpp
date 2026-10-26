@@ -3,6 +3,7 @@
 
 #include "Common/FileUtil.h"
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -13,6 +14,7 @@
 #include <stack>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <vector>
 
 #include "Common/CommonFuncs.h"
@@ -74,7 +76,7 @@ static Common::DynamicLibrary s_security_framework;
 using DolSecTranslocateIsTranslocatedURL = Boolean (*)(CFURLRef path, bool* isTranslocated,
                                                        CFErrorRef* __nullable error);
 using DolSecTranslocateCreateOriginalPathForURL = CFURLRef
-__nullable (*)(CFURLRef translocatedPath, CFErrorRef* __nullable error);
+    __nullable (*)(CFURLRef translocatedPath, CFErrorRef* __nullable error);
 
 static DolSecTranslocateIsTranslocatedURL s_is_translocated_url;
 static DolSecTranslocateCreateOriginalPathForURL s_create_orig_path;
@@ -281,7 +283,23 @@ bool Rename(const std::string& srcFilename, const std::string& destFilename)
 {
   DEBUG_LOG_FMT(COMMON, "{}: {} --> {}", __func__, srcFilename, destFilename);
   std::error_code error;
-  std::filesystem::rename(StringToPath(srcFilename), StringToPath(destFilename), error);
+  const auto source = StringToPath(srcFilename);
+  const auto destination = StringToPath(destFilename);
+  std::filesystem::rename(source, destination, error);
+#ifdef _WIN32
+  // Readers such as indexers can briefly hold files without FILE_SHARE_DELETE. Atomic
+  // configuration/FST replacement must tolerate those locks without opening a modal alert.
+  // Permanent access failures still return to the caller after at most 100 ms of retries.
+  for (int attempt = 0; error && attempt < 10; ++attempt)
+  {
+    if (error.category() != std::system_category() ||
+        (error.value() != ERROR_SHARING_VIOLATION && error.value() != ERROR_LOCK_VIOLATION &&
+         error.value() != ERROR_ACCESS_DENIED))
+      break;
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::filesystem::rename(source, destination, error);
+  }
+#endif
   if (error)
   {
     ERROR_LOG_FMT(COMMON, "{} failed: {} --> {}: {}", __func__, srcFilename, destFilename,

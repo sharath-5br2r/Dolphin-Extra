@@ -2,7 +2,8 @@
 
 **Date:** 2026-10-24
 
-**Status:** Implementation in progress; slices 0–5 complete, next open slice 6
+**Status:** Implementation in progress; slices 0–8 complete; slice 9 visual refinement implemented,
+appearance review and platform/hardware gates pending
 
 **Dolphin baseline:** `dd2cae1601216a4e254424d37d57ba47da1c2221`
 
@@ -166,6 +167,13 @@ and graphics globals. Cancel/drain jobs and release textures before teardown; st
 carry a session generation and be ignored after a transition. Backend changes while idle rebuild
 the UI session and recover to desktop on failure.
 
+Preserve the Qt presentation widget and its native window across those handoffs. Graphics APIs
+use a native child retained while compatible and recreated after the old owner drains when
+backend/stereo requirements change; input stays attached to the persistent widget.
+Boot/stop must not hide or reparent that widget, select the desktop
+game list, or leave fullscreen. The PCSX2 transition comparison is recorded in the slice 6
+results; Dolphin retains its explicit device-resource teardown at this stage.
+
 When a game is paused, schedule UI-only presents on the graphics owner, redrawing the retained
 XFB without ticking the guest. In single-core mode this owner must be able to service UI work
 while CPU execution is paused. Distinguish a guest pause from a full graphics access lock:
@@ -209,7 +217,7 @@ rendering; mutations go through the host settings service and publish fresh snap
 Implement as small reviewable changes. Each slice below includes a behavior gate, not just a
 new set of files. Slices 1–4 produce the first usable in-game release; 5–10 complete core Big Picture.
 
-**Progress, 2026-10-25:** Slices 0–5 are complete; see the
+**Progress, 2026-10-26:** Slices 0–8 are complete; see the
 [lifecycle/readability results](../specs/2026-10-24-big-picture-lifecycle-spike-results.md) for
 runtime measurements, retained fixes and the ownership design, and the
 [state/host-bridge results](../specs/2026-10-24-big-picture-host-bridge-results.md) for the command,
@@ -221,9 +229,20 @@ input, controller/keyboard navigation, focus/scroll restoration, text/fonts and 
 and the [in-game menu results](../specs/2026-10-25-big-picture-in-game-results.md) for action wiring,
 Cancel-first confirmations, the ten-slot browser, desktop handoffs and real save/load flows,
 and the [standalone runtime results](../specs/2026-10-25-big-picture-standalone-results.md) for
-cold startup, graphics ownership handoffs, desktop return and backend recovery.
-Slice 6 is the next open slice. Slice 9 unifies the completed menu surfaces to the local PCSX2
-fork's layout and style; final state-browser/release hardening moves to slice 10.
+cold startup, graphics ownership handoffs, desktop return and backend recovery,
+and the [library/setup results](../specs/2026-10-25-big-picture-library-results.md) for the shared
+catalog, grid/list, search/filters, bounded covers, controller setup and paused disc picker.
+The [shared settings foundation results](../specs/2026-10-26-big-picture-settings-foundation-results.md)
+record the explicit typed catalog, shared layer operations, desktop adapters and cold-start
+settings snapshots. The [common settings/profile results](../specs/2026-10-26-big-picture-common-settings-results.md)
+record controller-operated settings pages, persistent global/per-game edits, preset discovery and
+controller device/profile selection. The [visual refinement results](../specs/2026-10-26-big-picture-visual-refinement-results.md)
+record slice 9's shared dark styling, screen composition, navigation and Windows verification.
+The [appearance follow-up](../specs/2026-10-26-big-picture-appearance-parity-results.md) adds live,
+persistent theme selection, menu icons, checked setting values, richer library details and
+card sizing for large text with maximum safe-area margins.
+Reference comparison captures, user appearance review and platform/hardware gates remain open;
+final state-browser/release hardening follows in slice 10.
 Platform/hardware release checks remain required.
 
 | Slice | Work and primary touchpoints | Completion gate |

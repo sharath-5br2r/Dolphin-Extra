@@ -72,6 +72,9 @@ void Init()
 void Clear()
 {
   std::lock_guard<std::mutex> lk(s_vertex_loader_map_lock);
+  // The current format is owned by this map. UI-only sessions can run between games
+  // without initializing guest vertex loaders and must never see the released format.
+  s_current_vtx_fmt = nullptr;
   s_vertex_loader_map.clear();
   s_native_vertex_map.clear();
 }

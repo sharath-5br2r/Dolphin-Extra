@@ -566,9 +566,14 @@ void SetInheritedComboText(QComboBox* box, int inherited_item_index)
 }
 
 void RecordMappedCombo(const Config::Location& location, Config::Layer* layer,
-                       const QComboBox* widget)
+                       const QComboBox* widget, std::vector<Common::Settings::Value> values)
 {
   RecordSetting(location, SettingKind::Choice, layer, widget);
+  SettingEntry entry;
+  entry.location = location;
+  entry.kind = SettingKind::Choice;
+  entry.choice_values = std::move(values);
+  ConfigSettingRegistry::Instance().Record(std::move(entry));
 }
 }  // namespace detail
 
@@ -664,8 +669,10 @@ void BindMapped(QSlider* widget, const Config::Info<int>& setting, std::span<con
   entry.location = setting.GetLocation();
   entry.kind = SettingKind::Int;
   entry.per_game = layer != nullptr;
-  entry.minimum = static_cast<double>(tick_values.front());
-  entry.maximum = static_cast<double>(tick_values.back());
+  entry.minimum = static_cast<double>(*std::ranges::min_element(tick_values));
+  entry.maximum = static_cast<double>(*std::ranges::max_element(tick_values));
+  for (const int value : tick_values)
+    entry.ticks.push_back(value);
   // No step: irregular spacing is the whole point of a mapped slider.
   ConfigSettingRegistry::Instance().Record(std::move(entry));
 }

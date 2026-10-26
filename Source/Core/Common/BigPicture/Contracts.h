@@ -6,9 +6,14 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "Common/BigPicture/Library.h"
+#include "Common/BigPicture/Settings.h"
+#include "Common/Settings/Descriptor.h"
 
 namespace BigPicture
 {
@@ -26,7 +31,14 @@ enum class Screen
   SaveStates,
   LoadStates,
   Confirmation,
-  Error
+  Error,
+  LibraryOptions,
+  FilePicker,
+  TextInput,
+  Home,
+  StartGame,
+  ExitMenu,
+  About
 };
 enum class Lifecycle
 {
@@ -59,8 +71,22 @@ enum class Action
   Exit,
   OpenGame,
   Fullscreen,
+  Library,
+  BootIPL,
+  BootSystemMenu,
+  EditSetting,
+  SettingsMenu,
+  ShowLibrary,
+  StartGame,
+  ExitMenu,
+  About,
   Count
 };
+
+constexpr bool IsBootAction(Action action)
+{
+  return action == Action::Boot || action == Action::BootIPL || action == Action::BootSystemMenu;
+}
 enum class UnavailableReason
 {
   None,
@@ -98,6 +124,10 @@ struct Command
   // Confirm must name the destructive request displayed by its dialog. A delayed activation
   // from an earlier dialog must never confirm a different action in the same session.
   std::uint64_t confirmation_id = 0;
+  LibraryOperation library_operation = LibraryOperation::None;
+  std::uint64_t library_revision = 0;
+  std::optional<Common::Settings::Request> setting;
+  std::optional<SettingsRequest> settings_menu;
 };
 
 struct Result
@@ -124,12 +154,21 @@ struct HostState
   bool hardcore = false;
   std::uint64_t pause_revision = 0;
   std::string game_title;
+  std::string game_path;
   bool can_change_disc = false;
   bool stop_requires_desktop = false;
   bool state_slots_ready = false;
   std::array<StateSlot, STATE_SLOT_COUNT> state_slots;
   std::string launch_path;
   std::string launch_title;
+  std::shared_ptr<const LibrarySnapshot> library;
+  std::shared_ptr<const Common::Settings::Snapshot> settings;
+  std::shared_ptr<const SettingsMenuSnapshot> settings_menu;
+  std::array<bool, 6> boot_ipl_available{};
+  bool boot_system_menu_available = false;
+  std::string menu_theme = "Dark";
+  std::string achievements_username;
+  std::shared_ptr<const LibraryImage> achievements_avatar;
 };
 
 // Value-only contracts: no Qt, emulator objects, config-layer pointers or GPU resources.

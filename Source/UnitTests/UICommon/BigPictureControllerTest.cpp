@@ -164,7 +164,7 @@ TEST_F(BigPictureControllerTest, AsynchronousBootFailureReturnsAnErrorToLibrary)
   EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Library);
   EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Error);
   Send(Action::Back);
-  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Library);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Home);
 }
 
 TEST_F(BigPictureControllerTest, GracefulStopRemainsPendingUntilActualStop)
@@ -393,5 +393,143 @@ TEST_F(BigPictureControllerTest, DiscAndScreenshotPoliciesAreRecheckedWhenDispat
   Send(Action::Screenshot);
   EXPECT_EQ(host.executed.size(), 1u);
   EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::Busy);
+}
+TEST_F(BigPictureControllerTest, LibrarySetupAndKeyboardPreserveNestedBackAndRejectOutOfContextText)
+{
+  host.execute = [](const Command& command) { return Result{command, ResultStatus::Succeeded}; };
+  Send(Action::OpenMenu);
+  Send(Action::ShowLibrary);
+  const auto send = [&](LibraryOperation operation) {
+    auto command = Make(Action::Library);
+    command.library_operation = operation;
+    controller.Submit(command);
+  };
+  send(LibraryOperation::AddFolder);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::FilePicker);
+  send(LibraryOperation::EditPath);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::TextInput);
+  send(LibraryOperation::TextDone);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::FilePicker);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Library);
+  const auto executions = host.executed.size();
+  send(LibraryOperation::TextKey);
+  EXPECT_EQ(host.executed.size(), executions);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  send(LibraryOperation::Options);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::LibraryOptions);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Library);
+}
+
+TEST_F(BigPictureControllerTest, PickerBootFromAnObsoleteListingCannotExecute)
+{
+  Send(Action::OpenMenu);
+  auto library = std::make_shared<LibrarySnapshot>();
+  library->picker_revision = 8;
+  host.state.library = library;
+  auto command = Make(Action::Boot, 0, "game.iso");
+  command.library_revision = 7;
+  controller.Submit(command);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Stale);
+  EXPECT_TRUE(host.executed.empty());
+}
+
+TEST_F(BigPictureControllerTest, ControllerDiscPickerKeepsPauseAndRechecksNetPlay)
+{
+  InGame(Lifecycle::Paused);
+  host.state.can_change_disc = true;
+  host.execute = [](const Command& command) { return Result{command, ResultStatus::Succeeded}; };
+  auto open = Make(Action::Library);
+  open.library_operation = LibraryOperation::OpenDisc;
+  controller.Submit(open);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::FilePicker);
+  EXPECT_EQ(host.state.lifecycle, Lifecycle::Paused);
+  host.state.netplay = true;
+  Send(Action::ChangeDisc, 0, "other.iso");
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::NetPlay);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::FilePicker);
+  host.state.netplay = false;
+  host.execute = [](const Command& command) { return Result{command, ResultStatus::Dispatched}; };
+  Send(Action::ChangeDisc, 0, "other.iso");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Dispatched);
+  EXPECT_EQ(host.state.lifecycle, Lifecycle::Paused);
+}
+
+TEST_F(BigPictureControllerTest, SystemBootUsesTheSameAsynchronousLifecycleAsGameBoot)
+{
+  Send(Action::OpenMenu);
+  host.execute = [&](const Command& command) {
+    host.state.lifecycle = Lifecycle::Booting;
+    return Result{command, ResultStatus::Dispatched};
+  };
+  Send(Action::BootIPL, 1);
+  ASSERT_TRUE(controller.GetSnapshot()->pending);
+  EXPECT_EQ(controller.GetSnapshot()->pending->action, Action::BootIPL);
+  host.state.lifecycle = Lifecycle::Running;
+  controller.Refresh();
+  EXPECT_FALSE(controller.GetSnapshot()->pending);
+  EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Desktop);
+}
+
+TEST_F(BigPictureControllerTest, PauseCoverReadUsesRunningGameWithoutEnablingLibraryMutations)
+{
+  host.state.game_path = "running.iso";
+  host.state.library = std::make_shared<LibrarySnapshot>();
+  host.execute = [](const Command& command) { return Result{command, ResultStatus::Succeeded}; };
+  InGame(Lifecycle::Paused);
+  auto cover = Make(Action::Library, 0, "running.iso");
+  cover.library_operation = LibraryOperation::Cover;
+  controller.Submit(cover);
+  ASSERT_EQ(host.executed.size(), 1u);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Succeeded);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
+  EXPECT_EQ(host.state.lifecycle, Lifecycle::Paused);
+  auto other = Make(Action::Library, 0, "another.iso");
+  other.library_operation = LibraryOperation::Cover;
+  controller.Submit(other);
+  EXPECT_EQ(host.executed.size(), 1u);
+  auto mutation = Make(Action::Library);
+  mutation.library_operation = LibraryOperation::AddFolder;
+  controller.Submit(mutation);
+  EXPECT_EQ(host.executed.size(), 1u);
+  Send(Action::Stop);
+  ASSERT_TRUE(controller.GetSnapshot()->confirmation);
+  cover.id = ++id;
+  controller.Submit(cover);
+  EXPECT_EQ(host.executed.size(), 1u);
+  EXPECT_TRUE(controller.GetSnapshot()->confirmation);
+}
+TEST_F(BigPictureControllerTest, HomeRoutesLibraryLaunchAndExitWithoutLeavingTheSession)
+{
+  host.execute = [](const Command& command) { return Result{command, ResultStatus::Succeeded}; };
+  Send(Action::OpenMenu);
+  EXPECT_EQ(controller.GetSnapshot()->screens, std::vector{Screen::Home});
+  Send(Action::About);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::About);
+  Send(Action::Back);
+  Send(Action::ShowLibrary);
+  EXPECT_EQ(controller.GetSnapshot()->screens, (std::vector{Screen::Home, Screen::Library}));
+  Send(Action::Back);
+  Send(Action::StartGame);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::StartGame);
+  auto command = Make(Action::Library);
+  command.library_operation = LibraryOperation::OpenFile;
+  controller.Submit(command);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::FilePicker);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::StartGame);
+  Send(Action::Back);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::ExitMenu);
+  Send(Action::Exit);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Confirmation);
+  Send(Action::Cancel);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::ExitMenu);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Home);
+  Send(Action::ReturnToDesktop);
+  EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Desktop);
 }
 }  // namespace

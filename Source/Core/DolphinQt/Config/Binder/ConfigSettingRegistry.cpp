@@ -25,6 +25,10 @@ void ConfigSettingRegistry::Record(SettingEntry entry)
   existing.per_game = existing.per_game || entry.per_game;
   if (existing.choices.empty())
     existing.choices = std::move(entry.choices);
+  if (existing.choice_values.empty())
+    existing.choice_values = std::move(entry.choice_values);
+  if (existing.ticks.empty())
+    existing.ticks = std::move(entry.ticks);
   if (!existing.minimum.has_value())
     existing.minimum = entry.minimum;
   if (!existing.maximum.has_value())
@@ -35,6 +39,19 @@ void ConfigSettingRegistry::Record(SettingEntry entry)
     existing.title = std::move(entry.title);
   if (existing.description.isEmpty())
     existing.description = std::move(entry.description);
+}
+
+void ConfigSettingRegistry::SetDescriptor(const Common::Settings::Descriptor& descriptor)
+{
+  const auto it = m_index.find(descriptor.location);
+  if (it == m_index.end())
+    return;
+  auto& entry = m_entries[it->second];
+  entry.shared_descriptor = descriptor;
+  entry.ticks = descriptor.ticks;
+  entry.choice_values.clear();
+  for (const auto& choice : descriptor.choices)
+    entry.choice_values.push_back(choice.value);
 }
 
 void ConfigSettingRegistry::SetText(const Config::Location& location, QString title,

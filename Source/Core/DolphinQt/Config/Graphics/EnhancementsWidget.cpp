@@ -29,6 +29,7 @@
 #include "Core/Config/MainSettings.h"
 
 #include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
+#include "DolphinQt/Config/Binder/SharedSettings.h"
 #include "DolphinQt/Config/GameConfigWidget.h"
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
 #include "DolphinQt/Config/Graphics/ShaderParametersDialog.h"
@@ -188,8 +189,8 @@ void EnhancementsWidget::BindSettings()
   m_ui->textureFilteringComboBox->setEnabled(
       ConfigWidget::Logic::ReadValue(Config::GFX_HACK_FAST_TEXTURE_SAMPLING, m_game_layer));
 
-  ConfigWidget::Bind(m_ui->postProcessingPresetLineEdit, Config::GFX_ENHANCE_POST_SHADER,
-                     m_game_layer);
+  ConfigWidget::BindCatalog(m_ui->postProcessingPresetLineEdit, Config::GFX_ENHANCE_POST_SHADER,
+                            m_game_layer);
   ConfigWidget::Bind(m_ui->scaledEfbCopyCheckBox, Config::GFX_HACK_COPY_EFB_SCALED, m_game_layer);
   ConfigWidget::Bind(m_ui->perPixelLightingCheckBox, Config::GFX_ENABLE_PIXEL_LIGHTING,
                      m_game_layer);

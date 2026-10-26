@@ -70,11 +70,25 @@ private:
   void UpdateImguiTexture(ImTextureData* tex);
   void ProcessInput();
   void DrawNavigation();
+  ImTextureID GetLibraryCover(const ::BigPicture::LibrarySnapshot& library,
+                              const std::string& path);
+  struct CoverTexture
+  {
+    std::unique_ptr<AbstractTexture> texture;
+    u64 last_frame = 0;
+    u64 last_request_us = 0;
+  };
+  std::map<std::string, CoverTexture> m_cover_textures;
+  u64 m_cover_revision = 0;
+  u64 m_cover_frame = 0;
+  unsigned m_cover_uploads = 0;
   u64 m_input_epoch = 0;
   u64 m_navigation_generation = 0;
   ::BigPicture::NavigationStatus m_navigation;
   BigPicture::NavigationToolkit m_navigation_toolkit;
-  bool m_navigation_keyboard = true;
+  std::map<std::string, std::unique_ptr<AbstractTexture>> m_home_textures;
+  std::shared_ptr<const ::BigPicture::LibraryImage> m_home_avatar;
+  BigPicture::NavigationInput m_navigation_input;
   ImFont* m_menu_font = nullptr;
 
   // ImGui resources.

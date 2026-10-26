@@ -7,6 +7,7 @@
 #include <functional>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -20,6 +21,7 @@
 #include "Common/CommonTypes.h"
 #include "Common/Config/ConfigInfo.h"
 #include "Common/Config/Layer.h"
+#include "Common/Settings/Descriptor.h"
 #include "DolphinQt/Config/Binder/ConfigBinding.h"
 #include "DolphinQt/Config/Binder/ConfigSliderMapping.h"
 
@@ -246,7 +248,16 @@ private:
 
 // Defined in the .cpp so SettingKind plumbing stays there. Call after the combo is populated.
 void RecordMappedCombo(const Config::Location& location, Config::Layer* layer,
-                       const QComboBox* widget);
+                       const QComboBox* widget, std::vector<Common::Settings::Value> values);
+
+template <typename T>
+Common::Settings::Value RegistryValue(const T& value)
+{
+  if constexpr (std::is_enum_v<T>)
+    return static_cast<Common::Settings::EnumStorage<T>>(value);
+  else
+    return value;
+}
 }  // namespace detail
 
 // The items are authored in the .ui file; `values` pairs with them by index, so the display text
@@ -260,7 +271,10 @@ void BindMapped(QComboBox* widget, const Config::Info<T>& setting, std::span<con
   DEBUG_ASSERT(widget->count() == static_cast<int>(values.size()));
   new detail::MappedComboBinding<T>{widget, setting, std::vector<T>(values.begin(), values.end()),
                                     layer};
-  detail::RecordMappedCombo(setting.GetLocation(), layer, widget);
+  std::vector<Common::Settings::Value> stored_values;
+  for (const auto& value : values)
+    stored_values.push_back(detail::RegistryValue(value));
+  detail::RecordMappedCombo(setting.GetLocation(), layer, widget, std::move(stored_values));
 }
 
 // For option sets computed at runtime, which cannot be authored in Designer. Populates the combo.
@@ -272,13 +286,15 @@ void BindMapped(QComboBox* widget, const Config::Info<T>& setting,
   DEBUG_ASSERT(!options.empty());
   DEBUG_ASSERT(widget->count() == 0);
   std::vector<T> values;
+  std::vector<Common::Settings::Value> stored_values;
   values.reserve(options.size());
   for (const auto& [text, value] : options)
   {
     widget->addItem(text);
     values.push_back(value);
+    stored_values.push_back(detail::RegistryValue(value));
   }
   new detail::MappedComboBinding<T>{widget, setting, std::move(values), layer};
-  detail::RecordMappedCombo(setting.GetLocation(), layer, widget);
+  detail::RecordMappedCombo(setting.GetLocation(), layer, widget, std::move(stored_values));
 }
 }  // namespace ConfigWidget

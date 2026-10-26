@@ -5,9 +5,15 @@
 
 #include <QEvent>
 #include <QWidget>
+#include <memory>
 
 class QMouseEvent;
 class QTimer;
+class QWindow;
+namespace QtUtils
+{
+class RenderSurfaceHost;
+}
 
 class RenderWidget final : public QWidget
 {
@@ -15,6 +21,9 @@ class RenderWidget final : public QWidget
 
 public:
   explicit RenderWidget(QWidget* parent = nullptr);
+  ~RenderWidget() override;
+  void PrepareRenderSurface(bool recreate);
+  QWindow* GetRenderSurfaceWindow() const;
 
   bool event(QEvent* event) override;
   void showFullScreen();
@@ -50,6 +59,7 @@ private:
 
   static constexpr int MOUSE_HIDE_DELAY = 3000;
   QTimer* m_mouse_timer;
+  std::unique_ptr<QtUtils::RenderSurfaceHost> m_surface_host;
   QPoint m_last_mouse{};
   int m_last_window_width = 0;
   int m_last_window_height = 0;

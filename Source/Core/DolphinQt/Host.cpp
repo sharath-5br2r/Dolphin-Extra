@@ -56,7 +56,7 @@ Host* Host::GetInstance()
   return s_instance;
 }
 
-void Host::SetRenderHandle(void* handle)
+void Host::SetRenderHandle(void* handle, void* input_handle)
 {
   m_render_to_main = Config::Get(Config::MAIN_RENDER_TO_MAIN);
 
@@ -66,13 +66,13 @@ void Host::SetRenderHandle(void* handle)
   m_render_handle = handle;
   if (VideoCommon::BigPicture::ChangeStandaloneSurface(handle))
   {
-    g_controller_interface.ChangeWindow(handle);
+    g_controller_interface.ChangeWindow(input_handle ? input_handle : handle);
     return;
   }
   if (g_presenter)
   {
     g_presenter->ChangeSurface(handle);
-    g_controller_interface.ChangeWindow(handle);
+    g_controller_interface.ChangeWindow(input_handle ? input_handle : handle);
   }
 }
 
@@ -128,7 +128,7 @@ bool Host::GetRenderFocus()
   // to avoid inputs that cause a focus loss to be processed by the emulation
   if (m_render_to_main && !m_render_fullscreen)
     return GetForegroundWindow() == (HWND)m_main_window_handle.load();
-  return GetForegroundWindow() == (HWND)m_render_handle.load();
+  return GetForegroundWindow() == GetAncestor(static_cast<HWND>(m_render_handle.load()), GA_ROOT);
 #else
   return m_render_focus;
 #endif

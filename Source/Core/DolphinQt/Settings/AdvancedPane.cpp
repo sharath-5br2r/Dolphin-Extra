@@ -29,6 +29,7 @@
 #include "Core/System.h"
 
 #include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
+#include "DolphinQt/Config/Binder/SharedSettings.h"
 #include "DolphinQt/QtUtils/AnalyticsPrompt.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/QtUtils.h"
@@ -108,14 +109,14 @@ void AdvancedPane::BindSettings()
   ConfigWidget::Bind(m_ui->rushFramePresentationCheckBox, Config::MAIN_RUSH_FRAME_PRESENTATION);
   ConfigWidget::Bind(m_ui->smoothEarlyPresentationCheckBox, Config::MAIN_SMOOTH_EARLY_PRESENTATION);
 
-  ConfigWidget::Bind(m_ui->cpuClockOverrideCheckBox, Config::MAIN_OVERCLOCK_ENABLE);
-  ConfigWidget::BindFloat(m_ui->cpuClockSlider, Config::MAIN_OVERCLOCK, 0.01f, 5.0f, 0.01f);
+  ConfigWidget::BindCatalog(m_ui->cpuClockOverrideCheckBox, Config::MAIN_OVERCLOCK_ENABLE);
+  ConfigWidget::BindCatalogFloat(m_ui->cpuClockSlider, Config::MAIN_OVERCLOCK);
 
   ConfigWidget::Bind(m_ui->vbiOverrideCheckBox, Config::MAIN_VI_OVERCLOCK_ENABLE);
   ConfigWidget::BindFloat(m_ui->vbiOverrideSlider, Config::MAIN_VI_OVERCLOCK, 0.01f, 5.0f, 0.01f);
 
   ConfigWidget::Bind(m_ui->memoryOverrideCheckBox, Config::MAIN_RAM_OVERRIDE_ENABLE);
-  ConfigWidget::BindScaled(m_ui->mem1Slider, Config::MAIN_MEM1_SIZE, 0x100000);
+  ConfigWidget::BindCatalogScaled(m_ui->mem1Slider, Config::MAIN_MEM1_SIZE);
   ConfigWidget::BindScaled(m_ui->mem2Slider, Config::MAIN_MEM2_SIZE, 0x100000);
 
   ConfigWidget::Bind(m_ui->customRtcCheckBox, Config::MAIN_CUSTOM_RTC_ENABLE);

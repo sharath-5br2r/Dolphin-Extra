@@ -27,9 +27,16 @@ public:
   ~BigPictureHost() override;
   void Submit(BigPicture::Command command, std::optional<std::uint64_t> input_epoch = std::nullopt);
   void RequestBack();
-  void RequestAction(std::uint64_t generation, BigPicture::Action action,
-                     std::optional<std::uint64_t> input_epoch = std::nullopt, int slot = 0,
-                     std::uint64_t confirmation_id = 0, std::string path = {});
+  void RequestSetting(std::uint64_t generation, Common::Settings::Request request,
+                      std::optional<std::uint64_t> input_epoch = std::nullopt);
+  void RequestSettingsMenu(std::uint64_t generation, BigPicture::SettingsRequest request,
+                           std::optional<std::uint64_t> input_epoch = std::nullopt);
+  void
+  RequestAction(std::uint64_t generation, BigPicture::Action action,
+                std::optional<std::uint64_t> input_epoch = std::nullopt, int slot = 0,
+                std::uint64_t confirmation_id = 0, std::string path = {},
+                BigPicture::LibraryOperation library_operation = BigPicture::LibraryOperation::None,
+                std::uint64_t library_revision = 0);
   void InvalidatePauseOwnership();
   std::shared_ptr<const BigPicture::Snapshot> GetSnapshot() const;
   void Refresh();

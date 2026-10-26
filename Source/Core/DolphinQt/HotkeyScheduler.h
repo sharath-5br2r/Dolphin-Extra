@@ -8,9 +8,14 @@
 #include <QObject>
 #include <QString>
 
+#include "Common/BigPicture/Settings.h"
 #include "Common/CommonTypes.h"
 #include "Common/Flag.h"
+#include "Common/Settings/Descriptor.h"
 #include "InputCommon/InputProfile.h"
+
+Q_DECLARE_METATYPE(Common::Settings::Request)
+Q_DECLARE_METATYPE(BigPicture::SettingsRequest)
 
 class HotkeyScheduler : public QObject
 {
@@ -22,8 +27,13 @@ public:
   void Start();
   void Stop();
 signals:
+  void BigPictureSettingsMenu(BigPicture::SettingsRequest request, quint64 generation,
+                              quint64 input_epoch);
+  void BigPictureSetting(Common::Settings::Request request, quint64 generation,
+                         quint64 input_epoch);
   void BigPictureAction(int action, quint64 generation, quint64 input_epoch, int slot = 0,
-                        quint64 confirmation_id = 0, QString path = {});
+                        quint64 confirmation_id = 0, QString path = {}, int library_operation = 0,
+                        quint64 library_revision = 0);
   void BigPictureOptions(bool swap, double scale, double safe_area, quint64 generation,
                          quint64 input_epoch);
   void Open();

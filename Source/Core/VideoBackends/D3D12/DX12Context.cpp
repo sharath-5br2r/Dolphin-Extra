@@ -34,6 +34,12 @@ DXContext::DXContext() = default;
 
 DXContext::~DXContext()
 {
+  // Shutdown has already waited for the GPU, but destroying the renderer can queue
+  // more releases after that final fence. In particular, retained back buffers keep
+  // the old swap chain associated with its HWND and prevent the next owner using it.
+  for (auto& resources : m_command_lists)
+    DestroyPendingResources(resources);
+
   if (m_fence_event)
     CloseHandle(m_fence_event);
 }

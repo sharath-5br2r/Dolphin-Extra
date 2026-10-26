@@ -3,6 +3,11 @@ add_library(uicommon
   AutoUpdate.h
   BigPicture/Controller.cpp
   BigPicture/Controller.h
+  Settings/Catalog.cpp
+  Settings/Catalog.h
+  Settings/ConfigLayerLogic.h
+  Settings/Service.cpp
+  Settings/Service.h
   CommandLineParse.cpp
   CommandLineParse.h
   DiscordPresence.cpp

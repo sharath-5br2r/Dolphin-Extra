@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <latch>
 #include <thread>
 
@@ -11,6 +12,12 @@
 #include "Common/BitUtils.h"
 #include "Common/DirectIOFile.h"
 #include "Common/FileUtil.h"
+#include "Common/ScopeGuard.h"
+#include "Common/StringUtil.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 class FileUtilTest : public testing::Test
 {
@@ -55,6 +62,46 @@ static void DeleteShouldNotRemoveDirectory(const std::string& path, File::IfAbse
   EXPECT_FALSE(File::Delete(path, behavior));
   File::DeleteDir(path, behavior);
 }
+
+#ifdef _WIN32
+TEST_F(FileUtilTest, RenameRetriesTemporaryWindowsReaderLocks)
+{
+  const auto replacement = m_file_path + ".new";
+  ASSERT_TRUE(File::WriteStringToFile(m_file_path, "previous"));
+  ASSERT_TRUE(File::WriteStringToFile(replacement, "replacement"));
+  HANDLE reader =
+      CreateFileW(UTF8ToWString(m_file_path).c_str(), GENERIC_READ,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+  ASSERT_NE(reader, INVALID_HANDLE_VALUE);
+  std::jthread release([reader] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    CloseHandle(reader);
+  });
+  EXPECT_TRUE(File::Rename(replacement, m_file_path));
+  EXPECT_FALSE(File::Exists(replacement));
+  std::string contents;
+  ASSERT_TRUE(File::ReadFileToString(m_file_path, contents));
+  EXPECT_EQ(contents, "replacement");
+}
+
+TEST_F(FileUtilTest, RenamePreservesBothFilesWhenWindowsReaderLockRemains)
+{
+  const auto replacement = m_file_path + ".new";
+  ASSERT_TRUE(File::WriteStringToFile(m_file_path, "previous"));
+  ASSERT_TRUE(File::WriteStringToFile(replacement, "replacement"));
+  HANDLE reader =
+      CreateFileW(UTF8ToWString(m_file_path).c_str(), GENERIC_READ,
+                  FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+  ASSERT_NE(reader, INVALID_HANDLE_VALUE);
+  Common::ScopeGuard close([reader] { CloseHandle(reader); });
+  EXPECT_FALSE(File::Rename(replacement, m_file_path));
+  std::string contents;
+  ASSERT_TRUE(File::ReadFileToString(m_file_path, contents));
+  EXPECT_EQ(contents, "previous");
+  ASSERT_TRUE(File::ReadFileToString(replacement, contents));
+  EXPECT_EQ(contents, "replacement");
+}
+#endif
 
 static void DeleteShouldRemoveFile(const std::string& path, File::IfAbsentBehavior behavior)
 {

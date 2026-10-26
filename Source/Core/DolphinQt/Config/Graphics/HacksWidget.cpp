@@ -12,6 +12,7 @@
 #include "Core/Config/MainSettings.h"
 
 #include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
+#include "DolphinQt/Config/Binder/SharedSettings.h"
 #include "DolphinQt/Config/GameConfigWidget.h"
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
 
@@ -40,16 +41,15 @@ HacksWidget::~HacksWidget() = default;
 
 void HacksWidget::BindSettings()
 {
-  ConfigWidget::Bind(m_ui->skipEfbCpuCheckBox, Config::GFX_HACK_EFB_ACCESS_ENABLE, m_game_layer,
-                     true);
+  ConfigWidget::BindCatalog(m_ui->skipEfbCpuCheckBox, Config::GFX_HACK_EFB_ACCESS_ENABLE,
+                            m_game_layer);
   ConfigWidget::Bind(m_ui->ignoreFormatChangesCheckBox, Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES,
                      m_game_layer, true);
   ConfigWidget::Bind(m_ui->storeEfbCopiesCheckBox, Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM,
                      m_game_layer);
   ConfigWidget::Bind(m_ui->deferEfbCopiesCheckBox, Config::GFX_HACK_DEFER_EFB_COPIES, m_game_layer);
-  constexpr std::array accuracy_values{0, 512, 128};
-  ConfigWidget::BindMapped(m_ui->accuracySlider, Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES,
-                           accuracy_values, m_game_layer);
+  ConfigWidget::BindCatalog(m_ui->accuracySlider, Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES,
+                            m_game_layer);
   ConfigWidget::MirrorFont(m_ui->accuracyLabel, m_ui->accuracySlider);
   ConfigWidget::Bind(m_ui->gpuTextureDecodingCheckBox, Config::GFX_ENABLE_GPU_TEXTURE_DECODING,
                      m_game_layer);

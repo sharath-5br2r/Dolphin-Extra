@@ -11,6 +11,7 @@
 #include <QString>
 
 #include "Common/Config/ConfigInfo.h"
+#include "Common/Settings/Descriptor.h"
 
 namespace ConfigWidget
 {
@@ -42,11 +43,14 @@ struct SettingEntry
   std::optional<double> minimum;
   std::optional<double> maximum;
   std::optional<double> step;
+  std::vector<Common::Settings::Value> choice_values;
+  std::vector<Common::Settings::Value> ticks;
+  std::optional<Common::Settings::Descriptor> shared_descriptor;
 };
 
-// Every Bind() records here, so a settings interface can be driven from the desktop panes' own
-// definitions instead of re-authoring all of them. Its consumer is the fullscreen-OSD follow-up
-// project; nothing in DolphinQt reads it yet.
+// GUI-thread observations of desktop bindings, retained for descriptor parity checks. The
+// startup-complete UICommon settings catalog defines Big Picture support and edit contexts;
+// neither this registry's historical merge flags nor its pointers are used by the renderer.
 class ConfigSettingRegistry
 {
 public:
@@ -57,6 +61,7 @@ public:
   // and panes reopen.
   void Record(SettingEntry entry);
   void SetText(const Config::Location& location, QString title, QString description);
+  void SetDescriptor(const Common::Settings::Descriptor& descriptor);
 
   // Returns a pointer valid until the next Record() call.
   const SettingEntry* Find(const Config::Location& location) const;

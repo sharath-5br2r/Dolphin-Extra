@@ -47,6 +47,7 @@
 #include <windows.h>
 #endif
 
+#include "AudioCommon/AudioCommon.h"
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
 #include "Common/ScopeGuard.h"
@@ -62,6 +63,7 @@
 #include "Core/BootManager.h"
 #include "Core/CommonTitles.h"
 #include "Core/Config/AchievementSettings.h"
+#include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/NetplaySettings.h"
 #include "Core/Config/UISettings.h"
@@ -93,9 +95,13 @@
 #include "DiscIO/RiivolutionPatcher.h"
 
 #include "Common/BigPicture/PresentationState.h"
+#include "Common/CommonPaths.h"
 #include "DolphinQt/AboutDialog.h"
 #include "DolphinQt/Achievements/AchievementsWindow.h"
 #include "DolphinQt/BigPictureHost.h"
+#include "DolphinQt/BigPictureLibrary.h"
+#include "DolphinQt/BigPictureSettings.h"
+#include "DolphinQt/BigPictureTextInput.h"
 #include "DolphinQt/CheatsManager.h"
 #include "DolphinQt/Config/FreeLookWindow.h"
 #include "DolphinQt/Config/LogConfigWidget.h"
@@ -301,6 +307,31 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
 
   CreateComponents();
   m_big_picture_requested = start_big_picture && !Settings::Instance().IsBatchModeEnabled();
+  m_big_picture_settings = std::make_unique<BigPictureSettings>(this, [this] {
+    if (m_big_picture_host && !m_shutting_down)
+      m_big_picture_host->Refresh();
+  });
+
+  m_big_picture_library = new BigPictureLibrary(
+      this,
+      {[this] {
+         if (m_big_picture_host)
+           m_big_picture_host->Refresh();
+       },
+       [](const std::string& path) { Settings::Instance().AddPath(QString::fromStdString(path)); },
+       [] { Settings::Instance().RefreshGameList(); },
+       [this](const std::string& path) {
+         const auto game = m_game_list->FindGame(path);
+         return game && game->GetCoverImage().buffer.size() <= 16 * 1024 * 1024 ?
+                    game->GetCoverImage().buffer :
+                    std::vector<unsigned char>{};
+       },
+       [] { return Config::Get(Config::MAIN_RECURSIVE_ISO_PATHS); },
+       [](bool recursive) {
+         Config::SetBase(Config::MAIN_RECURSIVE_ISO_PATHS, recursive);
+         Settings::Instance().RefreshGameList();
+       },
+       [] { return true; }});
 
   m_big_picture_host = new BigPictureHost(
       this,
@@ -330,11 +361,81 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
           state.lifecycle = BigPicture::Lifecycle::Booting;
         state.netplay = NetPlay::IsNetPlayRunning();
         state.hardcore = AchievementManager::GetInstance().IsHardcoreModeActive();
+        UICommon::Settings::Environment environment;
+        environment.emulating = state.lifecycle != BigPicture::Lifecycle::Idle;
+        environment.transitioning = state.lifecycle == BigPicture::Lifecycle::Booting ||
+                                    state.lifecycle == BigPicture::Lifecycle::Stopping ||
+                                    m_standalone_stop != StandaloneStop::None ||
+                                    m_standalone_restart_queued;
+        environment.netplay = state.netplay;
+        environment.hardcore = state.hardcore;
+        environment.post_processing = m_settings_post_processing;
+        environment.movie = m_system.GetMovie().IsMovieActive();
+        environment.max_efb_scale = Config::Get(Config::GFX_MAX_EFB_SCALE);
+        for (const auto& backend : VideoBackendBase::GetAvailableBackends())
+          if (backend->SupportsUI())
+            environment.graphics_backends.push_back(
+                {backend->GetConfigName(), backend->GetDisplayName()});
+        // Backend implementations are fixed for this process. Do not repeat optional
+        // library loading/probing on every settings snapshot; devices are separate options.
+        static const auto audio_backends = AudioCommon::GetSoundBackends();
+        for (const auto& backend : audio_backends)
+          environment.audio_backends.push_back({backend, backend});
+        m_big_picture_settings->SetEnvironment(std::move(environment));
+        BigPictureSettings::Game settings_game;
+        if (state.lifecycle == BigPicture::Lifecycle::Running ||
+            state.lifecycle == BigPicture::Lifecycle::Paused)
+        {
+          const auto& config = SConfig::GetInstance();
+          settings_game = {config.GetGameID(), config.GetRevision(), config.GetTitleName(), true};
+        }
+        else if (state.lifecycle == BigPicture::Lifecycle::Idle)
+        {
+          const auto library =
+              m_big_picture_library ? m_big_picture_library->GetSnapshot() : nullptr;
+          auto game = library ? m_game_list->FindGame(library->selected_path) : nullptr;
+          if (!game)
+            game = m_game_list->GetSelectedGame();
+          if (game)
+            settings_game = {game->GetGameID(), game->GetRevision(), game->GetLongName(), false};
+        }
+        m_big_picture_settings->SetGame(std::move(settings_game));
+        state.settings = m_big_picture_settings->ReadSnapshot();
+        state.settings_menu = m_big_picture_settings->ReadMenu();
         state.pause_revision = m_system.GetCPU().GetPauseRevision();
         state.game_title = SConfig::GetInstance().GetTitleDescription();
+        state.game_path = m_big_picture_disc_path;
+        state.menu_theme = Config::GetBase(Config::MAIN_BIG_PICTURE_THEME);
+#ifdef USE_RETRO_ACHIEVEMENTS
+        {
+          auto& achievements = AchievementManager::GetInstance();
+          std::lock_guard lock(achievements.GetLock());
+          if (Config::Get(Config::RA_ENABLED))
+          {
+            state.achievements_username = achievements.GetPlayerDisplayName();
+            const auto& badge = achievements.GetPlayerBadge();
+            if (!state.achievements_username.empty() && badge.width && badge.height &&
+                badge.width <= 256 && badge.height <= 256 &&
+                badge.data.size() == static_cast<std::size_t>(badge.width) * badge.height * 4)
+            {
+              auto avatar = std::make_shared<BigPicture::LibraryImage>();
+              avatar->width = badge.width;
+              avatar->height = badge.height;
+              avatar->rgba.assign(badge.data.begin(), badge.data.end());
+              state.achievements_avatar = std::move(avatar);
+            }
+          }
+        }
+#endif
         state.can_change_disc = m_big_picture_disc_game;
         state.state_slots_ready = m_big_picture_state_slots_ready;
         state.state_slots = m_big_picture_state_slots;
+        state.library = m_big_picture_library ? m_big_picture_library->GetSnapshot() : nullptr;
+        state.boot_ipl_available[0] = File::Exists(Config::GetBootROMPath(JAP_DIR));
+        state.boot_ipl_available[1] = File::Exists(Config::GetBootROMPath(USA_DIR));
+        state.boot_ipl_available[2] = File::Exists(Config::GetBootROMPath(EUR_DIR));
+        state.boot_ipl_available[5] = File::Exists(Config::GetBootROMPath(DEV_DIR));
+        state.boot_system_menu_available = m_big_picture_system_menu_available;
         if (state.lifecycle == BigPicture::Lifecycle::Idle)
         {
           if (const auto game = m_game_list->GetSelectedGame())
@@ -359,8 +460,90 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
       [this](const BigPicture::Command& command) -> BigPicture::Result {
         using BigPicture::Action;
         using BigPicture::ResultStatus;
+        if (m_shutting_down)
+          return {command, ResultStatus::Unavailable, BigPicture::UnavailableReason::Busy};
         switch (command.action)
         {
+        case Action::Settings:
+          m_big_picture_settings->Open();
+          return {command, ResultStatus::Succeeded};
+        case Action::SettingsMenu:
+        {
+          if (!command.settings_menu)
+            return {command, ResultStatus::Unavailable,
+                    BigPicture::UnavailableReason::InvalidArgument};
+          const auto status = m_big_picture_settings->Execute(*command.settings_menu);
+          using Common::Settings::Status;
+          if (status == Status::InvalidValue)
+            return {
+                command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                tr("The selected profile is missing or invalid. Refresh the page and try again.")
+                    .toStdString()};
+          return {command,
+                  status == Status::Success ? ResultStatus::Succeeded :
+                  status == Status::Stale   ? ResultStatus::Stale :
+                                              ResultStatus::Unavailable,
+                  status == Status::Success ? BigPicture::UnavailableReason::None :
+                                              BigPicture::UnavailableReason::InvalidArgument};
+        }
+        case Action::EditSetting:
+        {
+          if (!command.setting)
+            return {command, ResultStatus::Unavailable,
+                    BigPicture::UnavailableReason::InvalidArgument};
+          const auto result = m_big_picture_settings->Apply(*command.setting);
+          using Common::Settings::Status;
+          if (result.status == Status::Success)
+            return {command, ResultStatus::Succeeded};
+          if (result.status == Status::Stale)
+            return {command, ResultStatus::Stale};
+          return {command, ResultStatus::Unavailable,
+                  BigPicture::UnavailableReason::InvalidArgument};
+        }
+        case Action::Library:
+        {
+          using O = BigPicture::LibraryOperation;
+          const bool idle_only =
+              command.library_operation == O::AddFolder || command.library_operation == O::OpenFile;
+          if ((idle_only && !Core::IsUninitialized(m_system)) ||
+              (command.library_operation == O::OpenDisc &&
+               BigPicture::GetAvailability(Action::ChangeDisc,
+                                           m_big_picture_host->GetSnapshot()->host) !=
+                   BigPicture::UnavailableReason::None))
+            return {command, ResultStatus::Unavailable, BigPicture::UnavailableReason::Busy};
+          if (command.library_operation == O::OpenDisc)
+            m_big_picture_library->SetDiscContext(
+                m_big_picture_disc_path, SConfig::GetInstance().GetGameID(),
+                SConfig::GetInstance().GetTitleName(),
+                StringListToStdVector(Settings::Instance().GetPaths()));
+          const auto error = m_big_picture_library->Execute(command.library_operation, command.path,
+                                                            command.library_revision);
+          return {command, error.empty() ? ResultStatus::Succeeded : ResultStatus::Failed,
+                  BigPicture::UnavailableReason::None, error};
+        }
+        case Action::BootIPL:
+        {
+          const auto state = m_big_picture_host->GetSnapshot()->host;
+          if (command.slot < 0 ||
+              command.slot >= static_cast<int>(state.boot_ipl_available.size()) ||
+              !state.boot_ipl_available[command.slot])
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                    tr("The selected GameCube IPL is unavailable.").toStdString()};
+          OnBootGameCubeIPL(static_cast<DiscIO::Region>(command.slot));
+          if (Core::IsUninitialized(m_system) && !m_standalone_boot)
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                    tr("Failed to init core").toStdString()};
+          return {command, ResultStatus::Dispatched};
+        }
+        case Action::BootSystemMenu:
+          if (!m_big_picture_system_menu_available)
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                    tr("The Wii System Menu is not installed.").toStdString()};
+          BootWiiSystemMenu();
+          if (Core::IsUninitialized(m_system) && !m_standalone_boot)
+            return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                    tr("Failed to init core").toStdString()};
+          return {command, ResultStatus::Dispatched};
         case Action::Boot:
           if (!File::Exists(command.path))
             return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
@@ -433,6 +616,15 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
           break;
         case Action::ChangeDisc:
         {
+          if (!command.path.empty())
+          {
+            if (!File::Exists(command.path))
+              return {command, ResultStatus::Failed, BigPicture::UnavailableReason::None,
+                      tr("The selected disc is no longer available.").toStdString()};
+            m_system.GetDVDInterface().ChangeDisc(Core::CPUThreadGuard{m_system}, {command.path});
+            m_big_picture_disc_path = command.path;
+            return {command, ResultStatus::Dispatched};
+          }
           // Let the dispatch finish before entering a native dialog's nested event loop.
           // Session/policy checks after selection reject a dialog left open across stop/boot.
           QTimer::singleShot(0, this, [this, generation = command.generation] {
@@ -482,11 +674,51 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
       },
       [this](std::shared_ptr<const BigPicture::Snapshot> snapshot) {
         BigPicture::GetPresentationState().Publish(snapshot);
+        if (m_big_picture_text_input &&
+            (!snapshot || snapshot->generation != m_big_picture_text_generation ||
+             snapshot->screens.empty() ||
+             snapshot->screens.back() != BigPicture::Screen::TextInput))
+          m_big_picture_text_input->reject();
+        if (snapshot && !m_big_picture_text_input && !m_big_picture_text_queued &&
+            !snapshot->screens.empty() &&
+            snapshot->screens.back() == BigPicture::Screen::TextInput && snapshot->host.library &&
+            snapshot->host.library->native_text_input)
+        {
+          m_big_picture_text_queued = true;
+          QTimer::singleShot(0, this, [this, generation = snapshot->generation] {
+            m_big_picture_text_queued = false;
+            ShowBigPictureTextInput(generation);
+          });
+        }
         if (snapshot)
           m_render_widget->RefreshInputCapture();
         VideoCommon::BigPicture::Wakeup();
       });
+  m_library_timer = new QTimer(this);
+  m_library_timer->setSingleShot(true);
+  m_library_timer->setInterval(50);
+  connect(m_library_timer, &QTimer::timeout, this, &MainWindow::RefreshBigPictureLibrary);
+  const auto* library_model = &m_game_list->GetGameListModel();
+  const auto update_library = [this] { m_library_timer->start(); };
+  connect(library_model, &QAbstractItemModel::rowsInserted, this, update_library);
+  connect(library_model, &QAbstractItemModel::rowsRemoved, this, update_library);
+  connect(library_model, &QAbstractItemModel::dataChanged, this, update_library);
+  connect(library_model, &QAbstractItemModel::modelReset, this, update_library);
+  connect(&Settings::Instance(), &Settings::GameListRefreshStarted, this, [this] {
+    if (!m_shutting_down)
+      m_big_picture_library->SetScanning(true);
+  });
+  connect(&Settings::Instance(), &Settings::GameListRefreshCompleted, this, [this] {
+    if (m_shutting_down)
+      return;
+    RefreshBigPictureLibrary();
+    m_big_picture_library->SetScanning(false);
+    m_library_timer->stop();
+  });
+  m_library_timer->start();
   connect(&Settings::Instance(), &Settings::ConfigChanged, m_big_picture_host,
+          &BigPictureHost::Refresh);
+  connect(&Settings::Instance(), &Settings::DevicesChanged, m_big_picture_host,
           &BigPictureHost::Refresh);
   m_standalone_timer = new QTimer(this);
   m_standalone_timer->setInterval(16);
@@ -494,6 +726,8 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
   connect(&Settings::Instance(), &Settings::ConfigChanged, this, [this] {
     if (!m_standalone || m_standalone_restart_queued || m_standalone_stop != StandaloneStop::None ||
         !Core::IsUninitialized(m_system))
+      return;
+    if (!m_standalone_ready || BigPicture::ReadGraphicsConfig() == m_standalone_graphics_config)
       return;
     m_standalone_restart_queued = true;
     QTimer::singleShot(75, this, [this, serial = m_standalone_serial] {
@@ -517,7 +751,7 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
   if (!settings.contains(geometry_key) ||
       !restoreGeometry(settings.value(geometry_key).toByteArray()))
     resize(sizeHint());
-  if (!Settings::Instance().IsBatchModeEnabled())
+  if (!Settings::Instance().IsBatchModeEnabled() && !m_big_picture_requested)
   {
     show();
   }
@@ -606,6 +840,9 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
                                 tr("Invalid Pack %1 provided: %2")
                                     .arg(QString::fromStdString(pack.GetPath()))
                                     .arg(QString::fromStdString(pack.GetError())));
+      m_big_picture_requested = false;
+      if (!Settings::Instance().IsBatchModeEnabled())
+        show();
       return;
     }
   }
@@ -617,13 +854,17 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
     StartGame(std::move(m_pending_boot));
     m_pending_boot.reset();
   }
-  else if (m_big_picture_requested)
+  // A canceled/failed startup boot must still open the requested library.
+  if (m_big_picture_requested && Core::IsUninitialized(m_system) && !m_standalone)
     QTimer::singleShot(0, this, &MainWindow::EnterBigPicture);
 }
 
 MainWindow::~MainWindow()
 {
   m_shutting_down = true;
+  m_library_timer->stop();
+  delete m_big_picture_library;
+  m_big_picture_library = nullptr;
   if (m_standalone)
   {
     m_standalone_timer->stop();
@@ -673,7 +914,11 @@ MainWindow::~MainWindow()
 
 WindowSystemInfo MainWindow::GetWindowSystemInfo() const
 {
-  return ::GetWindowSystemInfo(m_render_widget->windowHandle());
+  auto wsi = ::GetWindowSystemInfo(m_render_widget->GetRenderSurfaceWindow());
+  // Input/focus belong to the persistent presentation widget, while graphics APIs receive
+  // a replaceable native child with its own pixel format/surface lifetime.
+  wsi.render_window = ::GetWindowSystemInfo(m_render_widget->windowHandle()).render_window;
+  return wsi;
 }
 
 void MainWindow::InitControllers()
@@ -760,6 +1005,70 @@ void MainWindow::InitControllers()
       tr("Open a game using the desktop picker, or return to the desktop game library.")
           .toStdString();
   menu_text.confirm_exit_idle = tr("Exit Dolphin?").toStdString();
+  using LibraryOp = BigPicture::LibraryOperation;
+  const auto library_label = [&](LibraryOp op, const QString& label) {
+    menu_text.library_actions[static_cast<std::size_t>(op)] = label.toStdString();
+  };
+  library_label(LibraryOp::Options, tr("Library Options"));
+  library_label(LibraryOp::Search, tr("Search"));
+  library_label(LibraryOp::AddFolder, tr("Add Game Folder"));
+  library_label(LibraryOp::OpenFile, tr("Open Game"));
+  library_label(LibraryOp::OpenDisc, tr("Change Disc"));
+  library_label(LibraryOp::Refresh, tr("Refresh"));
+  library_label(LibraryOp::View, tr("Grid / List"));
+  library_label(LibraryOp::Sort, tr("Sort"));
+  library_label(LibraryOp::Platform, tr("Platform"));
+  library_label(LibraryOp::Region, tr("Region"));
+  library_label(LibraryOp::Tag, tr("Tag"));
+  library_label(LibraryOp::ClearFilters, tr("Clear Filters"));
+  library_label(LibraryOp::EditPath, tr("Enter Path"));
+  library_label(LibraryOp::TextDone, tr("Done"));
+  library_label(LibraryOp::TextErase, tr("Erase"));
+  library_label(LibraryOp::Recursive, tr("Scan Subfolders"));
+  library_label(LibraryOp::ClearSearch, tr("Clear Search"));
+  library_label(LibraryOp::TextClear, tr("Clear"));
+  library_label(LibraryOp::BrowseDiscs, tr("Browse Files"));
+  menu_text.library_disc_games = tr("Library games — matching titles first").toStdString();
+  menu_text.library_empty = tr("Add a game folder to build your library.").toStdString();
+  menu_text.library_no_matches =
+      tr("No games match these filters. Clear filters in Library Options.").toStdString();
+  menu_text.library_scanning = tr("Loading…").toStdString();
+  menu_text.library_choose_folder = tr("Use This Folder").toStdString();
+  menu_text.library_parent = tr("Parent Folder").toStdString();
+  menu_text.library_roots = tr("Locations").toStdString();
+  menu_text.library_space = tr("Space").toStdString();
+  menu_text.library_keyboard = tr("Enter Text").toStdString();
+  menu_text.library_keyboard_prompts =
+      tr("Type text   Enter: Done   Backspace: Erase   Esc: Cancel").toStdString();
+  menu_text.library_cancel = tr("Cancel").toStdString();
+  menu_text.library_grid = tr("Grid").toStdString();
+  menu_text.library_list = tr("List").toStdString();
+  menu_text.library_all = tr("All").toStdString();
+  menu_text.disc_change_requested =
+      tr("Disc change requested. Resume emulation to complete insertion.").toStdString();
+  menu_text.actions[static_cast<std::size_t>(BigPicture::Action::BootIPL)] =
+      tr("GameCube IPL").toStdString();
+  menu_text.actions[static_cast<std::size_t>(BigPicture::Action::BootSystemMenu)] =
+      tr("Wii System Menu").toStdString();
+  menu_text.home_labels = {tr("Game List").toStdString(), tr("Start Game").toStdString(),
+                           tr("Settings").toStdString(), tr("Exit").toStdString()};
+  menu_text.home_descriptions = {
+      tr("Launch a game from images scanned from your game directories.").toStdString(),
+      tr("Launch a game from a file, or start the GameCube or Wii system menu.").toStdString(),
+      tr("Changes settings for the application.").toStdString(),
+      tr("Return to desktop mode, or exit the application.").toStdString()};
+  // PromptFont's keycaps, matching the fullscreen reference. Keep labels independently translated.
+  menu_text.home_keyboard_prompts = "\xe2\x91\xa0 " + tr("About").toStdString() +
+                                    "   \xe2\x91\xaa " + tr("Toggle Fullscreen").toStdString() +
+                                    "   \xe2\x8f\xb4\xe2\x8f\xb6 " + tr("Navigate").toStdString() +
+                                    "   \xe2\x90\xba " + tr("Game List").toStdString() +
+                                    "   \xe2\x90\xae " + tr("Select").toStdString() +
+                                    "   \xe2\x90\xaf " + tr("Exit").toStdString();
+  menu_text.navigate = tr("Navigate").toStdString();
+  menu_text.about_title = tr("About Dolphin").toStdString();
+  menu_text.about_description = Common::GetScmRevStr() + "\n\n" +
+                                tr("Dolphin is a GameCube and Wii emulator.").toStdString() +
+                                "\n\nhttps://dolphin-emu.org";
   BigPicture::GetPresentationState().SetNavigationText(std::move(menu_text));
 
   m_hotkey_scheduler = new HotkeyScheduler();
@@ -797,6 +1106,10 @@ void MainWindow::ShutdownControllers()
 void MainWindow::InitCoreCallbacks()
 {
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this](Core::State state) {
+    // Backend information belongs to graphics initialization. Sample capabilities
+    // after the owner publishes readiness, never while it is still constructing them.
+    if (state == Core::State::Running || state == Core::State::Paused)
+      m_settings_post_processing = g_backend_info.bSupportsPostProcessing;
     m_big_picture_host->Refresh();
     if (state == Core::State::Uninitialized)
       OnStopComplete();
@@ -1019,18 +1332,38 @@ void MainWindow::EnterBigPicture()
     }
     m_big_picture_host->RequestAction(m_big_picture_host->GetSnapshot()->generation,
                                       BigPicture::Action::OpenMenu);
+    if (!m_rendering_to_main)
+      hide();
     return;
   }
 
   // Uninitialized is published at the end of core teardown. Join that owner before creating
   // any new graphics globals, including when the stop notification arrived just beforehand.
   Core::Shutdown(m_system);
-  ShowRenderWidget();
+  // Reuse the desktop's installed-title check rather than creating another IOS filesystem
+  // just to populate the library options on each renderer handoff.
+  m_big_picture_system_menu_available = m_ui->actionToolsBootSystemMenu->isEnabled();
+  RefreshBigPictureLibrary();
+  if (const auto selected = m_game_list->GetSelectedGame())
+    m_big_picture_library->SetInitialSelection(selected->GetFilePath());
+  // Prepare the opaque shell before showing either its own window or the main window.
+  PrepareBigPictureSurface();
+  ShowRenderWidget(true);
+  m_render_widget->setWindowTitle(tr("Dolphin Big Picture"));
+  // A desktop menu closes after its action runs and can restore focus to the old game-list
+  // control. Move keyboard input to the persistent menu shell after that popup has closed.
+  QTimer::singleShot(0, m_render_widget, [this] {
+    if (m_big_picture_requested && m_render_widget->isVisible())
+      m_render_widget->setFocus(Qt::OtherFocusReason);
+  });
+  if (m_rendering_to_main)
+    setWindowTitle(tr("Dolphin Big Picture"));
   if (!m_rendering_to_main && m_render_widget_geometry.isEmpty())
     m_render_widget->resize(1280, 720);
-  auto wsi = ::GetWindowSystemInfo(m_render_widget->windowHandle());
+  auto wsi = GetWindowSystemInfo();
   VideoBackendBase::PopulateBackendInfo(wsi);
   g_video_backend->PrepareWindow(wsi);
+  m_standalone_graphics_config = BigPicture::ReadGraphicsConfig();
   m_big_picture_host->InvalidatePresentation();
   if (m_big_picture_host->GetSnapshot()->mode == BigPicture::Mode::Desktop)
     m_big_picture_host->RequestAction(m_big_picture_host->GetSnapshot()->generation,
@@ -1040,6 +1373,13 @@ void MainWindow::EnterBigPicture()
   ++m_standalone_serial;
   m_standalone = VideoCommon::BigPicture::StandaloneSession::Create(g_video_backend, wsi);
   m_standalone_timer->start();
+}
+
+void MainWindow::PrepareBigPictureSurface()
+{
+  const auto config = BigPicture::ReadRenderSurfaceConfig();
+  m_render_widget->PrepareRenderSurface(config != m_big_picture_surface_config);
+  m_big_picture_surface_config = config;
 }
 
 void MainWindow::StopStandalone(StandaloneStop next)
@@ -1072,9 +1412,12 @@ void MainWindow::PollStandalone()
   const auto status = m_standalone->GetStatus();
   if (status == Status::Ready && !m_standalone_ready && m_standalone_stop == StandaloneStop::None)
   {
+    m_settings_post_processing = g_backend_info.bSupportsPostProcessing;
     m_standalone_ready = true;
     m_menu_bar->SetBigPictureActive(true);
     m_big_picture_host->Refresh();
+    if (BigPicture::ReadGraphicsConfig() != m_standalone_graphics_config)
+      StopStandalone(StandaloneStop::Restart);
   }
   if (status == Status::Ready && m_standalone_stop == StandaloneStop::None &&
       m_big_picture_host->GetSnapshot()->mode == BigPicture::Mode::Desktop)
@@ -1085,6 +1428,7 @@ void MainWindow::PollStandalone()
   const auto next =
       m_standalone_stop == StandaloneStop::None ? StandaloneStop::Desktop : m_standalone_stop;
   m_standalone.reset();  // IsFinished acknowledges all graphics destruction; joining is now safe.
+  m_standalone_ready = false;
   m_standalone_timer->stop();
   m_standalone_stop = StandaloneStop::None;
   CompleteStandaloneStop(next, failed);
@@ -1093,8 +1437,15 @@ void MainWindow::PollStandalone()
 void MainWindow::CompleteStandaloneStop(StandaloneStop next, bool failed)
 {
   m_menu_bar->SetBigPictureActive(false);
-  HideRenderWidget(next != StandaloneStop::Exit, next == StandaloneStop::Exit);
-  SetFullScreenResolution(false);
+  if (next == StandaloneStop::Exit)
+    hide();
+  const bool keep_window = !failed && m_big_picture_requested &&
+                           (next == StandaloneStop::Boot || next == StandaloneStop::Restart);
+  if (!keep_window)
+  {
+    HideRenderWidget(next != StandaloneStop::Exit, next == StandaloneStop::Exit);
+    SetFullScreenResolution(false);
+  }
   if (failed)
   {
     m_big_picture_requested = false;
@@ -1119,16 +1470,21 @@ void MainWindow::CompleteStandaloneStop(StandaloneStop next, bool failed)
     return;
   }
   m_big_picture_host->FinishStopToDesktop();
-  show();
-  raise();
   if (next == StandaloneStop::Exit)
   {
     if (m_assembler_widget->ApplicationCloseRequest())
       QGuiApplication::exit(0);
     else
+    {
       m_exit_requested = false;
+      show();
+      raise();
+    }
+    return;
   }
-  else if (next == StandaloneStop::Settings)
+  show();
+  raise();
+  if (next == StandaloneStop::Settings)
     ShowSettingsWindow();
   else if (next == StandaloneStop::OpenGame)
   {
@@ -1167,11 +1523,99 @@ void MainWindow::RefreshBigPictureStateSlots()
   m_big_picture_state_slots_ready = true;
 }
 
+void MainWindow::ShowBigPictureTextInput(std::uint64_t generation)
+{
+  const auto snapshot = m_big_picture_host->GetSnapshot();
+  if (m_shutting_down || m_big_picture_text_input || snapshot->generation != generation ||
+      snapshot->screens.empty() || snapshot->screens.back() != BigPicture::Screen::TextInput ||
+      !snapshot->host.library || !snapshot->host.library->native_text_input)
+    return;
+  auto* dialog = new BigPictureTextInput(m_render_widget->window(),
+                                         snapshot->host.library->editing_path ? tr("Enter Path") :
+                                                                                tr("Search"),
+                                         QString::fromStdString(snapshot->host.library->draft),
+                                         BigPictureTextInput::GetInputMethods());
+  dialog->setAttribute(Qt::WA_DeleteOnClose);
+  m_big_picture_text_input = dialog;
+  m_big_picture_text_generation = generation;
+  connect(dialog, &QDialog::finished, this, [this, dialog, generation](int result) {
+    m_big_picture_text_input = nullptr;
+    if (m_shutting_down)
+      return;
+    const auto current = m_big_picture_host->GetSnapshot();
+    if (current->generation != generation || current->screens.empty() ||
+        current->screens.back() != BigPicture::Screen::TextInput)
+      return;
+    using O = BigPicture::LibraryOperation;
+    const auto send = [&](O operation, std::string value = {}) {
+      m_big_picture_host->RequestAction(generation, BigPicture::Action::Library, {}, 0, 0,
+                                        std::move(value), operation);
+    };
+    if (result == QDialog::Accepted)
+    {
+      send(O::TextReplace, dialog->GetText().toStdString());
+      send(O::TextDone);
+    }
+    else if (result == BigPictureTextInput::ControllerKeyboard)
+    {
+      send(O::TextReplace, dialog->GetText().toStdString());
+      send(O::ControllerKeyboard);
+    }
+    else
+      m_big_picture_host->RequestBack();
+    m_render_widget->window()->activateWindow();
+    m_render_widget->setFocus();
+  });
+  dialog->open();
+}
+
+void MainWindow::RefreshBigPictureLibrary()
+{
+  if (!m_big_picture_library || m_shutting_down)
+    return;
+  if (!m_big_picture_requested && m_big_picture_host &&
+      m_big_picture_host->GetSnapshot()->mode == BigPicture::Mode::Desktop)
+    return;
+  const auto& model = m_game_list->GetGameListModel();
+  std::vector<BigPicture::LibraryGame> games;
+  for (int row = 0; row < model.rowCount({}); ++row)
+  {
+    const auto game = model.GetGameFile(row);
+    BigPicture::LibraryGame entry;
+    entry.path = game->GetFilePath();
+    entry.title = model.data(model.index(row, static_cast<int>(GameListModel::Column::Title)))
+                      .toString()
+                      .toStdString();
+    entry.game_id = game->GetGameID();
+    entry.platform =
+        game->GetPlatform() == DiscIO::Platform::GameCubeDisc ? tr("GameCube").toStdString() :
+        game->GetPlatform() == DiscIO::Platform::Triforce     ? tr("Triforce").toStdString() :
+        DiscIO::IsWii(game->GetPlatform())                    ? tr("Wii").toStdString() :
+                                                                tr("Executable").toStdString();
+    entry.region = DiscIO::GetName(game->GetRegion(), true);
+    entry.played_ms =
+        model
+            .data(model.index(row, static_cast<int>(GameListModel::Column::TimePlayed)),
+                  GameListModel::SORT_ROLE)
+            .toULongLong();
+    entry.size = game->GetFileSize();
+    for (const auto& tag : model.GetGameTags(entry.path))
+      entry.tags.push_back(tag.toStdString());
+    entry.description = entry.platform + " | " + entry.region + " | " + entry.game_id;
+    if (!entry.tags.empty())
+      for (const auto& tag : entry.tags)
+        entry.description += " | " + tag;
+    games.push_back(std::move(entry));
+  }
+  m_big_picture_library->SetGames(std::move(games));
+}
+
 void MainWindow::ConnectHotkeys()
 {
   connect(m_hotkey_scheduler, &HotkeyScheduler::BigPictureAction, this,
           [this](int action_value, quint64 generation, quint64 input_epoch, int slot,
-                 quint64 confirmation_id, const QString& path) {
+                 quint64 confirmation_id, const QString& path, int library_operation,
+                 quint64 library_revision) {
             const auto action = static_cast<BigPicture::Action>(action_value);
             if ((action == BigPicture::Action::SaveStates ||
                  action == BigPicture::Action::LoadStates) &&
@@ -1179,8 +1623,19 @@ void MainWindow::ConnectHotkeys()
                 BigPicture::GetPresentationState().IsInputCurrent(input_epoch) &&
                 Core::IsRunning(m_system))
               RefreshBigPictureStateSlots();
-            m_big_picture_host->RequestAction(generation, action, input_epoch, slot,
-                                              confirmation_id, path.toStdString());
+            m_big_picture_host->RequestAction(
+                generation, action, input_epoch, slot, confirmation_id, path.toStdString(),
+                static_cast<BigPicture::LibraryOperation>(library_operation), library_revision);
+          });
+  qRegisterMetaType<Common::Settings::Request>();
+  qRegisterMetaType<BigPicture::SettingsRequest>();
+  connect(m_hotkey_scheduler, &HotkeyScheduler::BigPictureSettingsMenu, this,
+          [this](BigPicture::SettingsRequest request, quint64 generation, quint64 input_epoch) {
+            m_big_picture_host->RequestSettingsMenu(generation, std::move(request), input_epoch);
+          });
+  connect(m_hotkey_scheduler, &HotkeyScheduler::BigPictureSetting, this,
+          [this](Common::Settings::Request request, quint64 generation, quint64 input_epoch) {
+            m_big_picture_host->RequestSetting(generation, std::move(request), input_epoch);
           });
   connect(
       m_hotkey_scheduler, &HotkeyScheduler::BigPictureOptions, this,
@@ -1546,13 +2001,17 @@ void MainWindow::OnStopComplete()
   m_graceful_shutdown_timer->stop();
   m_stop_requested = false;
   m_big_picture_host->FinishStopToDesktop();
-  HideRenderWidget(!m_exit_requested, m_exit_requested);
+  const bool return_to_library =
+      m_big_picture_requested && !m_exit_requested && !Settings::Instance().IsBatchModeEnabled();
+  if (!return_to_library)
+    HideRenderWidget(!m_exit_requested, m_exit_requested);
 #ifdef USE_DISCORD_PRESENCE
   if (!m_netplay_dialog->isVisible())
     Discord::UpdateDiscordPresence();
 #endif
 
-  SetFullScreenResolution(false);
+  if (!return_to_library)
+    SetFullScreenResolution(false);
 
   if (m_exit_requested || Settings::Instance().IsBatchModeEnabled())
   {
@@ -1608,7 +2067,7 @@ bool MainWindow::RequestStopWithConfirmation(bool confirmed)
 
   if (!m_render_widget->isFullScreen())
     m_render_widget_geometry = m_render_widget->saveGeometry();
-  else
+  else if (!m_big_picture_requested || m_exit_requested)
     FullScreen();
 
   bool confirm_on_stop = !confirmed && Config::Get(Config::MAIN_CONFIRM_ON_STOP);
@@ -1747,6 +2206,10 @@ void MainWindow::FullScreen()
   if (!was_fullscreen)
     m_render_widget_geometry = m_render_widget->saveGeometry();
 
+  // Removing an embedded renderer selects the desktop page in the stack. Keep that
+  // window hidden throughout the move to a separate fullscreen presentation.
+  if (m_big_picture_requested)
+    hide();
   HideRenderWidget(false);
   SetFullScreenResolution(!was_fullscreen);
 
@@ -1871,22 +2334,36 @@ void MainWindow::StartGame(std::unique_ptr<BootParameters>&& parameters)
   }
 
   // We need the render widget before booting.
-  ShowRenderWidget();
+  if (m_big_picture_requested)
+  {
+    Core::Shutdown(m_system);
+    PrepareBigPictureSurface();
+  }
+  ShowRenderWidget(true);
 
   // Boot up, show an error if it fails to load the game.
   m_big_picture_state_slots_ready = false;
   m_big_picture_state_slots = {};
   m_big_picture_disc_game =
       parameters && std::holds_alternative<BootParameters::Disc>(parameters->parameters);
+  m_big_picture_disc_path = m_big_picture_disc_game ?
+                                std::get<BootParameters::Disc>(parameters->parameters).path :
+                                std::string{};
   const auto snapshot = m_big_picture_host->GetSnapshot();
-  const bool menu_boot = snapshot->pending && snapshot->pending->action == BigPicture::Action::Boot;
+  const bool menu_boot = snapshot->pending && BigPicture::IsBootAction(snapshot->pending->action);
   m_big_picture_host->PrepareForBoot();
-  if (!BootManager::BootCore(m_system, std::move(parameters),
-                             ::GetWindowSystemInfo(m_render_widget->windowHandle())))
+  if (!BootManager::BootCore(m_system, std::move(parameters), GetWindowSystemInfo(), [this] {
+        // Game INIs are loaded by BootCore. Recheck compatibility after those settings
+        // are active, while still on the GUI thread and before the GPU owner starts.
+        if (m_big_picture_requested)
+          PrepareBigPictureSurface();
+        return GetWindowSystemInfo();
+      }))
   {
     if (!menu_boot)
       ModalMessageBox::critical(this, tr("Error"), tr("Failed to init core"), QMessageBox::Ok);
-    HideRenderWidget();
+    if (!m_big_picture_requested)
+      HideRenderWidget();
     m_big_picture_host->Refresh();
     if (m_big_picture_requested)
       QTimer::singleShot(0, this, &MainWindow::EnterBigPicture);
@@ -1898,7 +2375,7 @@ void MainWindow::StartGame(std::unique_ptr<BootParameters>&& parameters)
     Discord::UpdateDiscordPresence();
 #endif
 
-  if (Config::Get(Config::MAIN_FULLSCREEN))
+  if (Config::Get(Config::MAIN_FULLSCREEN) && !m_render_widget->isFullScreen())
     m_fullscreen_requested = true;
 }
 
@@ -1930,8 +2407,16 @@ void MainWindow::SetFullScreenResolution(bool fullscreen)
 #endif
 }
 
-void MainWindow::ShowRenderWidget()
+void MainWindow::ShowRenderWidget(bool preserve_window)
 {
+  // Boot, stop and idle backend changes retain the visible Big Picture shell, its native
+  // window, placement and fullscreen state. Only the graphics child is recreated.
+  if (preserve_window && m_big_picture_requested && m_render_widget->isVisible())
+  {
+    if (!m_rendering_to_main)
+      hide();
+    return;
+  }
   SetFullScreenResolution(false);
   Host::GetInstance()->SetRenderFullscreen(false);
 
@@ -1943,6 +2428,8 @@ void MainWindow::ShowRenderWidget()
     m_stack->setCurrentIndex(m_stack->addWidget(m_render_widget));
     connect(Host::GetInstance(), &Host::RequestTitle, this, &MainWindow::setWindowTitle);
     m_stack->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    if (m_big_picture_requested)
+      show();
     m_stack->repaint();
 
     Host::GetInstance()->SetRenderFocus(isActiveWindow());
@@ -1952,6 +2439,10 @@ void MainWindow::ShowRenderWidget()
     // Otherwise, just show it.
     m_rendering_to_main = false;
 
+    // The desktop must not be available behind Big Picture during focus changes or
+    // graphics teardown. Explicit desktop/settings handoffs restore it when needed.
+    if (m_big_picture_requested)
+      hide();
     m_render_widget->showNormal();
     m_render_widget->restoreGeometry(m_render_widget_geometry);
   }

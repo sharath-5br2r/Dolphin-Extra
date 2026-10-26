@@ -4,7 +4,9 @@ add_executable(qt-tests EXCLUDE_FROM_ALL
   ApplicationThemeTest.cpp
   AudioPaneUiTest.cpp
   BigPictureHostTest.cpp
+  BigPictureLibraryTest.cpp
   BigPicturePaneTest.cpp
+  RenderSurfaceHostTest.cpp
   ImGuiKeyEventTest.cpp
   MenuFontFallbacksTest.cpp
   QtTestsMain.cpp
@@ -18,6 +20,8 @@ add_executable(qt-tests EXCLUDE_FROM_ALL
   BalloonTipFilterTest.cpp
   ConfigComplexBindingTest.cpp
   ConfigSettingRegistryTest.cpp
+  SharedSettingsTest.cpp
+  BigPictureSettingsTest.cpp
   ControllersUiTest.cpp
   CoverManagerTest.cpp
   EmulationStatusWidgetTest.cpp
@@ -49,6 +53,11 @@ add_executable(qt-tests EXCLUDE_FROM_ALL
   WiiPaneUiTest.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/EmulationStatusWidget.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureHost.cpp
+  ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureLibrary.cpp
+  ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureSettings.cpp
+  ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureTextInput.cpp
+  ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/QtUtils/RenderSurfaceHost.cpp
+  ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureGraphicsConfig.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/Settings/BigPicturePane.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/GameCount.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/GameList/CoverManager.cpp
@@ -173,4 +182,10 @@ target_link_libraries(qt-tests PRIVATE
   fmt::fmt
 )
 add_test(NAME qt-tests COMMAND qt-tests -platform offscreen)
+if(APPLE)
+  target_link_libraries(qt-tests PRIVATE ${IOK_LIBRARY})
+endif()
+if(WIN32)
+  target_link_libraries(qt-tests PRIVATE shell32.lib)
+endif()
 add_dependencies(unittests qt-tests)

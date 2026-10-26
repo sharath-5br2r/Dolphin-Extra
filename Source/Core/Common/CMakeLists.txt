@@ -15,10 +15,14 @@ add_library(common
   Assembler/GekkoParser.h
   Assert.h
   BigPicture/Contracts.h
+  BigPicture/Library.h
+  BigPicture/Settings.h
+  BigPicture/Theme.h
   BigPicture/Navigation.cpp
   BigPicture/Navigation.h
   BigPicture/PresentationState.cpp
   BigPicture/PresentationState.h
+  Settings/Descriptor.h
   BitField.h
   BitSet.h
   BitUtils.h

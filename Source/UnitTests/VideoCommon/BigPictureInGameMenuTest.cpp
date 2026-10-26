@@ -1,6 +1,8 @@
 // Copyright 2026 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
+
 #include <gtest/gtest.h>
 #include <imgui.h>
 
@@ -55,6 +57,45 @@ TEST_F(BigPictureInGameMenuTest, RootRoutesExplicitResumeAndImplicitCloseSeparat
   EXPECT_EQ(menu.page.items[4].detail, "Not a disc game");
 }
 
+TEST_F(BigPictureInGameMenuTest, SharedSettingsRowsCarryTypedEditsAndNestedBackRequests)
+{
+  snapshot.screens.push_back(Screen::Settings);
+  auto view = std::make_shared<SettingsMenuSnapshot>();
+  view->id = "settings-test";
+  view->title = "Audio";
+  view->back = SettingsRequest{22, SettingsOperation::Back};
+  SettingsRow row{"volume", "37%"};
+  row.edit = Common::Settings::Request{45, "audio.volume", Common::Settings::Operation::Set, 37};
+  view->rows.push_back(row);
+  row.id = "disabled";
+  row.enabled = false;
+  view->rows.push_back(row);
+  snapshot.host.settings_menu = view;
+  const auto menu = Build();
+  ASSERT_TRUE(menu.Activate({"volume"}));
+  EXPECT_EQ(menu.Activate({"volume"})->action, Action::EditSetting);
+  EXPECT_EQ(menu.Activate({"volume"})->setting->revision, 45u);
+  EXPECT_EQ(menu.Activate({"volume"})->setting->value, Common::Settings::Value(37));
+  EXPECT_FALSE(menu.Activate({"disabled"}));
+  ASSERT_TRUE(menu.Activate({{}, true})->settings_menu);
+  EXPECT_EQ(menu.Activate({{}, true})->settings_menu->operation, SettingsOperation::Back);
+  snapshot.pending = Command{snapshot.generation, 123, Action::EditSetting};
+  EXPECT_TRUE(Build().requests.empty());
+}
+
+TEST_F(BigPictureInGameMenuTest, SharedSettingsRootClosesWhileInterfaceRetainsMenuPreferences)
+{
+  snapshot.screens.push_back(Screen::Settings);
+  auto view = std::make_shared<SettingsMenuSnapshot>();
+  view->id = "settings-interface";
+  view->preferences = true;
+  snapshot.host.settings_menu = view;
+  const auto menu = Build();
+  EXPECT_EQ(menu.Activate({{}, true})->action, Action::Back);
+  ASSERT_TRUE(menu.Activate({"swap"})->options);
+  EXPECT_TRUE(menu.Activate({"swap"})->options->swap_confirm_back);
+}
+
 TEST_F(BigPictureInGameMenuTest, TenSlotsCarryOneBasedNumbersAndDisableEmptyUnreadableLoads)
 {
   snapshot.screens.push_back(Screen::LoadStates);
@@ -62,7 +103,8 @@ TEST_F(BigPictureInGameMenuTest, TenSlotsCarryOneBasedNumbersAndDisableEmptyUnre
   snapshot.host.state_slots[1] = {true, false, {}};
   snapshot.host.state_slots[9] = {true, true, "Saved date"};
   auto menu = Build();
-  EXPECT_EQ(menu.page.items.size(), 12u);
+  EXPECT_EQ(menu.page.items.size(), 10u);
+  EXPECT_EQ(menu.page.toolbar.size(), 2u);
   EXPECT_FALSE(menu.Activate({"slot-1"}));
   EXPECT_FALSE(menu.Activate({"slot-2"}));
   EXPECT_EQ(menu.page.items[0].detail, "Empty");
@@ -74,6 +116,21 @@ TEST_F(BigPictureInGameMenuTest, TenSlotsCarryOneBasedNumbersAndDisableEmptyUnre
   menu = Build();
   EXPECT_EQ(menu.Activate({"slot-1"})->slot, 1);
   EXPECT_EQ(menu.Activate({"slot-1"})->action, Action::SaveState);
+}
+
+TEST_F(BigPictureInGameMenuTest, GlobalThemeReachesPauseLibraryAndSettingsPages)
+{
+  snapshot.host.menu_theme = "Light";
+  EXPECT_EQ(Build().page.theme, "Light");
+  snapshot.screens = {Screen::LoadStates};
+  EXPECT_EQ(Build().page.theme, "Light");
+  snapshot.host.settings_menu = std::make_shared<SettingsMenuSnapshot>();
+  snapshot.screens = {Screen::Settings};
+  EXPECT_EQ(Build().page.theme, "Light");
+  snapshot.host.library = std::make_shared<LibrarySnapshot>();
+  snapshot.screens = {Screen::Library};
+  snapshot.mode = Mode::Library;
+  EXPECT_EQ(Build().page.theme, "Light");
 }
 
 TEST_F(BigPictureInGameMenuTest, PolicyChangesRemovePreviouslyAvailableLoadCommands)
@@ -159,5 +216,143 @@ TEST_F(BigPictureInGameMenuTest, IdleLandingOffersBootAndNativeHandoffsWithoutGa
   EXPECT_EQ(menu.Activate({"exit"})->action, Action::Exit);
   EXPECT_FALSE(menu.Activate({"save"}));
   EXPECT_FALSE(menu.Activate({"resume"}));
+}
+TEST_F(BigPictureInGameMenuTest, LibraryCardsCarryPathsAndRetainSafeFocusWhenSelectionDisappears)
+{
+  snapshot.mode = Mode::Library;
+  snapshot.host.lifecycle = Lifecycle::Idle;
+  snapshot.screens = {Screen::Library};
+  auto library = std::make_shared<LibrarySnapshot>();
+  library->games = {{"one.iso", "Same title"}, {"two.iso", "Same title"}};
+  library->total_games = 2;
+  library->selected_path = "two.iso";
+  snapshot.host.library = library;
+  auto menu = Build();
+  EXPECT_EQ(menu.page.default_focus, "game:two.iso");
+  EXPECT_EQ(menu.Activate({"game:two.iso"})->path, "two.iso");
+  EXPECT_EQ(menu.Activate({"add-folder"})->library_operation, LibraryOperation::AddFolder);
+  EXPECT_EQ(menu.page.toolbar.size(), 6u);
+  ASSERT_TRUE(menu.Activate({"view-toggle"}));
+  EXPECT_EQ(menu.Activate({"view-toggle"})->library_operation, LibraryOperation::View);
+  ASSERT_TRUE(menu.Activate({"settings"}));
+  EXPECT_EQ(menu.Activate({"settings"})->action, Action::Settings);
+  library->selected_path.clear();
+  library->games.pop_back();
+  menu = Build();
+  EXPECT_EQ(menu.page.default_focus, "refresh");
+  EXPECT_FALSE(menu.Activate({"game:two.iso"}));
+  snapshot.screens.push_back(Screen::LibraryOptions);
+  menu = Build();
+  EXPECT_TRUE(std::ranges::none_of(
+      menu.requests, [](const auto& entry) { return entry.second.action == Action::Settings; }));
+}
+
+TEST_F(BigPictureInGameMenuTest, PickerUsesRevisionAndDistinguishesFolderNavigationFromDiscChanges)
+{
+  auto library = std::make_shared<LibrarySnapshot>();
+  library->picker_revision = 9;
+  library->picker_disc = true;
+  library->files = {{"dir", "Folder", true}, {"other.iso", "Other Disc", false}};
+  snapshot.host.library = library;
+  snapshot.host.can_change_disc = true;
+  snapshot.screens.push_back(Screen::FilePicker);
+  auto menu = Build();
+  EXPECT_EQ(menu.Activate({"file:dir"})->library_operation, LibraryOperation::EnterDirectory);
+  ASSERT_TRUE(menu.Activate({"file:other.iso"}));
+  EXPECT_EQ(menu.Activate({"file:other.iso"})->action, Action::ChangeDisc);
+  EXPECT_EQ(menu.Activate({"file:other.iso"})->library_revision, 9u);
+  library->picker_disc = false;
+  snapshot.mode = Mode::Library;
+  snapshot.host.lifecycle = Lifecycle::Idle;
+  ASSERT_TRUE(Build().Activate({"file:other.iso"}));
+  EXPECT_EQ(Build().Activate({"file:other.iso"})->action, Action::Boot);
+}
+
+TEST_F(BigPictureInGameMenuTest, InGameDiscActionOpensControllerPickerWhenLibraryIsAvailable)
+{
+  snapshot.host.library = std::make_shared<LibrarySnapshot>();
+  snapshot.host.can_change_disc = true;
+  const auto menu = Build();
+  EXPECT_EQ(menu.Activate({"disc"})->action, Action::Library);
+  EXPECT_EQ(menu.Activate({"disc"})->library_operation, LibraryOperation::OpenDisc);
+}
+TEST_F(BigPictureInGameMenuTest, LibraryPolicyDisablesCardsWithoutCreatingFallbackRequests)
+{
+  snapshot.mode = Mode::Library;
+  snapshot.screens = {Screen::Library};
+  snapshot.host.lifecycle = Lifecycle::Idle;
+  snapshot.host.netplay = true;
+  text.reasons[static_cast<std::size_t>(UnavailableReason::NetPlay)] = "NetPlay";
+  auto library = std::make_shared<LibrarySnapshot>();
+  library->games = {{"game.iso", "Game"}};
+  library->selected_path = "game.iso";
+  snapshot.host.library = library;
+  const auto menu = Build();
+  ASSERT_EQ(menu.page.items.size(), 1u);
+  EXPECT_FALSE(menu.page.items.front().enabled);
+  EXPECT_EQ(menu.page.items.front().detail, "NetPlay");
+  EXPECT_EQ(menu.page.default_focus, "refresh");
+  EXPECT_FALSE(menu.Activate({"game:game.iso"}));
+}
+
+TEST_F(BigPictureInGameMenuTest,
+       SearchCanBeClearedDirectlyAndNativeTextEntryDoesNotShowControllerKeys)
+{
+  snapshot.mode = Mode::Library;
+  snapshot.host.lifecycle = Lifecycle::Idle;
+  snapshot.screens = {Screen::Library};
+  auto library = std::make_shared<LibrarySnapshot>();
+  library->query = "Search";
+  snapshot.host.library = library;
+  auto menu = Build();
+  ASSERT_TRUE(menu.Activate({"clear-search"}));
+  EXPECT_EQ(menu.Activate({"clear-search"})->library_operation, LibraryOperation::ClearSearch);
+  snapshot.screens.push_back(Screen::TextInput);
+  library->native_text_input = true;
+  menu = Build();
+  EXPECT_FALSE(menu.Activate({"key-0"}));
+  EXPECT_TRUE(menu.page.toolbar.empty());
+  library->native_text_input = false;
+  menu = Build();
+  EXPECT_TRUE(menu.Activate({"key-0"}));
+  EXPECT_EQ(menu.Activate({"clear-text"})->library_operation, LibraryOperation::TextClear);
+}
+TEST_F(BigPictureInGameMenuTest, HomeShowsFourActionsEvenWhenTheLibraryIsPopulated)
+{
+  snapshot.mode = Mode::Library;
+  snapshot.host.lifecycle = Lifecycle::Idle;
+  snapshot.screens = {Screen::Home};
+  snapshot.host.library = std::make_shared<LibrarySnapshot>();
+  snapshot.host.achievements_username = "PlayerOne";
+  text.home_labels = {"Game List", "Start Game", "Settings", "Exit"};
+  const auto menu = Build();
+  EXPECT_EQ(menu.page.id, "home");
+  EXPECT_EQ(menu.page.account_name, "PlayerOne");
+  ASSERT_EQ(menu.page.items.size(), 4u);
+  EXPECT_EQ(menu.page.items.front().image_key, "home:media-cdrom");
+  EXPECT_EQ(menu.Activate({"game-list"})->action, Action::ShowLibrary);
+  EXPECT_EQ(menu.Activate({"start-game"})->action, Action::StartGame);
+  EXPECT_EQ(menu.Activate({"preferences"})->action, Action::Settings);
+  EXPECT_EQ(menu.Activate({"exit-menu"})->action, Action::ExitMenu);
+  EXPECT_EQ(menu.Activate({{}, true})->action, Action::ExitMenu);
+  snapshot.pending = Command{snapshot.generation, 1, Action::Settings};
+  EXPECT_TRUE(Build().requests.empty());
+}
+
+TEST_F(BigPictureInGameMenuTest, StartGameOffersOnlyInstalledConsoleMenusAndControllerFilePicker)
+{
+  snapshot.mode = Mode::Library;
+  snapshot.host.lifecycle = Lifecycle::Idle;
+  snapshot.screens = {Screen::Home, Screen::StartGame};
+  snapshot.host.library = std::make_shared<LibrarySnapshot>();
+  snapshot.host.boot_ipl_available[1] = true;
+  snapshot.host.boot_ipl_available[5] = true;
+  snapshot.host.boot_system_menu_available = true;
+  const auto menu = Build();
+  EXPECT_EQ(menu.Activate({"open-file"})->library_operation, LibraryOperation::OpenFile);
+  EXPECT_EQ(menu.Activate({"ipl-1"})->slot, 1);
+  EXPECT_EQ(menu.Activate({"ipl-5"})->slot, 5);
+  EXPECT_FALSE(menu.Activate({"ipl-0"}));
+  EXPECT_EQ(menu.Activate({"system-menu"})->action, Action::BootSystemMenu);
 }
 }  // namespace

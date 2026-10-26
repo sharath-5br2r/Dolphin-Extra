@@ -222,14 +222,13 @@ bool Poll(bool enabled, bool modal)
   status.options = GetController(0)->GetOptions();
   auto* active = GetController(s_active);
   status.device = active->IsDefaultDeviceConnected() ? active->GetDefaultDevice().name : "";
+  status.device_source = active->GetDefaultDevice().source;
   for (std::size_t i = 0; i < status.bindings.size(); ++i)
   {
     const auto& reference = active->GetButtons()->controls[i]->control_ref;
     status.bindings[i] = reference->GetExpression();
-    // Qualified/mixed bindings may use a device other than the default. Neutral prompts
-    // are more accurate than identifying an input source we cannot establish.
-    if (status.bindings[i].find(':') != std::string::npos)
-      status.device.clear();
+    // Qualified single-button bindings carry their own device identity. The renderer
+    // resolves that qualifier per hint; it must not erase the default for other hints.
   }
   presentation.SetNavigationStatus(std::move(status));
   return menu;

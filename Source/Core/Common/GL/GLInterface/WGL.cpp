@@ -288,7 +288,11 @@ bool GLContextWGL::Initialize(const WindowSystemInfo& wsi, bool stereo, bool cor
     return false;
   }
 
-  if (!SetPixelFormat(m_dc, pixel_format, &pfd))
+  // A compatible presentation window can outlive a context (Big Picture -> game ->
+  // Big Picture). Windows permits setting its pixel format only once.
+  const int existing_pixel_format = GetPixelFormat(m_dc);
+  if ((existing_pixel_format != 0 && existing_pixel_format != pixel_format) ||
+      (existing_pixel_format == 0 && !SetPixelFormat(m_dc, pixel_format, &pfd)))
   {
     PanicAlertFmt("(3) Can't set the PixelFormat.");
     return false;

@@ -5,6 +5,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QEvent>
 #include <QFile>
@@ -15,11 +16,15 @@
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
+#include "Common/ScopeGuard.h"
 #include "Core/Config/UISettings.h"
+#include "DolphinQt/Config/Binder/ConfigChangeBroadcaster.h"
+#include "DolphinQt/Config/Binder/SharedSettings.h"
 #include "DolphinQt/Settings/BigPicturePane.h"
 #include "InputCommon/BigPictureInput.h"
 #include "InputCommon/InputConfig.h"
 #include "NullConfigLoader.h"
+#include "UICommon/Settings/Service.h"
 
 class BigPicturePaneTest : public testing::Test
 {
@@ -103,6 +108,36 @@ TEST_F(BigPicturePaneTest, SharedPreferencesLoadAndPersistWithoutChangingBinding
   reloaded.LoadConfig(saved.GetOrCreateSection("BigPicture1"));
   EXPECT_EQ(reloaded.GetOptions(), expected);
   EXPECT_EQ(reloaded.GetButtons()->controls[0]->control_ref->GetExpression(), "F10");
+}
+
+TEST_F(BigPicturePaneTest, ThemeChoicesRoundTripWithTheFullscreenSettingsService)
+{
+  const auto callback = Config::AddConfigChangedCallback(
+      [] { ConfigWidget::ConfigChangeBroadcaster::Instance().Broadcast(); });
+  Common::ScopeGuard cleanup([&] { Config::RemoveConfigChangedCallback(callback); });
+  BigPicturePane pane;
+  auto* combo = pane.findChild<QComboBox*>(QStringLiteral("themeComboBox"));
+  ASSERT_NE(combo, nullptr);
+  const auto descriptor =
+      ConfigWidget::CatalogDescriptor(Config::MAIN_BIG_PICTURE_THEME.GetLocation());
+  ASSERT_EQ(combo->count(), descriptor.choices.size());
+  for (int index = 0; index < combo->count(); ++index)
+    EXPECT_EQ(combo->itemText(index), QString::fromStdString(descriptor.choices[index].label));
+  combo->setCurrentIndex(1);
+  EXPECT_EQ(Config::GetBase(Config::MAIN_BIG_PICTURE_THEME), "Light");
+  UICommon::Settings::Service service;
+  ASSERT_TRUE(service.SetContext({Common::Settings::EditTarget::Base}));
+  EXPECT_EQ(service
+                .Apply({service.ReadSnapshot()->revision, "interface.big_picture_theme",
+                        Common::Settings::Operation::Set, std::string("VioletAngel")})
+                .status,
+            Common::Settings::Status::Success);
+  QCoreApplication::processEvents();
+  EXPECT_EQ(combo->currentIndex(), 9);
+  Config::SetBase(Config::MAIN_BIG_PICTURE_THEME, "FutureTheme");
+  QCoreApplication::processEvents();
+  EXPECT_EQ(combo->currentIndex(), -1);
+  EXPECT_EQ(Config::GetBase(Config::MAIN_BIG_PICTURE_THEME), "FutureTheme");
 }
 
 TEST_F(BigPicturePaneTest, RefreshesSharedPreferencesOnShowAndWindowActivation)
