@@ -529,6 +529,7 @@ const Info<bool> MAIN_CLOUDSYNC_ENABLED{{System::Main, "CloudSync", "Enabled"}, 
 const Info<std::string> MAIN_CLOUDSYNC_REMOTE{{System::Main, "CloudSync", "Remote"}, "Dropbox"};
 const Info<std::string> MAIN_CLOUDSYNC_REMOTE_FOLDER{{System::Main, "CloudSync", "RemoteFolder"},
                                                      "Dolphin Cloud Saves"};
+const Info<std::string> MAIN_CLOUDSYNC_CONFIG_FILE{{System::Main, "CloudSync", "ConfigFile"}, ""};
 
 // Main.Movie
 

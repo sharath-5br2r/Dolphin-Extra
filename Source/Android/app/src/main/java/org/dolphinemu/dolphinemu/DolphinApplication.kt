@@ -7,7 +7,6 @@ import android.app.Application
 import android.content.Context
 import android.hardware.usb.UsbManager
 import androidx.lifecycle.Observer
-import org.dolphinemu.dolphinemu.features.memcardsync.MemcardSync
 import org.dolphinemu.dolphinemu.utils.ActivityTracker
 import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import org.dolphinemu.dolphinemu.utils.GCAdapter
@@ -26,15 +25,11 @@ class DolphinApplication : Application() {
         GCAdapter.manager = usbManager
         WiimoteAdapter.manager = usbManager
 
-        // Memory card sync starts once Dolphin's directories and settings are ready: on a first
-        // run that can be after the user grants storage access.
-        MemcardSync.init(this)
         val directories = DirectoryInitialization.getDolphinDirectoriesState()
         directories.observeForever(object : Observer<DirectoryInitialization.DirectoryInitializationState> {
             override fun onChanged(value: DirectoryInitialization.DirectoryInitializationState) {
                 if (value == DirectoryInitialization.DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED) {
                     directories.removeObserver(this)
-                    MemcardSync.startInBackground()
                 }
             }
         })

@@ -28,8 +28,8 @@
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
+#include "Core/HW/GCMemcard/CloudSync.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
-#include "Core/HW/GCMemcard/MemcardSync.h"
 #include "Core/HW/Sram.h"
 #include "Core/System.h"
 
@@ -39,6 +39,8 @@
 MemoryCard::MemoryCard(std::string filename, ExpansionInterface::Slot card_slot, u16 size_mbits)
     : MemoryCardBase(card_slot, size_mbits), m_filename(std::move(filename))
 {
+  Memcard::PullRawMemcardFromCloud(m_filename);
+
   File::IOFile file(m_filename, "rb");
   if (file)
   {
@@ -154,7 +156,9 @@ void MemoryCard::FlushThread()
     const bool written = file.WriteBytes(&m_flush_buffer[0], m_memory_card_size);
     // Only a card written in full may be uploaded: a short write would spread to other devices.
     if (file.Close() && written)
-      MemcardSync::OnCardWritten(m_filename);
+    {
+      Memcard::PushRawMemcardToCloud(m_filename);
+    }
 
     if (do_exit)
       return;

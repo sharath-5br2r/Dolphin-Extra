@@ -103,6 +103,7 @@ signals:
 
   // Tools
   void ShowMemcardManager();
+  void ShowCloudSaves();
   void BootGameCubeIPL(DiscIO::Region region);
   void ShowFIFOPlayer();
   void ShowAboutDialog();

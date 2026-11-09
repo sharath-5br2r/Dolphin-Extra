@@ -1,30 +1,37 @@
 
-if (WIN32)
-  set(DOLPHIN_QT_X64_ROOT "${CMAKE_SOURCE_DIR}/Externals/Qt/Qt6.8.3/x64")
-  set(DOLPHIN_QT_ARM64_ROOT "${CMAKE_SOURCE_DIR}/Externals/Qt/Qt6.8.3/ARM64")
-
-  if(_M_ARM_64)
-    set(DOLPHIN_QT_ROOT "${DOLPHIN_QT_ARM64_ROOT}")
-    set(DOLPHIN_QT_TARGET_SPEC "win32-arm64-msvc")
-  else()
-    set(DOLPHIN_QT_ROOT "${DOLPHIN_QT_X64_ROOT}")
-    set(DOLPHIN_QT_TARGET_SPEC "win32-msvc")
-  endif()
-
-  if(DOLPHIN_HOST STREQUAL "ARM64")
-    set(DOLPHIN_QT_HOST_ROOT "${DOLPHIN_QT_ARM64_ROOT}")
-  else()
-    set(DOLPHIN_QT_HOST_ROOT "${DOLPHIN_QT_X64_ROOT}")
-  endif()
-
-  list(APPEND CMAKE_PREFIX_PATH "${DOLPHIN_QT_ROOT}")
-endif()
-
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Svg)
+
+if (WIN32)
+  get_target_property(_qt6_core_loc Qt6::Core LOCATION)
+  if(_qt6_core_loc)
+    get_filename_component(_qt6_bin_dir "${_qt6_core_loc}" DIRECTORY)
+    get_filename_component(_qt6_root_dir "${_qt6_bin_dir}" DIRECTORY)
+    set(DOLPHIN_QT_ROOT "${_qt6_root_dir}")
+    set(DOLPHIN_QT_HOST_ROOT "${_qt6_root_dir}")
+    set(DOLPHIN_QT_TARGET_SPEC "win32-msvc")
+  else()
+    set(DOLPHIN_QT_X64_ROOT "${CMAKE_SOURCE_DIR}/Externals/Qt/Qt6.8.3/x64")
+    set(DOLPHIN_QT_ARM64_ROOT "${CMAKE_SOURCE_DIR}/Externals/Qt/Qt6.8.3/ARM64")
+
+    if(_M_ARM_64)
+      set(DOLPHIN_QT_ROOT "${DOLPHIN_QT_ARM64_ROOT}")
+      set(DOLPHIN_QT_TARGET_SPEC "win32-arm64-msvc")
+    else()
+      set(DOLPHIN_QT_ROOT "${DOLPHIN_QT_X64_ROOT}")
+      set(DOLPHIN_QT_TARGET_SPEC "win32-msvc")
+    endif()
+
+    if(DOLPHIN_HOST STREQUAL "ARM64")
+      set(DOLPHIN_QT_HOST_ROOT "${DOLPHIN_QT_ARM64_ROOT}")
+    else()
+      set(DOLPHIN_QT_HOST_ROOT "${DOLPHIN_QT_X64_ROOT}")
+    endif()
+  endif()
+endif()
 
 include("${CMAKE_SOURCE_DIR}/CMake/DolphinQtDeclarativeUi.cmake")
 dolphin_check_qt_form_layout_boundaries("${CMAKE_CURRENT_SOURCE_DIR}")
@@ -511,9 +518,6 @@ add_executable(dolphin-emu
   Settings/GameCubePane.cpp
   Settings/GameCubePane.h
   Settings/GameCubePane.ui
-  Settings/MemoryCardSyncPane.cpp
-  Settings/MemoryCardSyncPane.h
-  Settings/MemoryCardSyncPane.ui
   Settings/GeneralPane.cpp
   Settings/GeneralPane.h
   Settings/GeneralPane.ui
@@ -798,13 +802,8 @@ if(NOT DISABLE_NLS AND GETTEXT_MSGFMT_EXECUTABLE)
   endforeach()
 endif()
 
-# Memory card sync: emusync's library next to the executable (found through $ORIGIN on Linux; on
-# Windows core delay-loads it). macOS bundles it below.
-if(EMUSYNC_FOUND AND NOT APPLE)
-  emusync_deploy_runtime(dolphin-emu)
-  if(NOT WIN32)
-    install(FILES "${EMUSYNC_LIBRARY}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
-  endif()
+if(TARGET rclone_build)
+  add_dependencies(dolphin-emu rclone_build)
 endif()
 
 if(APPLE)
@@ -868,14 +867,6 @@ if(APPLE)
       target_sources(dolphin-emu PRIVATE ${MOLTENVK_DYLIB})
       set_source_files_properties(${MOLTENVK_DYLIB} PROPERTIES MACOSX_PACKAGE_LOCATION Frameworks)
     endif()
-  endif()
-
-  # Memory card sync: emusync's library goes into the bundle's Frameworks, next to MoltenVK.
-  if(EMUSYNC_FOUND)
-    target_sources(dolphin-emu PRIVATE "${EMUSYNC_LIBRARY}")
-    set_source_files_properties("${EMUSYNC_LIBRARY}" PROPERTIES
-      MACOSX_PACKAGE_LOCATION Frameworks GENERATED TRUE)
-    add_dependencies(dolphin-emu emusync_cargo)
   endif()
 
   # Copy librashader into the bundle, next to MoltenVK (see Librashader::LibraryPath).

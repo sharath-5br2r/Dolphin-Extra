@@ -48,6 +48,9 @@ public:
   // Returns true if a module is loaded, otherwise false.
   bool IsOpen() const { return m_handle != nullptr; }
 
+  // Returns raw underlying module handle (void* / HMODULE).
+  void* GetHandle() const { return m_handle; }
+
   // Loads (or replaces) the handle with the specified library file name.
   // Returns true if the library was loaded and can be used.
   bool Open(const char* filename);

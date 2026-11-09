@@ -24,6 +24,7 @@ extern char** environ;
 #endif
 
 #include "Common/CommonTypes.h"
+#include "Common/FileUtil.h"
 #include "Common/NandPaths.h"
 #include "Common/StringUtil.h"
 #include "Common/Swap.h"
@@ -115,13 +116,27 @@ static bool WaitForChildWithTimeout(pid_t pid, int* exit_code, std::chrono::mill
 }
 #endif
 
+static std::vector<std::string> BuildEffectiveRcloneArgs(const std::vector<std::string>& args)
+{
+  std::vector<std::string> full_args;
+  const std::string conf_path = GetRcloneConfigPath();
+  if (!conf_path.empty() && File::Exists(conf_path))
+  {
+    full_args.push_back("--config");
+    full_args.push_back(conf_path);
+  }
+  full_args.insert(full_args.end(), args.begin(), args.end());
+  return full_args;
+}
+
 static bool RunRcloneSync(const std::vector<std::string>& args,
                           std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
 {
   const std::string rclone_path = FindRclonePath();
+  const std::vector<std::string> effective_args = BuildEffectiveRcloneArgs(args);
 #ifdef _WIN32
   std::vector<std::string> full_args{rclone_path.empty() ? "rclone" : rclone_path};
-  full_args.insert(full_args.end(), args.begin(), args.end());
+  full_args.insert(full_args.end(), effective_args.begin(), effective_args.end());
   const std::wstring wcmd = UTF8ToWString(BuildWindowsCommandLine(full_args));
   STARTUPINFOW si{};
   si.cb = sizeof(si);
@@ -154,7 +169,7 @@ static bool RunRcloneSync(const std::vector<std::string>& args,
 
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>(rclone_path.c_str()));
-  for (const std::string& arg : args)
+  for (const std::string& arg : effective_args)
     argv.push_back(const_cast<char*>(arg.c_str()));
   argv.push_back(nullptr);
 
@@ -175,10 +190,11 @@ static std::optional<std::string> RunRcloneList(const std::vector<std::string>& 
 {
   std::string listing;
   const std::string rclone_path = FindRclonePath();
+  const std::vector<std::string> effective_args = BuildEffectiveRcloneArgs(args);
 #ifdef _WIN32
   {
     std::vector<std::string> full_args{rclone_path.empty() ? "rclone" : rclone_path};
-    full_args.insert(full_args.end(), args.begin(), args.end());
+    full_args.insert(full_args.end(), effective_args.begin(), effective_args.end());
     const std::wstring wcmd = UTF8ToWString(BuildWindowsCommandLine(full_args));
     HANDLE read_pipe, write_pipe;
     SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
@@ -235,7 +251,6 @@ static std::optional<std::string> RunRcloneList(const std::vector<std::string>& 
   }
 #else
   {
-    const std::string rclone_path = FindRclonePath();
     if (rclone_path.empty())
       return std::nullopt;
 
@@ -243,7 +258,7 @@ static std::optional<std::string> RunRcloneList(const std::vector<std::string>& 
     if (pipe(pipe_fds) == 0)
     {
       std::vector<std::string> full_args{rclone_path};
-      full_args.insert(full_args.end(), args.begin(), args.end());
+      full_args.insert(full_args.end(), effective_args.begin(), effective_args.end());
       std::vector<char*> argv;
       for (const std::string& arg : full_args)
         argv.push_back(const_cast<char*>(arg.c_str()));
@@ -389,6 +404,156 @@ void PushSaveToCloud(u32 game_id, const std::string& gci_path)
       Core::DisplayMessage(fmt::format("Wrote save to {}", remote_name), 4000);
     else
       Core::DisplayMessage(fmt::format("Failed to write save to {}", remote_name), 8000);
+  }).detach();
+}
+
+static std::string BuildRcloneRawCardRemoteDir()
+{
+  const std::string cloud_root = Config::Get(Config::MAIN_CLOUDSYNC_REMOTE) + ":" +
+                                 Config::Get(Config::MAIN_CLOUDSYNC_REMOTE_FOLDER);
+  return fmt::format("{}/GC Memory Cards", cloud_root);
+}
+
+void PullRawMemcardFromCloud(const std::string& raw_card_path)
+{
+  if (!Config::Get(Config::MAIN_CLOUDSYNC_ENABLED) || raw_card_path.empty())
+    return;
+
+  const std::string remote_name = Config::Get(Config::MAIN_CLOUDSYNC_REMOTE);
+  const std::string remote_dir = BuildRcloneRawCardRemoteDir();
+
+  std::string dir, filename, ext;
+  SplitPath(raw_card_path, &dir, &filename, &ext);
+  const std::string file_with_ext = filename + ext;
+
+  if (!File::Exists(raw_card_path))
+  {
+    // Local card does not exist yet. Try pulling from cloud.
+    if (RunRcloneSync({"copy", fmt::format("{}/{}", remote_dir, file_with_ext), dir, "--no-traverse"},
+                      RCLONE_BOOT_TIMEOUT))
+    {
+      if (File::Exists(raw_card_path))
+        Core::DisplayMessage(fmt::format("Pulled {} from {}", file_with_ext, remote_name), 4000);
+    }
+  }
+  else
+  {
+    // Local card exists: pull with --update (only if remote is newer)
+    if (RunRcloneSync({"copy", fmt::format("{}/{}", remote_dir, file_with_ext), dir, "--update",
+                       "--no-traverse"},
+                      RCLONE_BOOT_TIMEOUT))
+    {
+      Core::DisplayMessage(fmt::format("Synced {} with {}", file_with_ext, remote_name), 4000);
+    }
+  }
+}
+
+void PushRawMemcardToCloud(const std::string& raw_card_path)
+{
+  if (!Config::Get(Config::MAIN_CLOUDSYNC_ENABLED) || raw_card_path.empty())
+    return;
+
+  if (!File::Exists(raw_card_path))
+    return;
+
+  const std::string remote_dir = BuildRcloneRawCardRemoteDir();
+  const std::string remote_name = Config::Get(Config::MAIN_CLOUDSYNC_REMOTE);
+  std::string dir, filename, ext;
+  SplitPath(raw_card_path, &dir, &filename, &ext);
+  const std::string file_with_ext = filename + ext;
+
+  std::thread([remote_dir, raw_card_path, remote_name, file_with_ext] {
+    if (RunRcloneSync({"copy", raw_card_path, remote_dir, "--no-traverse"}))
+      Core::DisplayMessage(fmt::format("Uploaded {} to {}", file_with_ext, remote_name), 4000);
+    else
+      Core::DisplayMessage(fmt::format("Failed to upload {} to {}", file_with_ext, remote_name), 8000);
+  }).detach();
+}
+
+static std::string BuildRcloneWiiSaveRemoteDir(u64 title_id,
+                                               std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
+{
+  const std::string title_id_hex = fmt::format("{:016x}", title_id);
+  const std::string suffix = fmt::format("({})", title_id_hex);
+  const std::string cloud_root = Config::Get(Config::MAIN_CLOUDSYNC_REMOTE) + ":" +
+                                 Config::Get(Config::MAIN_CLOUDSYNC_REMOTE_FOLDER) + "/Wii Saves";
+
+  const std::optional<std::string> listing =
+      RunRcloneList({"lsf", cloud_root, "--dirs-only"}, timeout);
+  if (listing)
+  {
+    std::istringstream stream(*listing);
+    std::string entry;
+    while (std::getline(stream, entry))
+    {
+      while (!entry.empty() && (entry.back() == '\n' || entry.back() == '\r' || entry.back() == '/'))
+        entry.pop_back();
+      if (entry.size() >= suffix.size() && entry.substr(entry.size() - suffix.size()) == suffix)
+        return fmt::format("{}/{}", cloud_root, entry);
+    }
+  }
+
+  const std::string title = SConfig::GetInstance().GetTitleName();
+  if (!title.empty())
+  {
+    return fmt::format("{}/{}", cloud_root,
+                       Common::EscapeFileName(fmt::format("{} {}", title, suffix)));
+  }
+
+  return fmt::format("{}/{} {}", cloud_root, title_id_hex, suffix);
+}
+
+void PullWiiSaveFromCloud(u64 title_id, const std::string& local_nand_data_dir)
+{
+  if (!Config::Get(Config::MAIN_CLOUDSYNC_ENABLED) || local_nand_data_dir.empty())
+    return;
+
+  const std::string remote_name = Config::Get(Config::MAIN_CLOUDSYNC_REMOTE);
+  const std::string remote_dir = BuildRcloneWiiSaveRemoteDir(title_id, RCLONE_BOOT_TIMEOUT);
+
+  // If remote is empty, push existing local save if any
+  if (CloudRemoteIsEmpty(remote_dir, RCLONE_BOOT_TIMEOUT))
+  {
+    if (File::IsDirectory(local_nand_data_dir))
+    {
+      std::thread([local_nand_data_dir, remote_dir, remote_name] {
+        if (RunRcloneSync({"copy", local_nand_data_dir, remote_dir, "--no-traverse"}))
+          Core::DisplayMessage(fmt::format("Initial Wii save upload to {}", remote_name), 4000);
+      }).detach();
+    }
+    return;
+  }
+
+  if (!File::IsDirectory(local_nand_data_dir))
+    File::CreateFullPath(local_nand_data_dir + '/');
+
+  if (RunRcloneSync({"copy", remote_dir, local_nand_data_dir, "--update", "--no-traverse"},
+                    RCLONE_BOOT_TIMEOUT))
+  {
+    Core::DisplayMessage(fmt::format("Pulled latest Wii save from {}", remote_name), 4000);
+  }
+  else
+  {
+    Core::DisplayMessage(fmt::format("Failed to pull Wii save from {}", remote_name), 8000);
+  }
+}
+
+void PushWiiSaveToCloud(u64 title_id, const std::string& local_nand_data_dir)
+{
+  if (!Config::Get(Config::MAIN_CLOUDSYNC_ENABLED) || local_nand_data_dir.empty())
+    return;
+
+  if (!File::IsDirectory(local_nand_data_dir))
+    return;
+
+  const std::string remote_dir = BuildRcloneWiiSaveRemoteDir(title_id);
+  const std::string remote_name = Config::Get(Config::MAIN_CLOUDSYNC_REMOTE);
+
+  std::thread([remote_dir, local_nand_data_dir, remote_name] {
+    if (RunRcloneSync({"copy", local_nand_data_dir, remote_dir, "--no-traverse"}))
+      Core::DisplayMessage(fmt::format("Wrote Wii save to {}", remote_name), 4000);
+    else
+      Core::DisplayMessage(fmt::format("Failed to write Wii save to {}", remote_name), 8000);
   }).detach();
 }
 }  // namespace Memcard

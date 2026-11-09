@@ -41,7 +41,6 @@
 #include "DolphinQt/Settings/GameCubePane.h"
 #include "DolphinQt/Settings/GeneralPane.h"
 #include "DolphinQt/Settings/InterfacePane.h"
-#include "DolphinQt/Settings/MemoryCardSyncPane.h"
 #include "DolphinQt/Settings/OnScreenDisplayPane.h"
 #include "DolphinQt/Settings/PathPane.h"
 #include "DolphinQt/Settings/TriforcePane.h"
@@ -293,18 +292,17 @@ namespace
 {
 constexpr int SETTINGS_CATEGORY_ICON_SIZE = 32;
 
-constexpr std::array<std::string_view, 14> SETTINGS_CATEGORY_ICON_NAMES = {
+constexpr std::array<std::string_view, 13> SETTINGS_CATEGORY_ICON_NAMES = {
     "Settings_General",
     "Settings_Graphics",
     "Settings_Controllers",
-    "cloud",
+    "Settings_CloudSaves",
     "Settings_Interface",
-    "Settings_OnScreenDisplay",
+    "Settings_BigPicture",
     "Settings_OnScreenDisplay",
     "Settings_Audio",
     "Settings_Paths",
     "Settings_GameCube",
-    "Settings_MemoryCardSync",
     "Settings_Wii",
     "Settings_Triforce",
     "Settings_Advanced",
@@ -335,9 +333,7 @@ QIcon GetSettingsCategoryIcon(SettingsWindowPaneIndex index, const QPalette& pal
   if (icon_index < 0 || icon_index >= static_cast<int>(SETTINGS_CATEGORY_ICON_NAMES.size()))
     return {};
 
-  const QIcon source = index == SettingsWindowPaneIndex::CloudSaves ?
-                           Resources::GetThemeIcon("cloud") :
-                           Resources::GetResourceIcon(SETTINGS_CATEGORY_ICON_NAMES[icon_index]);
+  const QIcon source = Resources::GetResourceIcon(SETTINGS_CATEGORY_ICON_NAMES[icon_index]);
   QIcon icon;
   AddTintedIconMode(&icon, source, palette.color(QPalette::Active, QPalette::Text), QIcon::Normal);
   AddTintedIconMode(&icon, source, palette.color(QPalette::Active, QPalette::Text), QIcon::Active);
@@ -405,11 +401,6 @@ SettingsWindow::SettingsWindow(MainWindow* parent) : StackedSettingsWindow{paren
       GetSettingsCategoryIcon(SettingsWindowPaneIndex::GameCube, palette()),
       tr("<strong>GameCube Settings</strong><hr>Configure GameCube system language, memory cards, "
          "devices, and broadband adapter behavior."));
-  AddWrappedPane(
-      new MemoryCardSyncPane, tr("Memory Card Sync"),
-      GetSettingsCategoryIcon(SettingsWindowPaneIndex::MemoryCardSync, palette()),
-      tr("<strong>Memory Card Sync Settings</strong><hr>Keep the saves on your GameCube memory "
-         "cards in step with your other devices through cloud storage you own."));
   AddWrappedPane(
       new WiiPane, tr("Wii"), GetSettingsCategoryIcon(SettingsWindowPaneIndex::Wii, palette()),
       tr("<strong>Wii Settings</strong><hr>Configure Wii system language, storage, input devices, "

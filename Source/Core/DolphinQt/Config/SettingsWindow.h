@@ -70,7 +70,6 @@ enum class SettingsWindowPaneIndex : int
   Audio,
   Paths,
   GameCube,
-  MemoryCardSync,
   Wii,
   Triforce,
   Advanced,

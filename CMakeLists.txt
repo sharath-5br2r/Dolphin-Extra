@@ -118,7 +118,6 @@ option(USE_DISCORD_PRESENCE "Enables Discord Rich Presence, show the current gam
 option(USE_MGBA "Enables GBA controllers emulation using libmgba" ON)
 option(ENABLE_AUTOUPDATE "Enables support for automatic updates" ON)
 option(USE_RETRO_ACHIEVEMENTS "Enables integration with retroachievements.org" ON)
-option(ENABLE_EMUSYNC "Enables memory card sync with emusync (needs Rust to build)" ON)
 option(ENABLE_CCACHE "Enables CCache compiler cache" OFF)
 
 # Maintainers: if you consider blanket disabling this for your users, please
@@ -757,72 +756,87 @@ if (USE_RETRO_ACHIEVEMENTS)
   dolphin_add_bundled_library(rcheevos Externals/rcheevos)
 endif()
 
-# Memory card sync (Core/HW/GCMemcard/MemcardSync.h). emusync is a Rust library: the source of a
-# pinned commit is downloaded and built by cargo through emusync's own CMake module, which defines
-# emusync::emusync and sets EMUSYNC_FOUND. Optional: without cargo (checked before anything is
-# downloaded), without network access to GitHub, or without the Rust target, the feature compiles
-# out with a message, so offline and source-tarball builds still configure.
-# -DEMUSYNC_SOURCE_DIR=<checkout> builds from a local checkout instead of downloading.
-if(ENABLE_EMUSYNC AND NOT ANDROID)
-  # A plain variable, not a cache entry: a cached pin keeps its first value in an existing build
-  # folder, so a bump would be silently ignored there.
-  set(EMUSYNC_PIN "760171a04a2ccc9a762279c534b083327d6e8fdb")
-  # emusync's module caches EMUSYNC_SOURCE_DIR. When that is one of the emusync-<pin> folders below,
-  # it is an earlier download, not a checkout given with -D: forget it, or a bump would keep the old
-  # source.
-  if(DEFINED CACHE{EMUSYNC_SOURCE_DIR})
-    get_filename_component(emusync_cached "$CACHE{EMUSYNC_SOURCE_DIR}" ABSOLUTE)
-    get_filename_component(emusync_cached_parent "${emusync_cached}" DIRECTORY)
-    get_filename_component(emusync_cached_name "${emusync_cached}" NAME)
-    get_filename_component(emusync_binary_dir "${CMAKE_BINARY_DIR}" ABSOLUTE)
-    if(emusync_cached_parent STREQUAL emusync_binary_dir AND emusync_cached_name MATCHES "^emusync-[0-9a-f]+$")
-      unset(EMUSYNC_SOURCE_DIR CACHE)
-    endif()
-  endif()
-  if(NOT EMUSYNC_SOURCE_DIR)
-    find_program(EMUSYNC_CARGO cargo HINTS "$ENV{CARGO_HOME}/bin" "$ENV{HOME}/.cargo/bin" "$ENV{USERPROFILE}/.cargo/bin")
-    if(NOT EMUSYNC_CARGO)
-      message(STATUS "emusync: cargo not found -> memory card sync DISABLED. Install Rust (https://rustup.rs) to enable it.")
+# librclone (Core/HW/GCMemcard/RcloneUtils.h)
+option(USE_RCLONE "Enables librclone support for cloud save sync" ON)
+if(USE_RCLONE)
+  find_program(GO_EXECUTABLE go HINTS "$ENV{ProgramFiles}/Go/bin" "$ENV{HOME}/go/bin")
+  set(RCLONE_SOURCE_DIR "${PROJECT_SOURCE_DIR}/Externals/rclone/rclone")
+  if(GO_EXECUTABLE AND EXISTS "${RCLONE_SOURCE_DIR}/librclone/librclone.go")
+    set(RCLONE_FOUND ON)
+    if(ANDROID)
+      set(LIBRCLONE_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/Source/Android/app/src/main/jniLibs/${ANDROID_ABI}")
+      set(LIBRCLONE_NAME "librclone.so")
     else()
-      # One folder per pin, so a bump downloads the new source and an unchanged pin never again.
-      set(emusync_dir "${CMAKE_BINARY_DIR}/emusync-${EMUSYNC_PIN}")
-      if(NOT EXISTS "${emusync_dir}/bindings/cmake/EmuSync.cmake")
-        set(emusync_archive "${CMAKE_BINARY_DIR}/emusync-${EMUSYNC_PIN}.tar.gz")
-        file(DOWNLOAD "https://github.com/ilyalissoboi/emusync/archive/${EMUSYNC_PIN}.tar.gz"
-             "${emusync_archive}" STATUS emusync_download TIMEOUT 120)
-        list(GET emusync_download 0 emusync_download_code)
-        if(emusync_download_code EQUAL 0)
-          file(REMOVE_RECURSE "${emusync_dir}.extract")
-          file(ARCHIVE_EXTRACT INPUT "${emusync_archive}" DESTINATION "${emusync_dir}.extract")
-          # GitHub's archive holds one folder, emusync-<commit>.
-          file(GLOB emusync_extracted "${emusync_dir}.extract/*")
-          file(RENAME "${emusync_extracted}" "${emusync_dir}")
-          file(REMOVE_RECURSE "${emusync_dir}.extract")
-        else()
-          list(GET emusync_download 1 emusync_download_error)
-          message(WARNING "emusync: could not download its source (${emusync_download_error}) -> memory card sync DISABLED. Configure again with network access, or pass -DEMUSYNC_SOURCE_DIR=<emusync checkout>.")
-        endif()
-        file(REMOVE "${emusync_archive}")
-      endif()
-      if(EXISTS "${emusync_dir}/bindings/cmake/EmuSync.cmake")
-        set(EMUSYNC_SOURCE_DIR "${emusync_dir}")
+      set(LIBRCLONE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Binaries")
+      if(WIN32)
+        set(LIBRCLONE_NAME "librclone.dll")
+      elseif(APPLE)
+        set(LIBRCLONE_NAME "librclone.dylib")
+      else()
+        set(LIBRCLONE_NAME "librclone.so")
       endif()
     endif()
-  endif()
-  if(EMUSYNC_SOURCE_DIR)
-    include("${EMUSYNC_SOURCE_DIR}/bindings/cmake/EmuSync.cmake")
-  endif()
-endif()
-# Android: emusync comes from its AAR (Source/Android/app/build.gradle.kts), whose Prefab package
-# defines emusync::emusync and packages libemusync.so. Without it (CMake run outside Gradle), the
-# feature compiles out.
-if(ENABLE_EMUSYNC AND ANDROID)
-  find_package(emusync CONFIG QUIET)
-  if(TARGET emusync::emusync)
-    set(EMUSYNC_FOUND ON)
-    message(STATUS "emusync: ENABLED (AAR Prefab package)")
+
+    find_program(RCLONE_CLANG_COMPILER NAMES clang clang.exe HINTS
+      "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin"
+      "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin"
+      "C:/Program Files/LLVM/bin"
+    )
+    if(RCLONE_CLANG_COMPILER)
+      set(RCLONE_CC_VAR "${RCLONE_CLANG_COMPILER}")
+    elseif(CMAKE_C_COMPILER)
+      set(RCLONE_CC_VAR "${CMAKE_C_COMPILER}")
+    else()
+      set(RCLONE_CC_VAR "clang")
+    endif()
+
+    set(RCLONE_ENV_VARS ${CMAKE_COMMAND} -E env CGO_ENABLED=1 CC=${RCLONE_CC_VAR})
+    if(ANDROID)
+      if(ANDROID_ABI STREQUAL "arm64-v8a")
+        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=arm64)
+      elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=arm GOARM=7)
+      elseif(ANDROID_ABI STREQUAL "x86_64")
+        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=amd64)
+      elseif(ANDROID_ABI STREQUAL "x86")
+        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=386)
+      endif()
+    elseif(APPLE)
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
+        list(APPEND RCLONE_ENV_VARS GOOS=darwin GOARCH=arm64)
+      else()
+        list(APPEND RCLONE_ENV_VARS GOOS=darwin GOARCH=amd64)
+      endif()
+    endif()
+
+    if(WIN32)
+      file(TO_NATIVE_PATH "$ENV{ProgramFiles}/Microsoft Visual Studio/18/Community/VC/Auxiliary/Build/vcvars64.bat" VCVARS_BAT)
+      if(NOT EXISTS "${VCVARS_BAT}")
+        file(TO_NATIVE_PATH "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat" VCVARS_BAT)
+      endif()
+      file(TO_NATIVE_PATH "${RCLONE_SOURCE_DIR}" RCLONE_SRC_NATIVE)
+      file(TO_NATIVE_PATH "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" LIBRCLONE_OUT_NATIVE)
+      file(TO_NATIVE_PATH "${GO_EXECUTABLE}" GO_EXE_NATIVE)
+      add_custom_target(rclone_build
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBRCLONE_OUTPUT_DIR}"
+        COMMAND cmd.exe /c call "${VCVARS_BAT}" && set "PATH=%VCINSTALLDIR%Tools\\Llvm\\x64\\bin;%PATH%" && set CC=clang && set CGO_ENABLED=1 && cd /d "${RCLONE_SRC_NATIVE}" && "${GO_EXE_NATIVE}" build -trimpath -buildmode=c-shared -ldflags=-s -o "${LIBRCLONE_OUT_NATIVE}" ./librclone
+        BYPRODUCTS "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
+        COMMENT "Building librclone shared library with Go and CGo (vcvars64)"
+        VERBATIM
+      )
+    else()
+      add_custom_target(rclone_build
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBRCLONE_OUTPUT_DIR}"
+        COMMAND ${RCLONE_ENV_VARS} ${CMAKE_COMMAND} -E chdir "${RCLONE_SOURCE_DIR}" ${GO_EXECUTABLE} build -trimpath -buildmode=c-shared -ldflags=-s -o "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" ./librclone
+        BYPRODUCTS "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
+        COMMENT "Building librclone shared library with Go and CGo"
+        VERBATIM
+      )
+    endif()
+    message(STATUS "librclone: ENABLED (found Go at ${GO_EXECUTABLE}, CC=${RCLONE_CC_VAR})")
   else()
-    message(STATUS "emusync: no Prefab package -> memory card sync DISABLED")
+    set(RCLONE_FOUND OFF)
+    message(STATUS "librclone: Go not found or rclone submodule missing -> cloud saves will rely on system librclone")
   endif()
 endif()
 

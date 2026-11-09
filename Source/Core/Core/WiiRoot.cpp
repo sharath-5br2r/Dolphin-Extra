@@ -19,6 +19,7 @@
 #include "Core/Boot/Boot.h"
 #include "Core/CommonTitles.h"
 #include "Core/ConfigManager.h"
+#include "Core/HW/GCMemcard/CloudSync.h"
 #include "Core/HW/WiiSave.h"
 #include "Core/IOS/ES/ES.h"
 #include "Core/IOS/FS/FileSystem.h"
@@ -367,6 +368,14 @@ void InitializeWiiFileSystemContents(
     std::optional<DiscIO::Riivolution::SavegameRedirect> save_redirect,
     const BootSessionData& boot_session_data)
 {
+  const u64 running_title_id = SConfig::GetInstance().GetTitleID();
+  if (running_title_id != 0 && running_title_id != Titles::SYSTEM_MENU)
+  {
+    const std::string local_nand_data_path =
+        Common::GetTitleDataPath(running_title_id, Common::FromWhichRoot::Configured);
+    Memcard::PullWiiSaveFromCloud(running_title_id, local_nand_data_path);
+  }
+
   const auto fs = Core::System::GetInstance().GetIOS()->GetFS();
 
   // Some games (such as Mario Kart Wii) assume that NWC24 files will always be present

@@ -8,34 +8,6 @@ plugins {
     alias(libs.plugins.androidx.baselineprofile)
 }
 
-// Memory card sync (Core/HW/GCMemcard/MemcardSync.h) uses emusync's Android library: a release's
-// AAR, downloaded once and checked against its SHA-256. It carries libemusync.so for the native
-// build (a Prefab package, found by the root CMakeLists.txt) and for the APK, and the Kotlin side
-// (settings with Keystore secrets, background start and stop, app lifecycle).
-val emusyncVersion = "0.2.1"
-val emusyncAarSha256 = "2082033f77f5c6e654e1be1f35f13c01c831ffb83294fdb6334b17345a441045"
-val emusyncAar = layout.buildDirectory.file("emusync/emusync-$emusyncVersion.aar")
-val downloadEmusync = tasks.register("downloadEmusync") {
-    val url = "https://github.com/ilyalissoboi/emusync/releases/download/v$emusyncVersion/emusync-$emusyncVersion.aar"
-    val out = emusyncAar
-    val sha256 = emusyncAarSha256
-    outputs.file(out)
-    doLast {
-        val file = out.get().asFile
-        fun digest(f: File) = MessageDigest.getInstance("SHA-256")
-            .digest(f.readBytes()).joinToString("") { "%02x".format(it) }
-        if (file.isFile && digest(file) == sha256) return@doLast
-        file.parentFile.mkdirs()
-        val tmp = File(file.path + ".part")
-        URI(url).toURL().openStream().use { input -> tmp.outputStream().use { input.copyTo(it) } }
-        val got = digest(tmp)
-        if (got != sha256) {
-            tmp.delete()
-            throw GradleException("emusync $emusyncVersion: SHA-256 $got of $url, expected $sha256")
-        }
-        tmp.renameTo(file) || throw GradleException("could not move $tmp to $file")
-    }
-}
 
 @Suppress("UnstableApiUsage")
 android {
@@ -47,7 +19,6 @@ android {
         viewBinding = true
         buildConfig = true
         resValues = true
-        // emusync's library for the native build (see downloadEmusync).
         prefab = true
     }
 
@@ -175,9 +146,6 @@ dependencies {
     implementation(libs.androidx.preference.ktx)
     implementation(libs.androidx.profileinstaller)
 
-    // Memory card sync: emusync's AAR, and the one library it depends on (a file dependency doesn't
-    // bring it).
-    implementation(files(emusyncAar).builtBy(downloadEmusync))
     implementation(libs.androidx.lifecycle.process)
 
     // Kotlin extensions for lifecycle components

@@ -26,4 +26,18 @@ void PullSaveFromCloud(u32 game_id, const std::string& local_dir);
 // Pushes gci_path, a save just written for game_id, to the configured cloud remote in the
 // background. Does nothing if cloud sync is disabled.
 void PushSaveToCloud(u32 game_id, const std::string& gci_path);
+
+// GameCube Raw Memory Card sync:
+// Pulls raw memory card from the cloud remote if remote is newer or local does not exist.
+void PullRawMemcardFromCloud(const std::string& raw_card_path);
+
+// Pushes raw memory card to the cloud remote.
+void PushRawMemcardToCloud(const std::string& raw_card_path);
+
+// Wii Saves sync:
+// Pulls Wii save folder for the given title_id from the cloud remote into local_nand_data_dir.
+void PullWiiSaveFromCloud(u64 title_id, const std::string& local_nand_data_dir);
+
+// Pushes Wii save folder for the given title_id from local_nand_data_dir to the cloud remote.
+void PushWiiSaveToCloud(u64 title_id, const std::string& local_nand_data_dir);
 }  // namespace Memcard

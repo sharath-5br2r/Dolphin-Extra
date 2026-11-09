@@ -36,7 +36,6 @@
 #include "Core/HW/GCMemcard/CloudSync.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
 #include "Core/HW/GCMemcard/GCMemcardUtils.h"
-#include "Core/HW/GCMemcard/MemcardSync.h"
 #include "Core/HW/Sram.h"
 #include "Core/NetPlayProto.h"
 
@@ -733,9 +732,6 @@ void GCMemcardDirectory::FlushToFile()
   File::IOFile hdrfile(m_save_directory + MC_HDR, "wb");
   hdrfile.WriteBytes(mc, BLOCK_SIZE * MC_FST_BLOCKS);
 #endif
-  // Every file above is closed by now. Queues the upload and returns at once.
-  if (changed)
-    MemcardSync::OnCardWritten(m_save_directory);
 }
 
 void GCMemcardDirectory::DoState(PointerWrap& p)

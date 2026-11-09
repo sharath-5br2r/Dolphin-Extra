@@ -27,8 +27,6 @@ import org.dolphinemu.dolphinemu.NativeLibrary
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.activities.UserDataActivity
 import org.dolphinemu.dolphinemu.features.input.model.ControlGroupEnabledSetting
-import org.dolphinemu.dolphinemu.features.memcardsync.MemcardSync
-import org.dolphinemu.dolphinemu.features.memcardsync.MemcardSyncSettings
 import org.dolphinemu.dolphinemu.features.input.model.InputMappingBooleanSetting
 import org.dolphinemu.dolphinemu.features.input.model.InputMappingDoubleSetting
 import org.dolphinemu.dolphinemu.features.input.model.InputMappingIntSetting
@@ -301,7 +299,6 @@ class SettingsFragmentPresenter(
                 MenuTag.CONFIG_CLOUDSYNC -> addCloudSyncSettings(sl)
                 MenuTag.CONFIG_WII -> addWiiSettings(sl)
                 MenuTag.CONFIG_ACHIEVEMENTS -> addAchievementSettings(sl)
-                MenuTag.CONFIG_MEMCARD_SYNC -> addMemcardSyncSettings(sl)
                 MenuTag.CONFIG_ADVANCED -> addAdvancedSettings(sl)
                 MenuTag.GRAPHICS -> addGraphicsSettings(sl)
                 MenuTag.CONFIG_SERIALPORT1 -> addSerialPortSubSettings(
@@ -364,104 +361,6 @@ class SettingsFragmentPresenter(
         sl.add(HeaderSetting(context, R.string.setting_clear_info, 0))
     }
 
-    /** The memory card sync status the list shows, to rebuild it when the status changes. */
-    private var memcardSyncStatus: String? = null
-
-    /**
-     * Rebuilds the memory card sync screen if its status changed: starting, syncing and errors
-     * happen in the background. The fragment calls it every second while the screen is visible.
-     */
-    fun refreshMemcardSyncStatus() {
-        if (menuTag != MenuTag.CONFIG_MEMCARD_SYNC || settingsList == null) return
-        if (MemcardSyncSettings.status(context) != memcardSyncStatus) loadSettingsList()
-    }
-
-    /**
-     * Memory card sync with emusync (features/memcardsync). The values are kept by emusync's
-     * SyncSettings, with the secrets in the Android Keystore, and every change applies at once.
-     */
-    private fun addMemcardSyncSettings(sl: ArrayList<SettingsItem>) {
-        if (!MemcardSync.controller.isAvailable) {
-            sl.add(HeaderSetting(context, R.string.memcard_sync_unavailable, 0))
-            return
-        }
-        val s = MemcardSync.settings
-        sl.add(HeaderSetting(context, R.string.memcard_sync_intro, 0))
-        sl.add(
-            SwitchSetting(
-                context,
-                MemcardSyncSettings.BooleanSetting({ s.load().enabled }, s::setEnabled),
-                R.string.memcard_sync_enabled,
-                R.string.memcard_sync_enabled_description
-            )
-        )
-        sl.add(
-            InputStringSetting(
-                context,
-                MemcardSyncSettings.StringSetting({ s.load().remoteUri }, s::setRemoteUri),
-                R.string.memcard_sync_storage,
-                R.string.memcard_sync_storage_description
-            )
-        )
-        sl.add(
-            InputStringSetting(
-                context,
-                MemcardSyncSettings.StringSetting({ s.load().accessKeyId }, s::setAccessKeyId),
-                R.string.memcard_sync_access_key_id,
-                R.string.memcard_sync_access_key_id_description
-            )
-        )
-        // Read back into the dialog, masked, for its show button: to check which key this device
-        // uses, or to set up another device with it. Emptying the field removes it.
-        sl.add(
-            InputStringSetting(
-                context,
-                MemcardSyncSettings.StringSetting({ s.secretAccessKey().orEmpty() }, s::setSecretAccessKey),
-                R.string.memcard_sync_secret,
-                R.string.memcard_sync_secret_description
-            ) {
-                context.getString(
-                    if (s.load().hasSecret) R.string.memcard_sync_saved else R.string.memcard_sync_not_set
-                )
-            }
-        )
-        // Read back into the dialog, masked, for its show button: the user needs it again to set
-        // up their other devices, and losing it loses the saves. Emptying the field removes it.
-        sl.add(
-            InputStringSetting(
-                context,
-                MemcardSyncSettings.StringSetting({ s.passphrase().orEmpty() }, s::setPassphrase),
-                R.string.memcard_sync_passphrase,
-                R.string.memcard_sync_passphrase_description
-            ) {
-                context.getString(
-                    if (s.load().hasPassphrase) R.string.memcard_sync_saved else R.string.memcard_sync_no_passphrase
-                )
-            }
-        )
-        sl.add(
-            InputStringSetting(
-                context,
-                MemcardSyncSettings.StringSetting({ s.load().deviceName }, s::setDeviceName),
-                R.string.memcard_sync_device_name,
-                R.string.memcard_sync_device_name_description
-            )
-        )
-        val status = MemcardSyncSettings.status(context)
-        memcardSyncStatus = status
-        sl.add(
-            RunRunnable(
-                context,
-                R.string.memcard_sync_now,
-                status,
-                0,
-                R.string.memcard_sync_now_started,
-                true
-            ) { MemcardSync.controller.syncNow() }
-        )
-        sl.add(HeaderSetting(context, R.string.memcard_sync_cards_help, 0))
-    }
-
     private fun addConfigSettings(sl: ArrayList<SettingsItem>) {
         sl.add(SubmenuSetting(context, R.string.general_submenu, MenuTag.CONFIG_GENERAL))
         sl.add(SubmenuSetting(context, R.string.interface_submenu, MenuTag.CONFIG_INTERFACE))
@@ -469,7 +368,6 @@ class SettingsFragmentPresenter(
         sl.add(SubmenuSetting(context, R.string.paths_submenu, MenuTag.CONFIG_PATHS))
         sl.add(SubmenuSetting(context, R.string.gamecube_submenu, MenuTag.CONFIG_GAME_CUBE))
         sl.add(SubmenuSetting(context, R.string.cloud_saves_submenu, MenuTag.CONFIG_CLOUDSYNC))
-        sl.add(SubmenuSetting(context, R.string.memcard_sync_submenu, MenuTag.CONFIG_MEMCARD_SYNC))
         sl.add(SubmenuSetting(context, R.string.wii_submenu, MenuTag.CONFIG_WII))
         sl.add(SubmenuSetting(context, R.string.achievements_submenu, MenuTag.CONFIG_ACHIEVEMENTS))
         sl.add(SubmenuSetting(context, R.string.advanced_submenu, MenuTag.CONFIG_ADVANCED))
@@ -1082,6 +980,14 @@ class SettingsFragmentPresenter(
                 StringSetting.MAIN_CLOUDSYNC_REMOTE_FOLDER,
                 R.string.cloud_sync_remote_folder,
                 R.string.cloud_sync_remote_folder_description
+            )
+        )
+        sl.add(
+            InputStringSetting(
+                context,
+                StringSetting.MAIN_CLOUDSYNC_CONFIG_FILE,
+                R.string.cloud_sync_config_file,
+                R.string.cloud_sync_config_file_description
             )
         )
     }

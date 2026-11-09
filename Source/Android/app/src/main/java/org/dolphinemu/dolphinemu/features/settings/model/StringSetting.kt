@@ -90,6 +90,12 @@ enum class StringSetting(
         "RemoteFolder",
         "Dolphin Cloud Saves"
     ),
+    MAIN_CLOUDSYNC_CONFIG_FILE(
+        Settings.FILE_DOLPHIN,
+        Settings.SECTION_CLOUDSYNC,
+        "ConfigFile",
+        ""
+    ),
     GFX_ENHANCE_POST_SHADER(
         Settings.FILE_GFX,
         Settings.SECTION_GFX_ENHANCEMENTS,

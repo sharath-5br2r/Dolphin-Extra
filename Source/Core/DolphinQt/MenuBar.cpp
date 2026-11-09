@@ -63,6 +63,7 @@
 #include "DolphinQt/QtUtils/QueueOnObject.h"
 #endif
 #include "DolphinQt/QtUtils/SignalBlocking.h"
+#include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/Updater.h"
 
@@ -293,8 +294,16 @@ void MenuBar::AddToolsMenu()
   connect(m_ui.actionToolsLogitechMicrophone, &QAction::triggered, this,
           &MenuBar::ShowLogitechMicWindow);
 
+  m_ui.actionToolsStartNetPlay->setIcon(Resources::GetThemeIcon("netplay"));
+  m_ui.actionToolsBrowseNetPlay->setIcon(Resources::GetThemeIcon("netplay"));
+
   connect(m_ui.actionToolsStartNetPlay, &QAction::triggered, this, &MenuBar::StartNetPlay);
   connect(m_ui.actionToolsBrowseNetPlay, &QAction::triggered, this, &MenuBar::BrowseNetPlay);
+
+  auto* const cloud_saves_action =
+      new QAction(Resources::GetThemeIcon("cloud"), tr("&Cloud Saves..."), tools_menu);
+  tools_menu->insertAction(m_ui.menuGameCubeMainMenu->menuAction(), cloud_saves_action);
+  connect(cloud_saves_action, &QAction::triggered, this, &MenuBar::ShowCloudSaves);
 
 #ifdef USE_RETRO_ACHIEVEMENTS
   m_achievements_action = new QAction(tr("&Achievements"), tools_menu);
@@ -685,14 +694,16 @@ void MenuBar::AddHelpMenu()
 
 #ifdef SHOW_UPDATER
   help_menu->insertSeparator(m_ui.actionHelpAbout);
-  auto* const check_for_updates = new QAction(tr("Check For &Updates..."), help_menu);
+  auto* const check_for_updates =
+      new QAction(Resources::GetThemeIcon("update"), tr("Check For &Updates..."), help_menu);
   help_menu->insertAction(m_ui.actionHelpAbout, check_for_updates);
   connect(check_for_updates, &QAction::triggered, this, &MenuBar::ShowUpdateDialog);
 #else
   if (AutoUpdateChecker::SystemSupportsAutoUpdates())
   {
     help_menu->insertSeparator(m_ui.actionHelpAbout);
-    auto* const check_for_updates = new QAction(tr("&Check for Updates..."), help_menu);
+    auto* const check_for_updates =
+        new QAction(Resources::GetThemeIcon("update"), tr("&Check for Updates..."), help_menu);
     help_menu->insertAction(m_ui.actionHelpAbout, check_for_updates);
     connect(check_for_updates, &QAction::triggered, this, &MenuBar::InstallUpdateManually);
   }
