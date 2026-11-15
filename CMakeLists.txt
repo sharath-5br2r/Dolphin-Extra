@@ -249,7 +249,7 @@ elseif(CMAKE_GENERATOR MATCHES "Visual Studio")
 endif()
 
 if(MSVC)
-  check_and_add_flag(EXCEPTIONS /EHsc)
+  add_compile_options(/EHsc)
   dolphin_compile_definitions(_DEBUG DEBUG_ONLY)
 
   # Disable RTTI
@@ -625,7 +625,11 @@ dolphin_find_optional_system_library_pkgconfig(FMT
 dolphin_add_bundled_library(ImGui Externals/imgui)
 dolphin_add_bundled_library(ImPlot Externals/implot)
 
-dolphin_find_optional_system_library(glslang Externals/glslang DOLPHIN_TRY_VERSIONS 15 16)
+if(WIN32)
+  dolphin_add_bundled_library(glslang Externals/glslang)
+else()
+  dolphin_find_optional_system_library(glslang Externals/glslang DOLPHIN_TRY_VERSIONS 15 16)
+endif()
 
 # SPIRV-Cross is used on Windows for GLSL to HLSL conversion for the Direct3D 11 and Direct3D 12
 # video backends, and on Apple devices for the Metal video backend.

@@ -12,7 +12,6 @@
 #include "Core/Config/AchievementSettings.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
-#include "Core/Config/MemoryCardSyncSettings.h"
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/Config/UISettings.h"
 #include "VideoCommon/VideoConfig.h"

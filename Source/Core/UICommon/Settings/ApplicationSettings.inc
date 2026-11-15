@@ -1472,34 +1472,3 @@
                     Control::Path, false, ApplyPolicy::NextBoot);
   entry.descriptor.help = _trans("WFS Path");
 }
-
-// Settings/MemoryCardSyncPane.ui: enabledCheckBox
-{
-  auto& entry =
-      add(Config::MAIN_MEMCARD_SYNC_ENABLED, "native.main_memcard_sync_enabled", "MemoryCards",
-          _trans("Sync Memory Cards"), Control::Toggle, false, ApplyPolicy::IdleOnly);
-  entry.descriptor.help = _trans("Sync Memory Cards");
-}
-
-// Settings/MemoryCardSyncPane.ui: storageLineEdit
-{
-  auto& entry = add(Config::MAIN_MEMCARD_SYNC_REMOTE_URI, "native.main_memcard_sync_remote_uri",
-                    "MemoryCards", _trans("Storage"), Control::Path, false, ApplyPolicy::NextBoot);
-  entry.descriptor.help = _trans("Storage");
-}
-
-// Settings/MemoryCardSyncPane.ui: accessKeyIdLineEdit
-{
-  auto& entry =
-      add(Config::MAIN_MEMCARD_SYNC_ACCESS_KEY_ID, "native.main_memcard_sync_access_key_id",
-          "MemoryCards", _trans("Access Key ID"), Control::Path, false, ApplyPolicy::NextBoot);
-  entry.descriptor.help = _trans("Access Key ID");
-}
-
-// Settings/MemoryCardSyncPane.ui: deviceNameLineEdit
-{
-  auto& entry =
-      add(Config::MAIN_MEMCARD_SYNC_DEVICE_NAME, "native.main_memcard_sync_device_name",
-          "MemoryCards", _trans("Device Name"), Control::Path, false, ApplyPolicy::NextBoot);
-  entry.descriptor.help = _trans("Device Name");
-}

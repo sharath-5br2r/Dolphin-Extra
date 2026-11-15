@@ -4004,13 +4004,13 @@ void MainWindow::OnActivateChat()
 
 void MainWindow::OnCollapseChat()
 {
-  if (const auto chat = g_netplay_chat_ui.load())
+  if (const auto chat = GetNetPlayChatUI())
     chat->Collapse();
 }
 
 void MainWindow::OnExpandChat()
 {
-  if (const auto chat = g_netplay_chat_ui.load())
+  if (const auto chat = GetNetPlayChatUI())
     chat->Expand();
 }
 
