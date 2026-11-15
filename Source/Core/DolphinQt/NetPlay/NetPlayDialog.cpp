@@ -633,7 +633,7 @@ void NetPlayDialog::DisplayMessage(const QString& msg, const std::string& color,
   if (Config::Get(Config::GFX_SHOW_NETPLAY_MESSAGES) &&
       Core::IsRunning(Core::System::GetInstance()))
   {
-    if (const auto chat = g_netplay_chat_ui.load())
+    if (const auto chat = GetNetPlayChatUI())
       chat->AppendChat(msg.toStdString(),
                        {static_cast<float>(c.redF()), static_cast<float>(c.greenF()),
                         static_cast<float>(c.blueF())});
@@ -703,13 +703,13 @@ void NetPlayDialog::OnMsgStartGame()
 {
   DisplayMessage(tr("Started game"), "green");
 
-  g_netplay_chat_ui = std::make_shared<NetPlayChatUI>([this](const std::string& message) {
+  SetNetPlayChatUI(std::make_shared<NetPlayChatUI>([this](const std::string& message) {
     QueueOnObject(this, [this, message] { SendMessage(message); });
-  });
+  }));
 
   if (m_host_input_authority && Settings::Instance().GetNetPlayClient()->GetNetSettings().golf_mode)
   {
-    g_netplay_golf_ui = std::make_shared<NetPlayGolfUI>(Settings::Instance().GetNetPlayClient());
+    SetNetPlayGolfUI(std::make_shared<NetPlayGolfUI>(Settings::Instance().GetNetPlayClient()));
   }
 
   QueueOnObject(this, [this] {
@@ -728,8 +728,8 @@ void NetPlayDialog::OnMsgStartGame()
 
 void NetPlayDialog::OnMsgStopGame()
 {
-  g_netplay_chat_ui.store(nullptr);
-  g_netplay_golf_ui.store(nullptr);
+  SetNetPlayChatUI(nullptr);
+  SetNetPlayGolfUI(nullptr);
   QueueOnObject(this, [this] { UpdateDiscordPresence(); });
 }
 

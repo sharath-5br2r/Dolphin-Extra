@@ -35,6 +35,7 @@ public:
 
 signals:
   void EscapePressed();
+  void FullscreenRequested();
   void Closed();
   void HandleChanged(void* handle);
   void StateChanged(bool fullscreen);

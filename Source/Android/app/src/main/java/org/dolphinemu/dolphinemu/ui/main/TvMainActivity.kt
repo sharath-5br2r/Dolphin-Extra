@@ -20,10 +20,10 @@ import androidx.leanback.widget.RowPresenter
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import org.dolphinemu.dolphinemu.R
-import org.dolphinemu.dolphinemu.activities.EmulationActivity
 import org.dolphinemu.dolphinemu.adapters.GameRowPresenter
 import org.dolphinemu.dolphinemu.adapters.SettingsRowPresenter
 import org.dolphinemu.dolphinemu.databinding.ActivityTvMainBinding
+import org.dolphinemu.dolphinemu.dialogs.GameDiscSelectionDialog
 import org.dolphinemu.dolphinemu.features.settings.ui.MenuTag
 import org.dolphinemu.dolphinemu.features.settings.ui.SettingsActivity
 import org.dolphinemu.dolphinemu.fragments.GridOptionDialogFragment
@@ -108,8 +108,7 @@ class TvMainActivity : FragmentActivity(), MainView, OnRefreshListener {
                     val holder = itemViewHolder as TvGameViewHolder
 
                     // Start the emulation activity and send the path of the clicked ISO to it.
-                    val paths = GameFileCacheManager.findSecondDiscAndGetPaths(holder.gameFile)
-                    EmulationActivity.launch(this@TvMainActivity, paths, false)
+                    GameDiscSelectionDialog.launchGame(this@TvMainActivity, holder.gameFile!!)
                 }
             }
     }

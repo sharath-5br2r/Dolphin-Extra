@@ -14,6 +14,7 @@
 #include "Common/Assert.h"
 #include "Common/Common.h"
 #include "Common/CommonTypes.h"
+#include "Common/FileUtil.h"
 
 #include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
 #include "InputCommon/ControllerEmu/ControlGroup/ControlGroup.h"
@@ -25,6 +26,7 @@ constexpr std::array<const char*, NUM_HOTKEYS> s_hotkey_labels{{
     _trans("Change Disc"),
     _trans("Eject Disc"),
     _trans("Refresh Game List"),
+    _trans("Open Pause Menu"),
     _trans("Toggle Pause"),
     _trans("Stop"),
     _trans("Reset"),
@@ -269,7 +271,34 @@ void Initialize()
 
 void LoadConfig()
 {
+  const auto lock = ControllerEmu::EmulatedController::GetStateLock();
   s_config.LoadConfig();
+  // Older Hotkeys.ini files predate this binding. Seed it once, preserving both
+  // custom bindings and a deliberately cleared binding on subsequent loads.
+  const auto path = File::GetUserPath(D_CONFIG_IDX) + "Hotkeys.ini";
+  Common::IniFile ini;
+  ini.Load(path);
+  auto* section = ini.GetOrCreateSection("Hotkeys");
+  if (!section->Exists("PauseMenuBindingInitialized"))
+  {
+    auto* controller = static_cast<HotkeyManager*>(s_config.GetController(0));
+    if (!section->Exists("General/Open Pause Menu"))
+    {
+#ifdef _WIN32
+      const char* escape = "ESCAPE";
+#else
+      const char* escape = "Escape";
+#endif
+      controller->GetHotkeyGroup(HKGP_GENERAL)
+          ->SetControlExpression(controller->GetIndexForGroup(HKGP_GENERAL, HK_OPEN_PAUSE_MENU),
+                                 escape);
+      controller->UpdateReferences(g_controller_interface);
+    }
+    s_config.SaveConfig();
+    ini.Load(path);
+    ini.GetOrCreateSection("Hotkeys")->Set("PauseMenuBindingInitialized", true);
+    ini.Save(path);
+  }
 }
 
 ControllerEmu::ControlGroup* GetHotkeyGroup(HotkeyGroup group)
@@ -418,6 +447,7 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
   set_key_expression(HK_COLLAPSE_CHAT, "LEFT");
   set_key_expression(HK_EXPAND_CHAT, "RIGHT");
   set_key_expression(HK_STOP, "ESCAPE");
+  set_key_expression(HK_OPEN_PAUSE_MENU, "ESCAPE");
   set_key_expression(HK_FULLSCREEN, hotkey_string({"Alt", "RETURN"}));
 #else
   set_key_expression(HK_VOLUME_DOWN, "Down");
@@ -425,6 +455,7 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
   set_key_expression(HK_COLLAPSE_CHAT, "Left");
   set_key_expression(HK_EXPAND_CHAT, "Right");
   set_key_expression(HK_STOP, "Escape");
+  set_key_expression(HK_OPEN_PAUSE_MENU, "Escape");
   set_key_expression(HK_FULLSCREEN, hotkey_string({"Alt", "Return"}));
 #endif
 #ifdef USE_RETRO_ACHIEVEMENTS

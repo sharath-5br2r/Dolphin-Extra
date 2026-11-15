@@ -5,6 +5,8 @@
 
 #include "DolphinQt/QtUtils/RenderSurfaceHost.h"
 
+#include <algorithm>
+
 #include <QApplication>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -17,6 +19,7 @@
 #include <QPalette>
 #include <QScreen>
 #include <QTimer>
+#include <QWheelEvent>
 #include <QWindow>
 #include "Common/BigPicture/PresentationState.h"
 
@@ -444,6 +447,16 @@ bool RenderWidget::event(QEvent* event)
   case QEvent::WindowBlocked:
     SetCursorLocked(false);
     break;
+  case QEvent::MouseButtonDblClick:
+    if (static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton &&
+        Config::Get(Config::MAIN_FULLSCREEN_ON_DOUBLE_CLICK) &&
+        !BigPicture::GetPresentationState().IsModal() &&
+        !BigPicture::GetPresentationState().GetCapture().mouse)
+    {
+      emit FullscreenRequested();
+      return true;
+    }
+    break;
   case QEvent::MouseButtonPress:
 
     // Grab focus to stop unwanted keyboard input UI interaction.
@@ -608,26 +621,52 @@ void RenderWidget::PassEventToPresenter(const QEvent* event)
   break;
 
   case QEvent::MouseMove:
-  {
-    // Qt multiplies all coordinates by the scaling factor in highdpi mode, giving us "scaled" mouse
-    // coordinates (as if the screen was standard dpi). We need to update the mouse position in
-    // native coordinates, as the UI (and game) is rendered at native resolution.
-    const float scale = devicePixelRatio();
-    float x = static_cast<const QMouseEvent*>(event)->pos().x() * scale;
-    float y = static_cast<const QMouseEvent*>(event)->pos().y() * scale;
-
-    input.Enqueue({BigPicture::InputEvent::Type::MousePosition, generation, 0, false, {}, x, y});
-  }
-  break;
-
   case QEvent::MouseButtonPress:
   case QEvent::MouseButtonRelease:
+  case QEvent::MouseButtonDblClick:
   {
-    const u32 button_mask = static_cast<u32>(static_cast<const QMouseEvent*>(event)->buttons());
-    input.Enqueue(
-        {BigPicture::InputEvent::Type::MouseButtons, generation, 0, false, {}, 0, 0, button_mask});
+    // The UI fills the whole surface, so a position relative to the widget maps onto it
+    // exactly, independent of the backbuffer size and devicePixelRatio. Buttons carry their
+    // own position, so a click lands where it was made even without a preceding move.
+    const auto* mouse_event = static_cast<const QMouseEvent*>(event);
+    const auto position = mouse_event->position();
+    input.Enqueue({BigPicture::InputEvent::Type::MousePosition,
+                   generation,
+                   0,
+                   false,
+                   {},
+                   static_cast<float>(position.x() / std::max(1, width())),
+                   static_cast<float>(position.y() / std::max(1, height()))});
+    if (event->type() != QEvent::MouseMove)
+    {
+      input.Enqueue({BigPicture::InputEvent::Type::MouseButtons,
+                     generation,
+                     0,
+                     false,
+                     {},
+                     0,
+                     0,
+                     static_cast<u32>(mouse_event->buttons())});
+    }
   }
   break;
+
+  case QEvent::Wheel:
+  {
+    const auto delta = static_cast<const QWheelEvent*>(event)->angleDelta();
+    input.Enqueue({BigPicture::InputEvent::Type::MouseWheel,
+                   generation,
+                   0,
+                   false,
+                   {},
+                   delta.x() / 120.0f,
+                   delta.y() / 120.0f});
+  }
+  break;
+
+  case QEvent::Leave:
+    input.Enqueue({BigPicture::InputEvent::Type::MouseLeave, generation});
+    break;
 
   default:
     break;
@@ -643,7 +682,8 @@ void RenderWidget::SetPresenterKeyMap()
       Qt::Key_Delete, Qt::Key_Backspace, Qt::Key_Space, Qt::Key_Return, Qt::Key_Escape,
       Qt::Key_Enter,  // Keypad enter
       Qt::Key_A,      Qt::Key_C,         Qt::Key_V,     Qt::Key_X,      Qt::Key_Y,
-      Qt::Key_Z,      Qt::Key_F11,       Qt::Key_F1,
+      Qt::Key_Z,      Qt::Key_F11,       Qt::Key_F1,    Qt::Key_F2,     Qt::Key_F3,
+      Qt::Key_F4,     Qt::Key_F5,        Qt::Key_F6,
   };
 
   BigPicture::GetPresentationState().SetKeyMap({key_map.begin(), key_map.end()});

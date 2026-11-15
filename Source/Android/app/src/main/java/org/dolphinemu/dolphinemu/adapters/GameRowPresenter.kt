@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import androidx.leanback.widget.ImageCardView
 import org.dolphinemu.dolphinemu.viewholders.TvGameViewHolder
 import org.dolphinemu.dolphinemu.model.GameFile
-import org.dolphinemu.dolphinemu.services.GameFileCacheManager
 import org.dolphinemu.dolphinemu.R
 import android.view.View
 import androidx.core.content.ContextCompat
@@ -62,12 +61,7 @@ class GameRowPresenter : Presenter() {
                 true
             }
 
-            if (GameFileCacheManager.findSecondDisc(gameFile) != null) {
-                holder.cardParent.contentText =
-                    context.getString(R.string.disc_number, gameFile.getDiscNumber() + 1)
-            } else {
-                holder.cardParent.contentText = gameFile.getCompany()
-            }
+            holder.cardParent.contentText = getGameCardCaption(context, gameFile)
         }
         CoilUtils.loadGameCover(null, holder.imageScreenshot, gameFile)
     }

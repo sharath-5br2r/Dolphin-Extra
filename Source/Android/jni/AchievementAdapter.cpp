@@ -49,6 +49,20 @@ Java_org_dolphinemu_dolphinemu_features_settings_model_AchievementModel_isHardco
 }
 
 JNIEXPORT void JNICALL
+Java_org_dolphinemu_dolphinemu_features_settings_model_AchievementModel_setNetworkAvailable(
+    JNIEnv* env, jclass, jboolean available)
+{
+  AchievementManager::GetInstance().SetNetworkAvailable(available == JNI_TRUE);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_dolphinemu_dolphinemu_features_settings_model_AchievementModel_getDeferredSubmissionCount(
+    JNIEnv* env, jclass)
+{
+  return static_cast<jint>(AchievementManager::GetInstance().GetDeferredSubmissionCount());
+}
+
+JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_settings_model_AchievementModel_shutdown(JNIEnv* env,
                                                                                  jclass)
 {

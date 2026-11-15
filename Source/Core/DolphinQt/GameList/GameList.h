@@ -58,6 +58,7 @@ public:
   QSize GetSizeForGrid(int columns, int rows) const;
 
   const GameListModel& GetGameListModel() const { return m_model; }
+  void ResetTimePlayed(const std::string& game_id) { m_model.ResetTimePlayed(game_id); }
 
 signals:
   void GameSelected();

@@ -14,3 +14,4 @@ class GameFile;
 }
 
 jobject GameFileToJava(JNIEnv* env, std::shared_ptr<const UICommon::GameFile> game_file);
+std::shared_ptr<const UICommon::GameFile> GameFileFromJava(JNIEnv* env, jobject game_file);

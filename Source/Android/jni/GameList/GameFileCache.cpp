@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include "DiscIO/Enums.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/GameFileCache.h"
+#include "UICommon/GameListDiscGroups.h"
 #include "jni/AndroidCommon/AndroidCommon.h"
 #include "jni/AndroidCommon/IDCache.h"
 #include "jni/GameList/GameFile.h"
@@ -78,6 +80,49 @@ Java_org_dolphinemu_dolphinemu_model_GameFileCache_getAllGames(JNIEnv* env, jobj
     env->DeleteLocalRef(j_game_file);
   });
   return array;
+}
+
+JNIEXPORT jobjectArray JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_getDiscGroups(
+    JNIEnv* env, jclass, jobjectArray games)
+{
+  UICommon::GameListDiscGroups::Games native_games;
+  const jsize count = env->GetArrayLength(games);
+  std::map<std::string, jint> indices;
+  native_games.reserve(count);
+  for (jsize i = 0; i < count; ++i)
+  {
+    const jobject game = env->GetObjectArrayElement(games, i);
+    native_games.push_back(GameFileFromJava(env, game));
+    indices.emplace(native_games.back()->GetFilePath(), i);
+    env->DeleteLocalRef(game);
+  }
+
+  UICommon::GameListDiscGroups disc_groups;
+  disc_groups.Rebuild(native_games);
+  std::vector<std::vector<jint>> groups;
+  for (const auto& game : native_games)
+  {
+    const auto& discs = disc_groups.GetDiscs(*game);
+    if (discs.empty() || !disc_groups.IsRepresentative(*game))
+      continue;
+    auto& group = groups.emplace_back();
+    for (const auto& disc : discs)
+      group.push_back(indices.at(disc->GetFilePath()));
+  }
+
+  const jclass int_array_class = env->FindClass("[I");
+  const jobjectArray result =
+      env->NewObjectArray(static_cast<jsize>(groups.size()), int_array_class, nullptr);
+  env->DeleteLocalRef(int_array_class);
+  for (jsize i = 0; i < static_cast<jsize>(groups.size()); ++i)
+  {
+    const auto& group = groups[i];
+    const jintArray array = env->NewIntArray(static_cast<jsize>(group.size()));
+    env->SetIntArrayRegion(array, 0, static_cast<jsize>(group.size()), group.data());
+    env->SetObjectArrayElement(result, i, array);
+    env->DeleteLocalRef(array);
+  }
+  return result;
 }
 
 JNIEXPORT jobject JNICALL Java_org_dolphinemu_dolphinemu_model_GameFileCache_addOrGet(JNIEnv* env,

@@ -15,6 +15,51 @@ namespace
 using namespace std::chrono_literals;
 using namespace BigPicture;
 
+TEST(BigPicturePresentationTest, LibrarySnapshotsShareListsAndCopyOnlyWhenEdited)
+{
+  LibrarySnapshot state;
+  state.games = {{"a.iso", "A"}, {"b.iso", "B"}};
+  state.missing_covers.insert("a.iso");
+  const LibrarySnapshot published = state;
+  EXPECT_EQ(&published.games.Get(), &state.games.Get());
+  EXPECT_EQ(&published.missing_covers.Get(), &state.missing_covers.Get());
+
+  // Editing the owner's state never changes a published copy.
+  state.games.push_back({"c.iso", "C"});
+  state.missing_covers.erase("a.iso");
+  state.files.push_back({"dir", "Dir", true});
+  EXPECT_EQ(published.games.size(), 2u);
+  EXPECT_EQ(state.games.size(), 3u);
+  EXPECT_EQ(state.games[2].path, "c.iso");
+  EXPECT_TRUE(published.missing_covers.contains("a.iso"));
+  EXPECT_FALSE(state.missing_covers.contains("a.iso"));
+  EXPECT_TRUE(published.files.empty());
+
+  // Unshared contents are edited in place.
+  const auto* games = &state.games.Get();
+  state.games.pop_back();
+  EXPECT_EQ(&state.games.Get(), games);
+  state.games.clear();
+  EXPECT_TRUE(state.games.empty());
+  EXPECT_EQ(published.games.front().path, "a.iso");
+}
+
+TEST(BigPicturePresentationTest, MenuToggleIsIgnoredWhileABindingIsCaptured)
+{
+  Snapshot snapshot;
+  EXPECT_FALSE(AcceptsMenuToggle(snapshot));
+  snapshot.host.lifecycle = Lifecycle::Paused;
+  EXPECT_TRUE(AcceptsMenuToggle(snapshot));
+  snapshot.host.lifecycle = Lifecycle::Idle;
+  snapshot.mode = Mode::Library;
+  EXPECT_TRUE(AcceptsMenuToggle(snapshot));
+  auto settings = std::make_shared<SettingsMenuSnapshot>();
+  snapshot.host.settings_menu = settings;
+  EXPECT_TRUE(AcceptsMenuToggle(snapshot));
+  settings->capturing = true;
+  EXPECT_FALSE(AcceptsMenuToggle(snapshot));
+}
+
 std::shared_ptr<const Snapshot> Menu(std::uint64_t generation = 1)
 {
   auto snapshot = std::make_shared<Snapshot>();
@@ -168,5 +213,36 @@ TEST(BigPicturePresentationTest, ExplicitOverlayWakeHasBoundedWorkWithoutOpening
   state.EndPresent();
   EXPECT_FALSE(state.TryBeginPresent(now + 40ms));
   EXPECT_EQ(state.GetWaitMilliseconds(now + 40ms, 0), 0);
+}
+TEST(BigPicturePresentationTest, SettingsFocusSurvivesGraphicsHandoffsAndClearsWhenSettingsCloses)
+{
+  PresentationState state;
+  auto snapshot = std::make_shared<Snapshot>();
+  snapshot->mode = Mode::Library;
+  snapshot->screens = {Screen::Home, Screen::Settings};
+  state.Publish(snapshot);
+  state.SetSettingsFocus("display-global", {"display.vsync", "display.vsync", 320});
+  state.SetSettingsFocus("display-game", {"display.aspect_ratio", "display.aspect_ratio", 80});
+  state.Suspend();
+  state.SetRendererReady(false);
+  auto replacement = std::make_shared<Snapshot>(*snapshot);
+  ++replacement->generation;
+  state.Publish(replacement);
+  state.Resume();
+  auto remembered = state.GetSettingsFocus("display-global");
+  ASSERT_TRUE(remembered);
+  EXPECT_EQ(remembered->item, "display.vsync");
+  EXPECT_EQ(remembered->selected, "display.vsync");
+  EXPECT_EQ(remembered->scroll, 320);
+  remembered->item = "changed copy";
+  EXPECT_EQ(state.GetSettingsFocus("display-global")->item, "display.vsync");
+  EXPECT_EQ(state.GetSettingsFocus("display-game")->scroll, 80);
+  replacement = std::make_shared<Snapshot>(*replacement);
+  replacement->screens = {Screen::Home};
+  state.Publish(replacement);
+  EXPECT_FALSE(state.GetSettingsFocus("display-global"));
+  // A late frame from the old graphics owner must not repopulate a closed session.
+  state.SetSettingsFocus("display-global", {"display.vsync", "display.vsync", 320});
+  EXPECT_FALSE(state.GetSettingsFocus("display-global"));
 }
 }  // namespace

@@ -113,7 +113,8 @@
 
         <activity
             android:name=".activities.AppLinkActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.Dolphin.Main">
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>

@@ -3,17 +3,23 @@
 
 #pragma once
 
+#include <QElapsedTimer>
 #include <QMainWindow>
 #include <QPointer>
 #include <QStringList>
 
 #include <array>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 
 #include "Common/BigPicture/Contracts.h"
+#include "Common/HookableEvent.h"
+#include "Common/WorkQueueThread.h"
+#include "DolphinQt/BigPictureAchievements.h"
 #include "DolphinQt/BigPictureGraphicsConfig.h"
+#include "DolphinQt/BigPictureSettings.h"
 
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "Common/Config/Config.h"
@@ -23,10 +29,14 @@
 #include "DolphinQt/FIFO/FIFOPlayerWindow.h"
 
 class QMenu;
-class BigPictureSettings;
 class QStackedWidget;
 class QString;
 class QTimer;
+
+namespace State
+{
+struct OperationResult;
+}
 
 class AchievementsWindow;
 class AssemblerWidget;
@@ -129,7 +139,8 @@ private:
 
   // May ask for confirmation. Returns whether or not it actually stopped.
   bool RequestStop();
-  bool RequestStopWithConfirmation(bool confirmed);
+  bool RequestStopWithConfirmation(bool confirmed, bool save_continuation = false);
+  bool CanSaveContinuation() const;
   void ForceStop();
   void Reset();
   void FrameAdvance();
@@ -153,6 +164,7 @@ private:
   void SetFullScreenResolution(bool fullscreen);
 
   void FullScreen();
+  void FocusRenderWidget();
   void UnlockCursor();
   void ScreenShot();
 
@@ -172,6 +184,13 @@ private:
 
   void InitCoreCallbacks();
   void RefreshBigPictureStateSlots();
+  // Reads a game's slot headers and previews off the UI thread; the browser shows its loading
+  // text until they arrive.
+  void RequestBigPictureStateSlots(std::string game_id);
+  void ClearBigPictureStateSlots();
+  // Big Picture save and load commands stay pending until the core reports their outcome.
+  void BeginBigPictureStateRequest(std::uint64_t command_id, bool save, int slot);
+  void OnBigPictureStateResult(const State::OperationResult& result);
   void RefreshBigPictureLibrary();
   void PrepareBigPictureSurface();
   bool LeaveBigPictureForDesktop(std::uint64_t generation);
@@ -186,6 +205,9 @@ private:
     Settings
   };
   void StopStandalone(StandaloneStop next);
+  BigPicture::HostState ReadBigPictureState();
+  BigPicture::Result ExecuteBigPictureCommand(const BigPicture::Command& command);
+  void ClearContinuationBoot();
   void PollStandalone();
   void CompleteStandaloneStop(StandaloneStop next, bool failed);
 
@@ -197,13 +219,14 @@ private:
 
   void ScanForSecondDiscAndStartGame(const UICommon::GameFile& game,
                                      std::unique_ptr<BootSessionData> boot_session_data = nullptr);
+  std::optional<std::string> ChooseLibraryDisc(const std::string& path);
   void StartGame(const QString& path, ScanForSecondDisc scan,
                  std::unique_ptr<BootSessionData> boot_session_data = nullptr);
   void StartGame(const std::string& path, ScanForSecondDisc scan,
                  std::unique_ptr<BootSessionData> boot_session_data = nullptr);
   void StartGame(const std::vector<std::string>& paths,
                  std::unique_ptr<BootSessionData> boot_session_data = nullptr);
-  void StartGame(std::unique_ptr<BootParameters>&& parameters);
+  void StartGame(std::unique_ptr<BootParameters>&& parameters, bool continuation_checked = false);
   void ShowRenderWidget(bool preserve_window = false);
   void HideRenderWidget(bool reinit = true, bool is_exit = false);
 
@@ -281,9 +304,15 @@ private:
   Core::System& m_system;
   std::unique_ptr<Ui::MainWindow> m_ui;
   BigPictureHost* m_big_picture_host = nullptr;
+  BigPictureAchievements m_big_picture_achievements;
+  std::shared_ptr<const BigPicture::LibraryImage> m_big_picture_avatar;
+  std::optional<BigPictureSettings::Game> m_big_picture_properties_game;
   std::unique_ptr<BigPictureSettings> m_big_picture_settings;
   bool m_settings_post_processing = false;
   BigPictureLibrary* m_big_picture_library = nullptr;
+  // The game files last published to Big Picture, used to detect actual cover changes.
+  std::map<std::string, std::shared_ptr<const UICommon::GameFile>> m_big_picture_cover_sources;
+  bool m_big_picture_refresh_queued = false;
   QPointer<BigPictureTextInput> m_big_picture_text_input;
   std::uint64_t m_big_picture_text_generation = 0;
   bool m_big_picture_text_queued = false;
@@ -291,8 +320,28 @@ private:
   bool m_big_picture_system_menu_available = false;
   std::array<BigPicture::StateSlot, BigPicture::STATE_SLOT_COUNT> m_big_picture_state_slots;
   bool m_big_picture_state_slots_ready = false;
+  Common::EventHook m_state_save_hook;
+  Common::EventHook m_state_result_hook;
+  struct StateSlotJob
+  {
+    std::uint64_t revision = 0;
+    std::string game_id;
+  };
+  std::uint64_t m_big_picture_state_slots_revision = 0;
+  Common::WorkQueueThread<StateSlotJob> m_state_slot_worker;
+  struct BigPictureStateRequest
+  {
+    std::uint64_t command_id = 0;
+    bool save = false;
+    std::string filename;
+  };
+  std::optional<BigPictureStateRequest> m_big_picture_state_request;
   bool m_big_picture_disc_game = false;
   std::string m_big_picture_disc_path;
+  QElapsedTimer m_big_picture_play_timer;
+  qint64 m_big_picture_session_ms = 0;
+  qint64 m_big_picture_previous_play_ms = 0;
+  bool m_big_picture_play_time_started = false;
   void ShowBigPictureTextInput(std::uint64_t generation);
   std::unique_ptr<VideoCommon::BigPicture::StandaloneSession> m_standalone;
   QTimer* m_standalone_timer = nullptr;
@@ -305,6 +354,10 @@ private:
   bool m_shutting_down = false;
   std::uint64_t m_standalone_serial = 0;
   std::unique_ptr<BootParameters> m_standalone_boot;
+  bool m_standalone_continuation_checked = false;
+  std::unique_ptr<BootParameters> m_continuation_boot;
+  std::string m_continuation_path;
+  std::string m_continuation_boot_path;
 
 #ifdef HAVE_XRANDR
   std::unique_ptr<X11Utils::XRRConfiguration> m_xrr_config;

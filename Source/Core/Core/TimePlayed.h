@@ -26,6 +26,8 @@ public:
 
   std::chrono::milliseconds GetTimePlayed(const std::string& game_id) const;
 
+  void ResetTimePlayed(const std::string& game_id);
+
   void Reload();
 
 private:

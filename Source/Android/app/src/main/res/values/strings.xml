@@ -292,6 +292,9 @@
     <string name="post_processing_download_retrocrisis">Download RetroCrisis GDV-NTSC</string>
     <string name="post_processing_download_retrocrisis_description">Config-only CRT pack; downloads the libretro base if missing</string>
     <string name="post_processing_download_retrocrisis_profile_title">Choose a display profile</string>
+    <string name="post_processing_download_lola_retro">Download Lola Retro</string>
+    <string name="post_processing_download_lola_retro_description">CRT shader pack with system presets and lite variants from GitHub; requires Vulkan</string>
+    <string name="post_processing_download_lola_retro_confirmation">This will download the Lola Retro shader pack and install it into your Shaders folder. Continue?</string>
     <string-array name="post_processing_retrocrisis_profiles">
         <item>1080p Flat</item>
         <item>1440p Flat</item>
@@ -773,6 +776,12 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="slider_setting_value" formatted="false">%.0f%2$s</string>
     <string name="slider_setting_float_value" formatted="false">%.2f%2$s</string>
     <string name="disc_number">Disc %1$d</string>
+    <string name="collapse_multi_disc_games">Collapse Multi-Disc Games into a Single Entry</string>
+    <string name="collapse_multi_disc_games_description">Shows the discs of a multi-disc game as a single library entry and asks which disc to start when you launch it. Different game revisions and regions remain separate.</string>
+    <string name="select_disc">Select Disc</string>
+    <string name="disc_properties">Disc Properties…</string>
+    <string name="disc_selection_label">Disc %1$d — %2$s</string>
+    <string name="multi_disc_count">%1$d discs</string>
     <string name="replug_gc_adapter">GameCube Adapter couldn\'t be opened. Please re-plug the device.</string>
     <string name="disabled_gc_overlay_notice">The selected GameCube controller is set to \"None\"</string>
     <string name="ignore_warning_alert_messages">Ignore for this session</string>
@@ -1093,6 +1102,9 @@ It can efficiently compress both junk data and encrypted Wii data.
     <string name="achievements_leaderboard_tracker_enabled">Show Leaderboard Tracker</string>
     <string name="achievements_challenge_indicators_enabled">Show Challenge Indicators</string>
     <string name="achievements_progress_enabled">Enable Progress Notifications</string>
+    <string name="achievements_offline_queue_enabled">Queue Submissions While Offline</string>
+    <string name="achievements_offline_queue_enabled_description">Saves achievement unlocks and leaderboard entries earned without a network connection, and submits them together once the connection returns. Saved submissions are kept even if you close the game or the app.</string>
+    <string name="achievements_offline_queue_pending">%1$s\n\nWaiting to be submitted: %2$d</string>
     <string name="achievements_sound_enabled">Play Sounds for Notifications</string>
     <string name="achievements_username">Username</string>
     <string name="achievements_password">Password</string>

@@ -22,9 +22,9 @@ std::array<BigPicture::NavigationFilter, CONTROLLER_COUNT> s_filters;
 std::array<unsigned, BigPicture::NAV_BUTTON_COUNT> s_held{};
 int s_active = 0;
 constexpr std::array<const char*, BigPicture::NAV_BUTTON_COUNT> LABELS = {
-    _trans("Open Menu"), _trans("Up"),      _trans("Down"), _trans("Left"),
-    _trans("Right"),     _trans("Confirm"), _trans("Back"), _trans("Previous Page"),
-    _trans("Next Page")};
+    _trans("Open Menu"), _trans("Up"),          _trans("Down"), _trans("Left"),
+    _trans("Right"),     _trans("Confirm"),     _trans("Back"), _trans("Previous Page"),
+    _trans("Next Page"), _trans("Game Options")};
 }  // namespace
 
 MenuController::MenuController(int index) : m_index(index)
@@ -54,14 +54,14 @@ void MenuController::LoadDefaults(const ControllerInterface& controller_interfac
   EmulatedController::LoadDefaults(controller_interface);
   if (!selected_device.ToString().empty())
     SetDefaultDevice(selected_device);
-  // Entry is opt-in until the in-game menu is complete. Selecting a device and clicking
-  // Default supplies known XInput bindings; other backends use the normal mapping UI.
+  // Keyboard entry is supplied by the Open Pause Menu hotkey (Escape by default).
+  // Selecting an XInput device also supplies controller navigation defaults.
   if (GetDefaultDevice().source == "XInput")
   {
     constexpr std::array<const char*, BigPicture::NAV_BUTTON_COUNT> bindings = {
-        "@(Back+Start)",       "`Pad N` | `Left Y+`", "`Pad S` | `Left Y-`",
-        "`Pad W` | `Left X-`", "`Pad E` | `Left X+`", "`Button A`",
-        "`Button B`",          "`Shoulder L`",        "`Shoulder R`"};
+        "@(Back+Start)",       "`Pad N` | `Left Y+`", "`Pad S` | `Left Y-`", "`Pad W` | `Left X-`",
+        "`Pad E` | `Left X+`", "`Button A`",          "`Button B`",          "`Shoulder L`",
+        "`Shoulder R`",        "`Button X`"};
     for (std::size_t i = 0; i < bindings.size(); ++i)
       m_buttons->SetControlExpression(static_cast<int>(i), bindings[i]);
   }

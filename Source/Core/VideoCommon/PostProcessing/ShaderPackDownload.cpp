@@ -5,7 +5,10 @@
 
 #include <chrono>
 #include <string>
+#include <string_view>
 #include <vector>
+
+#include <fmt/format.h>
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
@@ -93,9 +96,9 @@ ShaderPackDownloadResult InstallShaderPackSource(const ShaderPackSource& source,
     return {false, 0, error};
   if (presets.empty())
   {
-    const std::string message = source.extract_subpath.empty()
-                                    ? "no shader presets found in archive"
-                                    : "no shader presets found matching subpath";
+    const std::string message = source.extract_subpath.empty() ?
+                                    "no shader presets found in archive" :
+                                    "no shader presets found matching subpath";
     return {false, 0, message};
   }
   return {true, static_cast<u32>(presets.size()), ""};
@@ -112,7 +115,8 @@ ShaderPackDownloadResult DownloadShaderPackById(std::string_view id,
 
   for (const std::string& dep_id : MissingDependencies(*source, shaders_root))
   {
-    const ShaderPackDownloadResult dep_result = DownloadShaderPackById(dep_id, shaders_root, progress);
+    const ShaderPackDownloadResult dep_result =
+        DownloadShaderPackById(dep_id, shaders_root, progress);
     if (!dep_result.ok)
       return {false, 0, "failed to install dependency '" + dep_id + "': " + dep_result.error};
   }
@@ -127,12 +131,27 @@ ShaderPackDownloadResult DownloadShaderPackById(std::string_view id,
 
   Common::HttpRequest http(std::chrono::seconds(60), std::move(curl_progress));
   http.FollowRedirects(10);
-  const Common::HttpRequest::Response response = http.Get(source->url);
-  if (!response)
+  const auto http_failure = [&http](std::string_view what) -> ShaderPackDownloadResult {
+    return {false, 0, fmt::format("{} failed (HTTP {})", what, http.GetLastResponseCode())};
+  };
+
+  std::string download_url = source->url;
+  if (!source->release_asset_name_template.empty())
   {
-    return {false, 0,
-            "download failed (HTTP " + std::to_string(http.GetLastResponseCode()) + ")"};
+    const auto release = http.Get(
+        source->url, {{"Accept", "application/vnd.github+json"}, {"User-Agent", "Dolphin"}});
+    if (!release)
+      return http_failure("release lookup");
+    const auto asset_url = FindShaderPackReleaseAssetUrl(
+        *source, std::string_view(reinterpret_cast<const char*>(release->data()), release->size()));
+    if (!asset_url)
+      return {false, 0, "latest release has no unambiguous matching shader ZIP asset"};
+    download_url = *asset_url;
   }
+  INFO_LOG_FMT(VIDEO, "Downloading shader pack '{}' from {}", source->id, download_url);
+  const Common::HttpRequest::Response response = http.Get(download_url);
+  if (!response)
+    return http_failure("download");
 
   const std::string tmp_dir = File::CreateTempDir();
   if (tmp_dir.empty())
@@ -169,9 +188,8 @@ ShaderPackDownloadResult DownloadShaderPackById(std::string_view id,
     if (extracted.empty() && !extract_error.empty())
       return {false, 0, extract_error};
 
-    const u32 preset_count =
-        InstallRetroCrisisProfile(temp_extract, install_root,
-                                  profile.empty() ? "1080p Flat" : profile);
+    const u32 preset_count = InstallRetroCrisisProfile(temp_extract, install_root,
+                                                       profile.empty() ? "1080p Flat" : profile);
     if (preset_count == 0)
       return {false, 0, "no presets installed for profile"};
     return {true, preset_count, ""};

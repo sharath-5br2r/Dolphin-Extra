@@ -14,7 +14,7 @@ UI_SCRATCH=Languages/.ui-scratch
 rm -rf "$UI_SCRATCH"
 python3 ./Languages/generate-ui-strings.py "$UI_SCRATCH" $SRCDIR > /dev/null || exit 1
 
-{ find $SRCDIR -name '*.cpp' -o -name '*.h' -o -name '*.c'
+{ find $SRCDIR -name '*.cpp' -o -name '*.h' -o -name '*.c' -o -name '*.inc'
   find "$UI_SCRATCH" -name 'ui_*.h'
 } | sort -fd | \
 	xgettext -p ./Languages/po -o dolphin-emu.pot --package-name="Dolphin Emulator" \

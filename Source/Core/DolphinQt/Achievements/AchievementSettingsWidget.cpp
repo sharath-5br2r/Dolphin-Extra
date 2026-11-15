@@ -228,7 +228,7 @@ void AchievementSettingsWidget::LoadSettings()
   SignalBlocking(m_ui->common_progress_enabled_input)->setEnabled(enabled);
 
   SignalBlocking(m_ui->sound_enabled_input)->setChecked(Config::Get(Config::RA_SOUND_ENABLED));
-  m_ui->sound_enabled_input->setEnabled(enabled);
+  SignalBlocking(m_ui->sound_enabled_input)->setEnabled(enabled);
 }
 
 void AchievementSettingsWidget::SaveSettings()

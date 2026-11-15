@@ -21,6 +21,8 @@
 
 #include "DolphinQt/GameList/GameTracker.h"
 
+#include "UICommon/GameListDiscGroups.h"
+
 namespace UICommon
 {
 class GameFile;
@@ -43,6 +45,8 @@ public:
   std::shared_ptr<const UICommon::GameFile> GetGameFile(int index) const;
   std::string GetNetPlayName(const UICommon::GameFile& game) const;
   bool ShouldDisplayGameListItem(int index) const;
+  bool IsDiscGroupRepresentative(int index) const;
+  const UICommon::GameListDiscGroups::Games& GetDiscChoices(const UICommon::GameFile& game) const;
   void SetSearchTerm(const QString& term);
   void SetPlatformFilter(std::optional<DiscIO::Platform> platform);
   void SetRegionFilter(std::optional<DiscIO::Region> region);
@@ -90,18 +94,25 @@ public:
   void DeleteTag(const QString& name);
 
   void PurgeCache();
+  void ResetTimePlayed(const std::string& game_id);
+
+signals:
+  void DiscGroupsChanged();
 
 private:
   // Index in m_games, or -1 if it isn't found
   int FindGameIndex(const std::string& path) const;
 
   void OnEmulationStateChanged(Core::State state);
+  void RebuildDiscGroups(bool setting_changed = false);
 
   QStringList m_tag_list;
   QMap<QString, QVariant> m_game_tags;
 
   GameTracker m_tracker;
   QList<std::shared_ptr<const UICommon::GameFile>> m_games;
+  UICommon::GameListDiscGroups m_disc_groups;
+  bool m_collapse_multi_disc_games = false;
   Core::TitleDatabase m_title_database;
   TimePlayed m_timer;
   QString m_term;

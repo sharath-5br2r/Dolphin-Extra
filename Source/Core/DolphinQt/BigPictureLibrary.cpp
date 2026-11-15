@@ -5,27 +5,28 @@
 
 #include <algorithm>
 #include <cstring>
+#include <ranges>
+#include <set>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
 #include <QBuffer>
 #include <QCollator>
 #include <QDir>
-#include <QDirIterator>
 #include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
 #include <QThread>
 
+#include "DolphinQt/BigPictureFiles.h"
 #include "DolphinQt/QtUtils/QueueOnObject.h"
 #include "UICommon/UICommon.h"
 
 namespace
 {
-constexpr std::size_t MAX_COVERS = 24;
 constexpr std::size_t MAX_COVER_JOBS = 4;
 constexpr std::size_t MAX_ENCODED_COVER = 16 * 1024 * 1024;
-constexpr std::size_t MAX_FILES = 4096;
 QString Q(const std::string& text)
 {
   return QString::fromStdString(text);
@@ -72,12 +73,15 @@ BigPictureLibrary::~BigPictureLibrary()
 void BigPictureLibrary::Publish(bool filter)
 {
   Q_ASSERT(QThread::currentThread() == thread());
+  m_publish_queued = false;
   if (m_callbacks.recursive)
     m_state.recursive = m_callbacks.recursive();
+  if (m_callbacks.folders)
+    m_state.folders = m_callbacks.folders();
   if (filter)
   {
     ++m_state.view_revision;
-    m_state.games.clear();
+    std::vector<BigPicture::LibraryGame> games;
     const auto query = Q(m_state.query).toCaseFolded();
     for (const auto& game : m_games)
     {
@@ -87,12 +91,12 @@ void BigPictureLibrary::Publish(bool filter)
       if (text_match && (m_state.platform.empty() || game.platform == m_state.platform) &&
           (m_state.region.empty() || game.region == m_state.region) &&
           (m_state.tag.empty() || std::ranges::find(game.tags, m_state.tag) != game.tags.end()))
-        m_state.games.push_back(game);
+        games.push_back(game);
     }
     QCollator collator;
     collator.setNumericMode(true);
     collator.setCaseSensitivity(Qt::CaseInsensitive);
-    std::ranges::sort(m_state.games, [&](const auto& a, const auto& b) {
+    std::ranges::sort(games, [&](const auto& a, const auto& b) {
       if (m_sort == 1 && a.played_ms != b.played_ms)
         return a.played_ms > b.played_ms;
       if (m_sort == 2 && a.size != b.size)
@@ -100,6 +104,7 @@ void BigPictureLibrary::Publish(bool filter)
       const int order = collator.compare(Q(a.title), Q(b.title));
       return order != 0 ? order < 0 : a.path < b.path;
     });
+    m_state.games = std::move(games);
     m_state.total_games = m_games.size();
     m_state.sort = S(m_sort == 1 ? tr("Time Played") : m_sort == 2 ? tr("File Size") : tr("Title"));
   }
@@ -108,8 +113,33 @@ void BigPictureLibrary::Publish(bool filter)
     m_callbacks.changed();
 }
 
-void BigPictureLibrary::SetGames(std::vector<BigPicture::LibraryGame> games)
+void BigPictureLibrary::QueuePublish()
 {
+  if (std::exchange(m_publish_queued, true))
+    return;
+  QueueOnObject(this, [this] {
+    // A direct publish in the meantime already included these results.
+    if (m_publish_queued && !m_destroying)
+      Publish();
+  });
+}
+
+void BigPictureLibrary::SetGames(std::vector<BigPicture::LibraryGame> games, bool invalidate_covers)
+{
+  m_cover_invalidation_pending |= invalidate_covers;
+  std::set<std::string_view> paths;
+  for (const auto& game : games)
+    paths.insert(game.path);
+  const auto present = [&](const std::string& path) { return paths.contains(path); };
+  for (const auto& path : m_cover_use | std::views::keys)
+    if (!present(path))
+      m_departed_covers.insert(path);
+  for (const auto& path : m_state.missing_covers)
+    if (!present(path))
+      m_departed_covers.insert(path);
+  for (const auto& [revision, path] : m_pending_covers)
+    if (!present(path))
+      m_departed_covers.insert(path);
   if (m_state.scanning)
   {
     m_pending_games = std::move(games);
@@ -133,10 +163,16 @@ void BigPictureLibrary::SetGames(std::vector<BigPicture::LibraryGame> games)
     game.details = S(details.join(QLatin1Char('\n')));
   }
   m_games = std::move(games);
-  ++m_state.catalog_revision;
-  m_state.covers.clear();
-  m_cover_use.clear();
-  m_state.missing_covers.clear();
+  if (std::exchange(m_cover_invalidation_pending, false))
+  {
+    ++m_state.catalog_revision;
+    m_state.covers.clear();
+    m_cover_use.clear();
+    m_cover_bytes = 0;
+    m_state.missing_covers.clear();
+  }
+  for (const auto& path : std::exchange(m_departed_covers, {}))
+    ForgetCover(path);
   if (!m_state.selected_path.empty() &&
       std::ranges::find(m_games, m_state.selected_path, &BigPicture::LibraryGame::path) ==
           m_games.end())
@@ -160,7 +196,7 @@ void BigPictureLibrary::SetScanning(bool scanning)
   {
     auto games = std::move(*m_pending_games);
     m_pending_games.reset();
-    SetGames(std::move(games));
+    SetGames(std::move(games), false);
     return;
   }
   Publish();
@@ -168,6 +204,7 @@ void BigPictureLibrary::SetScanning(bool scanning)
 
 void BigPictureLibrary::Browse(const std::string& path)
 {
+  m_state.picker_boot_disc = false;
   m_state.picker_library = false;
   // At most one queued directory request. A new location cancels obsolete queued work;
   // completion is always guarded by picker revision, including cancellation/renderer handoff.
@@ -285,6 +322,19 @@ void BigPictureLibrary::RequestCover(const std::string& path, std::uint64_t revi
   m_worker.Push(std::move(job));
 }
 
+void BigPictureLibrary::ForgetCover(const std::string& path)
+{
+  if (const auto cover = m_state.covers.find(path); cover != m_state.covers.end())
+  {
+    m_cover_bytes -= cover->second->rgba.size();
+    m_state.covers.erase(cover);
+  }
+  m_cover_use.erase(path);
+  m_state.missing_covers.erase(path);
+  // An in-flight decode read the departed artwork; its completion must not install it.
+  std::erase_if(m_pending_covers, [&](const auto& key) { return key.second == path; });
+}
+
 void BigPictureLibrary::RunJob(Job job)
 {
   if (job.cover)
@@ -299,7 +349,10 @@ void BigPictureLibrary::RunJob(Job job)
     if (size.isValid() && size.width() <= 8192 && size.height() <= 8192 &&
         static_cast<std::uint64_t>(size.width()) * size.height() <= 16 * 1024 * 1024)
     {
-      reader.setScaledSize(size.scaled(256, 384, Qt::KeepAspectRatio));
+      if (size.width() > static_cast<int>(BigPicture::MAX_COVER_WIDTH) ||
+          size.height() > static_cast<int>(BigPicture::MAX_COVER_HEIGHT))
+        reader.setScaledSize(size.scaled(BigPicture::MAX_COVER_WIDTH, BigPicture::MAX_COVER_HEIGHT,
+                                         Qt::KeepAspectRatio));
       const auto image = reader.read().convertToFormat(QImage::Format_RGBA8888);
       if (!image.isNull())
       {
@@ -313,71 +366,42 @@ void BigPictureLibrary::RunJob(Job job)
       }
     }
     QueueOnObject(this, [this, job = std::move(job), result] {
-      m_pending_covers.erase({job.revision, job.path});
-      if (job.revision != m_state.catalog_revision || m_destroying)
+      if (!m_pending_covers.erase({job.revision, job.path}) ||
+          job.revision != m_state.catalog_revision || m_destroying)
         return;
       if (result->rgba.empty())
         m_state.missing_covers.insert(job.path);
       else
       {
-        if (m_state.covers.size() >= MAX_COVERS)
+        if (const auto existing = m_state.covers.find(job.path); existing != m_state.covers.end())
+        {
+          m_cover_bytes -= existing->second->rgba.size();
+          m_state.covers.erase(existing);
+          m_cover_use.erase(job.path);
+        }
+        while (!m_state.covers.empty() &&
+               (m_state.covers.size() >= BigPicture::MAX_DECODED_COVERS ||
+                m_cover_bytes + result->rgba.size() > BigPicture::MAX_DECODED_COVER_BYTES))
         {
           const auto oldest = std::ranges::min_element(
               m_cover_use, {}, [](const auto& item) { return item.second; });
-          m_state.covers.erase(oldest->first);
+          const auto evicted = m_state.covers.find(oldest->first);
+          m_cover_bytes -= evicted->second->rgba.size();
+          m_state.covers.erase(evicted);
           m_cover_use.erase(oldest);
         }
         m_state.covers[job.path] = result;
         m_cover_use[job.path] = ++m_cover_clock;
+        m_cover_bytes += result->rgba.size();
       }
-      Publish();
+      QueuePublish();
     });
     return;
   }
-  std::vector<BigPicture::LibraryFile> files;
-  std::string parent, error;
-  if (job.path.empty())
-  {
-    files.push_back({S(QDir::homePath()), S(tr("Home")), true});
-    for (const auto& drive : QDir::drives())
-      files.push_back({S(drive.absoluteFilePath()), S(drive.absoluteFilePath()), true});
-  }
-  else
-  {
-    QFileInfo info(Q(job.path));
-    if (!info.isDir() || !info.isReadable())
-      error = S(tr("This folder is unavailable or unreadable."));
-    else
-    {
-      QDir dir(info.absoluteFilePath());
-      if (!dir.isRoot())
-      {
-        dir.cdUp();
-        parent = S(dir.absolutePath());
-      }
-      QDirIterator it(info.absoluteFilePath(),
-                      QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::Readable);
-      std::size_t examined = 0;
-      while (it.hasNext() && files.size() < MAX_FILES && examined++ < MAX_FILES * 4 &&
-             !m_destroying)
-      {
-        it.next();
-        const auto entry = it.fileInfo();
-        if (entry.isDir() || (!job.folders_only && IsGameFile(entry, job.disc)))
-          files.push_back({S(entry.absoluteFilePath()), S(entry.fileName()), entry.isDir()});
-      }
-      if (it.hasNext())
-        error = S(tr("This folder is too large. Enter a more specific path."));
-      QCollator collator;
-      collator.setNumericMode(true);
-      collator.setCaseSensitivity(Qt::CaseInsensitive);
-      std::ranges::sort(files, [&](const auto& a, const auto& b) {
-        if (a.directory != b.directory)
-          return a.directory;
-        return collator.compare(Q(a.name), Q(b.name)) < 0;
-      });
-    }
-  }
+  std::function<bool(const QFileInfo&)> include_file;
+  if (!job.folders_only)
+    include_file = [disc = job.disc](const QFileInfo& entry) { return IsGameFile(entry, disc); };
+  auto [files, parent, error] = BigPictureFiles::List(job.path, include_file, m_destroying);
   QueueOnObject(this, [this, revision = job.revision, files = std::move(files),
                        parent = std::move(parent), error = std::move(error)] {
     m_directory_pending = false;
@@ -426,6 +450,7 @@ std::string BigPictureLibrary::Execute(BigPicture::LibraryOperation operation,
   case O::AddFolder:
   case O::OpenFile:
   case O::OpenDisc:
+    m_state.picker_boot_disc = false;
     m_state.picker_folders_only = operation == O::AddFolder;
     m_state.picker_disc = operation == O::OpenDisc;
     if (operation == O::OpenDisc)
@@ -433,6 +458,25 @@ std::string BigPictureLibrary::Execute(BigPicture::LibraryOperation operation,
     else
       Browse({});
     return {};
+  case O::ChooseBootDisc:
+  {
+    const auto game = std::ranges::find(m_games, value, &BigPicture::LibraryGame::path);
+    if (game == m_games.end() || game->discs.size() < 2)
+      return S(tr("The discs for this game are no longer available."));
+    ++m_state.picker_revision;
+    m_state.picker_boot_disc = true;
+    m_state.picker_disc = false;
+    m_state.picker_folders_only = false;
+    m_state.picker_library = false;
+    m_state.picker_loading = false;
+    m_state.directory = game->title;
+    m_state.parent_directory.clear();
+    m_state.picker_error.clear();
+    m_state.files = game->discs;
+    m_next_directory.reset();
+    Publish();
+    return {};
+  }
   case O::BrowseDiscs:
     Browse(DiscDirectory());
     return {};
@@ -453,9 +497,24 @@ std::string BigPictureLibrary::Execute(BigPicture::LibraryOperation operation,
     if (m_callbacks.refresh)
       m_callbacks.refresh();
     break;
+  case O::Folders:
+    break;
+  case O::RemoveFolder:
+    // Only a folder that is still configured; this never deletes anything on disk.
+    if (!m_callbacks.remove_folder ||
+        std::ranges::find(m_state.folders, value) == m_state.folders.end())
+      return S(tr("This folder is no longer in the library."));
+    m_callbacks.remove_folder(value);
+    break;
   case O::View:
-    m_state.grid = !m_state.grid;
-    ++m_state.view_revision;
+    if (const bool grid = value == "grid" ? true :
+                          value == "list" ? false :
+                                            !m_state.grid;
+        grid != m_state.grid)
+    {
+      m_state.grid = grid;
+      ++m_state.view_revision;
+    }
     break;
   case O::Recursive:
     if (m_callbacks.set_recursive)

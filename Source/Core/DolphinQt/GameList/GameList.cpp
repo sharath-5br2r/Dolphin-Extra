@@ -183,6 +183,8 @@ GameList::GameList(QWidget* parent)
   connect(&m_model, &QAbstractItemModel::rowsRemoved, this, &GameList::ConsiderViewChange);
   connect(&m_model, &QAbstractItemModel::rowsInserted, this, &GameList::UpdateGameCount);
   connect(&m_model, &QAbstractItemModel::rowsRemoved, this, &GameList::UpdateGameCount);
+  connect(&m_model, &GameListModel::DiscGroupsChanged, this,
+          &GameList::OnGameListVisibilityChanged);
 
   m_ui->viewStack->addWidget(m_list);
   m_ui->viewStack->addWidget(m_grid);

@@ -35,6 +35,12 @@ std::chrono::milliseconds TimePlayed::GetTimePlayed(const std::string& game_id) 
   return std::chrono::milliseconds(previous_time);
 }
 
+void TimePlayed::ResetTimePlayed(const std::string& game_id)
+{
+  m_time_list->Delete(Common::EscapeFileName(game_id));
+  m_ini.Save(m_ini_path);
+}
+
 void TimePlayed::Reload()
 {
   m_ini.Load(m_ini_path);

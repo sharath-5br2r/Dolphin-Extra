@@ -3,10 +3,62 @@
 
 #include "UICommon/BigPicture/Controller.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace BigPicture
 {
+namespace
+{
+bool IsBackAction(Action action)
+{
+  return action == Action::Back || action == Action::Cancel;
+}
+
+bool IsAllowedDuringContinuation(Action action)
+{
+  return IsContinuationAction(action) || IsBackAction(action) || action == Action::Fullscreen;
+}
+
+bool IsAllowedDuringError(Action action)
+{
+  return IsBackAction(action) || action == Action::ReturnToDesktop || action == Action::Fullscreen;
+}
+
+bool IsAllowedDuringConfirmation(Action action)
+{
+  return IsBackAction(action) || action == Action::Confirm || action == Action::Fullscreen;
+}
+
+bool IsGameAction(Action action)
+{
+  return action == Action::GameOptions || action == Action::GameProperties ||
+         action == Action::GameStates || action == Action::BootState ||
+         action == Action::ResetPlayTime;
+}
+}  // namespace
+
+bool Controller::IsValidGameAction(const Command& command) const
+{
+  if (m_state.mode != Mode::Library || command.path.empty() || m_state.screens.empty() ||
+      !m_state.host.library)
+    return false;
+  const auto screen = m_state.screens.back();
+  if (command.action == Action::GameOptions)
+  {
+    // Only a game in the displayed library view can be targeted.
+    return screen == Screen::Library &&
+           std::ranges::find(m_state.host.library->games, command.path, &LibraryGame::path) !=
+               m_state.host.library->games.end();
+  }
+  // Everything else acts on the game whose options are open, from that menu or its states.
+  if (command.path != m_state.options_path)
+    return false;
+  if (command.action == Action::BootState || command.action == Action::GameStates)
+    return screen == Screen::GameOptions || screen == Screen::LoadStates;
+  return screen == Screen::GameOptions;
+}
+
 UnavailableReason GetAvailability(Action action, const HostState& state)
 {
   if (static_cast<std::size_t>(action) >= static_cast<std::size_t>(Action::Count))
@@ -14,16 +66,34 @@ UnavailableReason GetAvailability(Action action, const HostState& state)
   const bool active = state.lifecycle == Lifecycle::Running || state.lifecycle == Lifecycle::Paused;
   const bool transitioning =
       state.lifecycle == Lifecycle::Booting || state.lifecycle == Lifecycle::Stopping;
+  const auto active_reason = active        ? UnavailableReason::None :
+                             transitioning ? UnavailableReason::Busy :
+                                             UnavailableReason::NoGame;
+  const auto idle_reason = state.lifecycle == Lifecycle::Idle ? UnavailableReason::None :
+                           transitioning                      ? UnavailableReason::Busy :
+                                                                UnavailableReason::GameActive;
   switch (action)
   {
+  case Action::ContinueGame:
+  case Action::FreshBoot:
+  case Action::DeleteContinuation:
+    if (!state.continuation_pending || state.lifecycle != Lifecycle::Idle)
+      return UnavailableReason::InvalidArgument;
+    if (state.netplay)
+      return UnavailableReason::NetPlay;
+    if (action == Action::ContinueGame && !state.can_load_continuation)
+      return UnavailableReason::Hardcore;
+    return UnavailableReason::None;
+  case Action::Achievements:
+    if (!state.achievements_logged_in)
+      return UnavailableReason::LoginRequired;
+    return active_reason;
   case Action::ChangeDisc:
     if (state.netplay)
       return UnavailableReason::NetPlay;
     if (!state.can_change_disc)
       return UnavailableReason::DiscUnavailable;
-    return active        ? UnavailableReason::None :
-           transitioning ? UnavailableReason::Busy :
-                           UnavailableReason::NoGame;
+    return active_reason;
   case Action::Exit:
     if (state.lifecycle == Lifecycle::Idle)
       return UnavailableReason::None;
@@ -31,17 +101,24 @@ UnavailableReason GetAvailability(Action action, const HostState& state)
   case Action::Stop:
     if (state.stop_requires_desktop)
       return UnavailableReason::DesktopRequired;
-    return active        ? UnavailableReason::None :
-           transitioning ? UnavailableReason::Busy :
-                           UnavailableReason::NoGame;
+    return active_reason;
   case Action::BootIPL:
   case Action::BootSystemMenu:
   case Action::Boot:
     if (state.netplay)
       return UnavailableReason::NetPlay;
-    return state.lifecycle == Lifecycle::Idle ? UnavailableReason::None :
-           transitioning                      ? UnavailableReason::Busy :
-                                                UnavailableReason::GameActive;
+    return idle_reason;
+  case Action::GameStates:
+  case Action::BootState:
+    if (state.netplay)
+      return UnavailableReason::NetPlay;
+    if (state.hardcore)
+      return UnavailableReason::Hardcore;
+    return idle_reason;
+  case Action::GameOptions:
+  case Action::GameProperties:
+  case Action::ResetPlayTime:
+    return idle_reason;
   case Action::Resume:
   case Action::Reset:
   case Action::LoadStates:
@@ -55,20 +132,17 @@ UnavailableReason GetAvailability(Action action, const HostState& state)
   case Action::SaveStates:
   case Action::Screenshot:
   case Action::RefreshStates:
-    return active        ? UnavailableReason::None :
-           transitioning ? UnavailableReason::Busy :
-                           UnavailableReason::NoGame;
+    return active_reason;
   case Action::DesktopSettings:
   case Action::EditSetting:
   case Action::SettingsMenu:
   case Action::Library:
+  case Action::Fullscreen:
     return transitioning ? UnavailableReason::Busy : UnavailableReason::None;
   case Action::OpenGame:
     if (state.netplay)
       return UnavailableReason::NetPlay;
-    return state.lifecycle == Lifecycle::Idle ? UnavailableReason::None :
-           transitioning                      ? UnavailableReason::Busy :
-                                                UnavailableReason::GameActive;
+    return idle_reason;
   case Action::Count:
     return UnavailableReason::InvalidArgument;
   default:
@@ -92,16 +166,15 @@ void Controller::Publish()
   {
     const auto action = static_cast<Action>(i);
     m_state.availability[i] = GetAvailability(action, m_state.host);
+    if (m_state.host.continuation_pending && !IsAllowedDuringContinuation(action))
+      m_state.availability[i] = UnavailableReason::Busy;
     if ((action == Action::Confirm && !m_state.confirmation) ||
         (m_state.mode == Mode::Desktop &&
          (action == Action::Settings || action == Action::SaveStates ||
           action == Action::LoadStates || action == Action::Reset || action == Action::Stop)))
       m_state.availability[i] = UnavailableReason::InvalidArgument;
-    if (m_state.pending ||
-        (m_state.error && action != Action::Back && action != Action::Cancel &&
-         action != Action::ReturnToDesktop) ||
-        (m_state.confirmation && action != Action::Confirm && action != Action::Cancel &&
-         action != Action::Back))
+    if (m_state.pending || (m_state.error && !IsAllowedDuringError(action)) ||
+        (m_state.confirmation && !IsAllowedDuringConfirmation(action)))
       m_state.availability[i] = UnavailableReason::Busy;
   }
   m_snapshot = std::make_shared<const Snapshot>(m_state);
@@ -129,6 +202,12 @@ void Controller::Finish(Result result)
   }
 }
 
+void Controller::Reject(const Command& command, UnavailableReason reason)
+{
+  m_state.result = Result{command, ResultStatus::Unavailable, reason};
+  Publish();
+}
+
 void Controller::InvalidateSession()
 {
   if (m_dispatching)
@@ -136,8 +215,7 @@ void Controller::InvalidateSession()
   if (m_state.pending)
   {
     const auto command = *m_state.pending;
-    if ((command.action == Action::Stop || command.action == Action::Exit) &&
-        m_host.ReadState().lifecycle == Lifecycle::Idle)
+    if (IsStopAction(command.action) && m_host.ReadState().lifecycle == Lifecycle::Idle)
       Finish({command, ResultStatus::Succeeded});
     else
       Finish({command, ResultStatus::Stale});
@@ -154,6 +232,15 @@ void Controller::InvalidatePresentation()
   Publish();
 }
 
+void Controller::Complete(std::uint64_t command_id, Result result)
+{
+  if (!m_state.pending || m_state.pending->id != command_id)
+    return;
+  result.command = *m_state.pending;
+  Finish(std::move(result));
+  Publish();
+}
+
 void Controller::Refresh()
 {
   if (m_dispatching)
@@ -167,6 +254,19 @@ void Controller::Refresh()
   {
     ++m_state.generation;
     SetRoot();
+  }
+
+  if (m_state.host.continuation_pending && m_state.host.lifecycle == Lifecycle::Idle &&
+      std::ranges::find(m_state.screens, Screen::Continuation) == m_state.screens.end())
+  {
+    ++m_state.generation;
+    m_state.mode = Mode::Library;
+    m_state.screens.push_back(Screen::Continuation);
+  }
+  else if (!m_state.host.continuation_pending)
+  {
+    if (std::erase(m_state.screens, Screen::Continuation) && m_state.screens.empty())
+      SetRoot();
   }
 
   if (m_state.pending)
@@ -192,8 +292,7 @@ void Controller::Refresh()
         Finish({command, ResultStatus::Stale});
       }
     }
-    else if ((command.action == Action::Stop || command.action == Action::Exit) &&
-             m_state.host.lifecycle == Lifecycle::Idle)
+    else if (IsStopAction(command.action) && m_state.host.lifecycle == Lifecycle::Idle)
     {
       Finish({command, ResultStatus::Succeeded});
     }
@@ -214,11 +313,11 @@ void Controller::Dispatch(const Command& command)
   m_dispatching = true;
   Result result = m_host.Execute(command);
   m_dispatching = false;
-  // Boot/stop acknowledgments are not completion. State I/O currently has void APIs; keep
-  // their honest Dispatched status until core completion reporting is implemented in slice 10.
+  // Boot/stop acknowledgments are not completion; neither are queued state saves and loads,
+  // which the host completes when the core reports their outcome.
   if (result.status == ResultStatus::Dispatched &&
-      (IsBootAction(command.action) || command.action == Action::Stop ||
-       command.action == Action::Exit))
+      (IsBootAction(command.action) || IsStopAction(command.action) ||
+       command.action == Action::SaveState || command.action == Action::LoadState))
   {
     result.status = ResultStatus::Pending;
     m_state.result = result;
@@ -239,6 +338,9 @@ void Controller::Dispatch(const Command& command)
         case LibraryOperation::Options:
           push(Screen::LibraryOptions);
           break;
+        case LibraryOperation::Folders:
+          push(Screen::GameFolders);
+          break;
         case LibraryOperation::Search:
         case LibraryOperation::EditPath:
           push(Screen::TextInput);
@@ -246,6 +348,7 @@ void Controller::Dispatch(const Command& command)
         case LibraryOperation::AddFolder:
         case LibraryOperation::OpenFile:
         case LibraryOperation::OpenDisc:
+        case LibraryOperation::ChooseBootDisc:
           push(Screen::FilePicker);
           break;
         case LibraryOperation::ChooseFolder:
@@ -257,8 +360,10 @@ void Controller::Dispatch(const Command& command)
           break;
         }
       }
-      if (command.action == Action::Settings)
+      if (command.action == Action::Settings || command.action == Action::GameProperties)
         push(Screen::Settings);
+      if (command.action == Action::GameStates)
+        push(Screen::LoadStates);
     }
     if (command.action == Action::ChangeDisc && !command.path.empty() &&
         (m_state.result->status == ResultStatus::Succeeded ||
@@ -286,30 +391,47 @@ void Controller::Submit(const Command& command)
   m_last_id = command.id;
   if (m_dispatching || m_state.pending)
   {
-    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::Busy};
-    Publish();
+    Reject(command, UnavailableReason::Busy);
     return;
   }
-  if (m_state.error && command.action != Action::Back && command.action != Action::Cancel &&
-      command.action != Action::ReturnToDesktop)
+  if (m_state.error && !IsAllowedDuringError(command.action))
   {
-    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::Busy};
-    Publish();
+    Reject(command, UnavailableReason::Busy);
     return;
   }
   const auto reason = GetAvailability(command.action, m_state.host);
   if (reason != UnavailableReason::None)
   {
-    m_state.result = Result{command, ResultStatus::Unavailable, reason};
+    Reject(command, reason);
+    return;
+  }
+  if (m_state.host.continuation_pending && !IsAllowedDuringContinuation(command.action))
+  {
+    Reject(command, UnavailableReason::Busy);
+    return;
+  }
+  if (command.action == Action::Fullscreen)
+  {
+    // A presentation change must preserve modal approval, errors and the screen stack.
+    m_dispatching = true;
+    m_state.result = m_host.Execute(command);
+    m_dispatching = false;
     Publish();
     return;
   }
-  if ((command.action == Action::Boot && command.path.empty()) ||
-      ((command.action == Action::SaveState || command.action == Action::LoadState) &&
-       (command.slot < 1 || command.slot > 10)))
+  if (((command.action == Action::Boot || command.action == Action::ChangeDisc) &&
+       command.path.empty()) ||
+      ((command.action == Action::SaveState || command.action == Action::LoadState ||
+        command.action == Action::BootState) &&
+       (command.slot < 1 || static_cast<std::size_t>(command.slot) > STATE_SLOT_COUNT)))
   {
-    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-    Publish();
+    Reject(command, UnavailableReason::InvalidArgument);
+    return;
+  }
+
+  if (IsGameAction(command.action) && !IsValidGameAction(command))
+  {
+    Reject(command, UnavailableReason::InvalidArgument);
     return;
   }
 
@@ -317,8 +439,7 @@ void Controller::Submit(const Command& command)
       (!command.setting || m_state.mode == Mode::Desktop || m_state.screens.empty() ||
        m_state.screens.back() != Screen::Settings))
   {
-    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-    Publish();
+    Reject(command, UnavailableReason::InvalidArgument);
     return;
   }
 
@@ -326,15 +447,13 @@ void Controller::Submit(const Command& command)
       (!command.settings_menu || m_state.mode == Mode::Desktop || m_state.screens.empty() ||
        m_state.screens.back() != Screen::Settings))
   {
-    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-    Publish();
+    Reject(command, UnavailableReason::InvalidArgument);
     return;
   }
 
   if (command.action == Action::Library && m_state.mode == Mode::Desktop)
   {
-    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-    Publish();
+    Reject(command, UnavailableReason::InvalidArgument);
     return;
   }
   if (command.action == Action::Library)
@@ -347,26 +466,40 @@ void Controller::Submit(const Command& command)
         operation == LibraryOperation::ControllerKeyboard ||
         operation == LibraryOperation::TextDone)
       valid = valid && screen == Screen::TextInput;
+    else if (operation == LibraryOperation::RemoveFolder)
+      valid = valid && m_state.mode == Mode::Library && screen == Screen::GameFolders &&
+              !command.path.empty();
+    else if (operation == LibraryOperation::Recursive && screen == Screen::GameFolders)
+      valid = valid && m_state.mode == Mode::Library;
     else if (operation == LibraryOperation::EnterDirectory ||
              operation == LibraryOperation::ChooseFolder ||
              operation == LibraryOperation::EditPath || operation == LibraryOperation::Recursive ||
              operation == LibraryOperation::BrowseDiscs)
-      valid = valid && screen == Screen::FilePicker;
+      valid = valid && screen == Screen::FilePicker &&
+              (!m_state.host.library || !m_state.host.library->picker_boot_disc);
+    else if (operation == LibraryOperation::ChooseBootDisc)
+      valid = valid && m_state.mode == Mode::Library &&
+              (screen == Screen::Home || screen == Screen::Library ||
+               screen == Screen::LibraryOptions || screen == Screen::StartGame ||
+               screen == Screen::GameOptions) &&
+              GetAvailability(Action::Boot, m_state.host) == UnavailableReason::None;
     else if (operation == LibraryOperation::OpenDisc)
       valid = valid && screen == Screen::Pause &&
               GetAvailability(Action::ChangeDisc, m_state.host) == UnavailableReason::None;
     else if (operation == LibraryOperation::Cover && m_state.mode == Mode::InGame)
       valid = valid && screen == Screen::Pause && m_state.host.library &&
               command.path == m_state.host.game_path && !command.path.empty();
+    else if (operation == LibraryOperation::AddFolder || operation == LibraryOperation::Refresh)
+      valid = valid && m_state.mode == Mode::Library &&
+              (screen == Screen::Library || screen == Screen::LibraryOptions ||
+               screen == Screen::GameFolders);
     else
       valid = valid && m_state.mode == Mode::Library &&
               (screen == Screen::Library || screen == Screen::LibraryOptions ||
                (screen == Screen::StartGame && operation == LibraryOperation::OpenFile));
     if (!valid)
     {
-      m_state.result =
-          Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-      Publish();
+      Reject(command, UnavailableReason::InvalidArgument);
       return;
     }
   }
@@ -380,13 +513,37 @@ void Controller::Submit(const Command& command)
     return;
   }
 
+  if (command.action == Action::Boot && m_state.host.library &&
+      m_state.host.library->picker_boot_disc &&
+      (command.library_revision != 0 ||
+       (!m_state.screens.empty() && m_state.screens.back() == Screen::FilePicker)))
+  {
+    // Only the currently displayed choices can launch. Back/Cancel must also invalidate
+    // a delayed selection, even if the underlying library snapshot has not changed.
+    const auto& files = m_state.host.library->files;
+    if (m_state.screens.empty() || m_state.screens.back() != Screen::FilePicker ||
+        command.library_revision == 0 || !std::ranges::any_of(files, [&](const LibraryFile& file) {
+          return !file.directory && file.path == command.path;
+        }))
+    {
+      m_state.result = Result{command, ResultStatus::Stale};
+      Publish();
+      return;
+    }
+  }
+
   // A confirmation is modal and defaults to cancel: only Confirm can dispatch its stored
-  // action; all other operations remain blocked until Back/Cancel dismisses it.
+  // action; other emulator operations remain blocked until Back/Cancel dismisses it.
   if (m_state.confirmation)
   {
     auto confirmed = *m_state.confirmation;
     if (command.action == Action::Confirm)
     {
+      if (IsStopAction(confirmed.action) && (command.slot < 0 || command.slot > 1))
+      {
+        Reject(command, UnavailableReason::InvalidArgument);
+        return;
+      }
       if (command.confirmation_id != confirmed.id)
       {
         m_state.result = Result{command, ResultStatus::Stale};
@@ -396,6 +553,15 @@ void Controller::Submit(const Command& command)
       const auto current_reason = GetAvailability(confirmed.action, m_state.host);
       if (current_reason == UnavailableReason::None)
       {
+        if (IsStopAction(confirmed.action) && command.slot == 1)
+        {
+          if (!m_state.host.can_save_continuation)
+          {
+            Reject(command, UnavailableReason::Busy);
+            return;
+          }
+          confirmed.slot = 1;
+        }
         confirmed.confirmation_id = confirmed.id;
         Dispatch(confirmed);
       }
@@ -407,7 +573,7 @@ void Controller::Submit(const Command& command)
         Publish();
       }
     }
-    else if (command.action == Action::Back || command.action == Action::Cancel)
+    else if (IsBackAction(command.action))
     {
       m_state.confirmation.reset();
       m_state.screens.pop_back();
@@ -416,9 +582,36 @@ void Controller::Submit(const Command& command)
     }
     else
     {
-      m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::Busy};
-      Publish();
+      Reject(command, UnavailableReason::Busy);
     }
+    return;
+  }
+
+  if (command.action == Action::Boot && command.library_revision == 0 &&
+      m_state.mode == Mode::Library && m_state.host.library)
+  {
+    const auto& games = m_state.host.library->games;
+    const auto game = std::ranges::find(games, command.path, &LibraryGame::path);
+    if (game != games.end() && game->discs.size() > 1)
+    {
+      // Selecting a grouped entry opens a menu, not a pending boot. This leaves controller
+      // navigation and Back available until the user chooses a particular disc.
+      auto choose = command;
+      choose.action = Action::Library;
+      choose.library_operation = LibraryOperation::ChooseBootDisc;
+      Dispatch(choose);
+      return;
+    }
+  }
+
+  if (command.action == Action::Library &&
+      command.library_operation == LibraryOperation::RemoveFolder)
+  {
+    // Removal only unlists the folder, but it drops its games, so it is confirmed like Stop.
+    m_state.confirmation = command;
+    m_state.screens.push_back(Screen::Confirmation);
+    m_state.result = Result{command, ResultStatus::Pending};
+    Publish();
     return;
   }
 
@@ -433,6 +626,12 @@ void Controller::Submit(const Command& command)
     break;
   case Action::Back:
   case Action::Cancel:
+    if (m_state.host.continuation_pending && !m_state.screens.empty() &&
+        m_state.screens.back() == Screen::Continuation)
+    {
+      Dispatch(command);
+      return;
+    }
     if (m_state.mode == Mode::Library && m_state.screens.size() == 1 &&
         m_state.screens.back() == Screen::Home)
     {
@@ -457,9 +656,7 @@ void Controller::Submit(const Command& command)
     if (m_state.mode != Mode::Library || m_state.screens.empty() ||
         (command.action != Action::ExitMenu && m_state.screens.back() != Screen::Home))
     {
-      m_state.result =
-          Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-      Publish();
+      Reject(command, UnavailableReason::InvalidArgument);
       return;
     }
     if (m_state.screens.back() != Screen::ExitMenu)
@@ -473,33 +670,44 @@ void Controller::Submit(const Command& command)
     SetRoot();
     break;
   case Action::Settings:
+    if (command.slot < 0 || command.slot > 1 ||
+        (command.slot == 1 &&
+         (m_state.mode != Mode::InGame || (m_state.host.lifecycle != Lifecycle::Running &&
+                                           m_state.host.lifecycle != Lifecycle::Paused))))
+    {
+      Reject(command, UnavailableReason::InvalidArgument);
+      return;
+    }
     if (m_state.host.settings_menu && m_state.mode != Mode::Desktop)
     {
       Dispatch(command);
       return;
     }
     [[fallthrough]];
+  case Action::Achievements:
   case Action::SaveStates:
   case Action::LoadStates:
     if (m_state.mode == Mode::Desktop)
     {
-      m_state.result =
-          Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-      Publish();
+      Reject(command, UnavailableReason::InvalidArgument);
       return;
     }
-    m_state.screens.push_back(command.action == Action::Settings   ? Screen::Settings :
-                              command.action == Action::SaveStates ? Screen::SaveStates :
-                                                                     Screen::LoadStates);
+    m_state.screens.push_back(command.action == Action::Achievements ? Screen::Achievements :
+                              command.action == Action::Settings     ? Screen::Settings :
+                              command.action == Action::SaveStates   ? Screen::SaveStates :
+                                                                       Screen::LoadStates);
+    break;
+  case Action::GameOptions:
+    m_state.options_path = command.path;
+    m_state.screens.push_back(Screen::GameOptions);
     break;
   case Action::Stop:
   case Action::Reset:
   case Action::Exit:
+  case Action::ResetPlayTime:
     if (m_state.mode == Mode::Desktop)
     {
-      m_state.result =
-          Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-      Publish();
+      Reject(command, UnavailableReason::InvalidArgument);
       return;
     }
     m_state.confirmation = command;
@@ -510,9 +718,7 @@ void Controller::Submit(const Command& command)
     {
       if (m_state.mode == Mode::Desktop)
       {
-        m_state.result =
-            Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-        Publish();
+        Reject(command, UnavailableReason::InvalidArgument);
         return;
       }
       m_state.confirmation = command;
@@ -522,8 +728,7 @@ void Controller::Submit(const Command& command)
     Dispatch(command);
     return;
   case Action::Confirm:
-    m_state.result = Result{command, ResultStatus::Unavailable, UnavailableReason::InvalidArgument};
-    Publish();
+    Reject(command, UnavailableReason::InvalidArgument);
     return;
   default:
     Dispatch(command);

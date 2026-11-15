@@ -124,7 +124,7 @@ class MainPresenter(private val mainView: MainView, private val activity: Fragme
         val versionName = BuildConfig.VERSION_NAME
         mainView.setVersionString(versionName)
 
-        GameFileCacheManager.getGameFiles().observe(activity) { mainView.showGames() }
+        GameFileCacheManager.getLibraryGameFiles().observe(activity) { mainView.showGames() }
         val refreshObserver =
             Observer<Boolean> { _: Boolean? -> mainView.setRefreshing(GameFileCacheManager.isLoadingOrRescanning()) }
         GameFileCacheManager.isLoading().observe(activity, refreshObserver)

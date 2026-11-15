@@ -9,10 +9,16 @@
 #include <gtest/gtest.h>
 
 #include "Common/BigPicture/PresentationState.h"
+#include "Common/Config/Config.h"
+#include "Common/FileUtil.h"
 #include "Common/IniFile.h"
+#include "Common/ScopeGuard.h"
+#include "Core/ConfigManager.h"
+#include "Core/HotkeyManager.h"
 #include "InputCommon/BigPictureInput.h"
 #include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
+#include "UICommon/UICommon.h"
 
 namespace
 {
@@ -210,4 +216,64 @@ TEST(BigPictureBindingsTest, BindingSetsUseIndependentIniSections)
     EXPECT_EQ(controller.GetButtons()->controls[0]->control_ref->GetExpression(),
               "`Button " + std::to_string(port) + "`");
   }
+}
+
+TEST(BigPictureBindingsTest, EscapeDefaultsToPauseMenuAndStopRemainsUnbound)
+{
+  const auto lock = ControllerEmu::EmulatedController::GetStateLock();
+  BindingInterface devices;
+  HotkeyManager hotkeys;
+  hotkeys.LoadDefaults(devices);
+  Common::IniFile ini;
+  auto* section = ini.GetOrCreateSection("Hotkeys");
+  hotkeys.SaveConfig(section);
+  std::string expression;
+  ASSERT_TRUE(section->Get("General/Open Pause Menu", &expression));
+#ifdef _WIN32
+  EXPECT_EQ(expression, "ESCAPE");
+#else
+  EXPECT_EQ(expression, "Escape");
+#endif
+  EXPECT_FALSE(section->Exists("General/Stop"));
+}
+
+TEST(BigPictureBindingsTest, ExistingHotkeyProfilesGainEscapeOnceAndPreserveSubsequentEdits)
+{
+  const auto original_user = File::GetUserPath(D_USER_IDX);
+  const auto temporary_user = File::CreateTempDir();
+  ASSERT_FALSE(temporary_user.empty());
+  UICommon::SetUserDirectory(temporary_user);
+  File::CreateFullPath(File::GetUserPath(D_CONFIG_IDX));
+  const auto path = File::GetUserPath(D_CONFIG_IDX) + "Hotkeys.ini";
+  Common::IniFile ini;
+  ini.GetOrCreateSection("Hotkeys")->Set("General/Stop", std::string("ESCAPE"));
+  ini.Save(path);
+  Config::Init();
+  SConfig::Init();
+  HotkeyManagerEmu::Initialize();
+  Common::ScopeGuard cleanup([&] {
+    HotkeyManagerEmu::Shutdown();
+    SConfig::Shutdown();
+    Config::Shutdown();
+    UICommon::SetUserDirectory(original_user);
+    File::DeleteDirRecursively(temporary_user);
+  });
+  ASSERT_TRUE(ini.Load(path));
+  auto* section = ini.GetOrCreateSection("Hotkeys");
+  EXPECT_TRUE(section->Exists("PauseMenuBindingInitialized"));
+  EXPECT_TRUE(section->Exists("General/Open Pause Menu"));
+  std::string expression;
+  section->Get("General/Stop", &expression);
+  EXPECT_EQ(expression, "ESCAPE");
+  auto* controller = static_cast<HotkeyManager*>(HotkeyManagerEmu::GetConfig()->GetController(0));
+  auto* group = controller->GetHotkeyGroup(HKGP_GENERAL);
+  const auto index = controller->GetIndexForGroup(HKGP_GENERAL, HK_OPEN_PAUSE_MENU);
+  group->SetControlExpression(index, "");
+  HotkeyManagerEmu::GetConfig()->SaveConfig();
+  HotkeyManagerEmu::LoadConfig();
+  EXPECT_TRUE(group->controls[index]->control_ref->GetExpression().empty());
+  group->SetControlExpression(index, "F12");
+  HotkeyManagerEmu::GetConfig()->SaveConfig();
+  HotkeyManagerEmu::LoadConfig();
+  EXPECT_EQ(group->controls[index]->control_ref->GetExpression(), "F12");
 }

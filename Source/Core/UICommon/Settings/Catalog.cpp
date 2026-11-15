@@ -4,10 +4,11 @@
 #include "UICommon/Settings/Catalog.h"
 
 #include <algorithm>
-#include <stdexcept>
+#include <cstdlib>
 
 #include "Common/BigPicture/Theme.h"
 #include "Common/Common.h"
+#include "Common/Logging/Log.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/UISettings.h"
@@ -21,11 +22,17 @@ Catalog::Catalog(std::vector<Entry> entries) : m_entries(std::move(entries))
   {
     const auto& entry = m_entries[i];
     if (entry.descriptor.id.empty() || !entry.read || !entry.inherited || !entry.write)
-      throw std::invalid_argument("Invalid settings catalog entry");
+    {
+      ERROR_LOG_FMT(COMMON, "Invalid settings catalog entry: {}", entry.descriptor.id);
+      std::abort();
+    }
     for (std::size_t j = 0; j < i; ++j)
       if (m_entries[j].descriptor.id == entry.descriptor.id ||
           m_entries[j].descriptor.location == entry.descriptor.location)
-        throw std::invalid_argument("Duplicate settings catalog entry");
+      {
+        ERROR_LOG_FMT(COMMON, "Duplicate settings catalog entry: {}", entry.descriptor.id);
+        std::abort();
+      }
   }
 }
 
@@ -175,6 +182,7 @@ const Catalog& GetCatalog()
       std::ranges::find(entries, std::string_view(id), [](const Entry& e) {
         return e.descriptor.id;
       })->descriptor.help = text;
+    AppendApplicationSettings(entries);
     return entries;
   }());
   return catalog;

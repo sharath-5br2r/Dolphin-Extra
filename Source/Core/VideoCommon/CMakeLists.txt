@@ -38,21 +38,28 @@ add_library(videocommon
   AsyncRequests.h
   AsyncShaderCompiler.cpp
   AsyncShaderCompiler.h
-  BigPicture/Runtime.cpp
-  BigPicture/Runtime.h
-  BigPicture/Navigation.cpp
-  BigPicture/Navigation.h
-  BigPicture/Style.h
+  BigPicture/AchievementsView.cpp
+  BigPicture/DialogView.cpp
+  BigPicture/FilePickerView.cpp
   BigPicture/Icons.cpp
   BigPicture/Icons.h
   BigPicture/InGameMenu.cpp
   BigPicture/InGameMenu.h
   BigPicture/LibraryMenu.cpp
   BigPicture/LibraryMenu.h
+  BigPicture/LibraryView.cpp
+  BigPicture/Navigation.cpp
+  BigPicture/Navigation.h
+  BigPicture/NavigationInput.cpp
+  BigPicture/Runtime.cpp
+  BigPicture/Runtime.h
   BigPicture/SettingsMenu.cpp
   BigPicture/SettingsMenu.h
+  BigPicture/SettingsView.cpp
   BigPicture/StandaloneSession.cpp
   BigPicture/StandaloneSession.h
+  BigPicture/StateView.cpp
+  BigPicture/Style.h
   BoundingBox.cpp
   BoundingBox.h
   BPFunctions.cpp

@@ -26,3 +26,21 @@ TEST(MenuFontFallbacksTest, FindsInstalledTextFallbacksAndToleratesMissingFamili
   EXPECT_EQ(fonts[0], latin.toStdString());
   EXPECT_EQ(fonts[1], cjk.toStdString());
 }
+
+TEST(MenuFontFallbacksTest, IncludesOutlineSymbolsAndEmojiForRichPresence)
+{
+  QTemporaryDir directory;
+  ASSERT_TRUE(directory.isValid());
+  const auto symbols = directory.filePath(QStringLiteral("seguisym.ttf"));
+  const auto emoji = directory.filePath(QStringLiteral("seguiemj.ttf"));
+  for (const auto& path :
+       {symbols, emoji, directory.filePath(QStringLiteral("NotoColorEmoji.ttf"))})
+  {
+    QFile file(path);
+    ASSERT_TRUE(file.open(QFile::WriteOnly));
+  }
+  const auto fonts = QtUtils::FindMenuFontFallbacks({directory.path(), directory.path()});
+  ASSERT_EQ(fonts.size(), 2u);
+  EXPECT_EQ(fonts[0], symbols.toStdString());
+  EXPECT_EQ(fonts[1], emoji.toStdString());
+}

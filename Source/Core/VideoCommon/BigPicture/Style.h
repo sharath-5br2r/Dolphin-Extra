@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <algorithm>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include <imgui.h>
@@ -16,12 +19,17 @@ namespace VideoCommon::BigPicture::Style
 constexpr float TITLE_SIZE = 22;
 constexpr float SUMMARY_SIZE = 14;
 constexpr float HEADER_HEIGHT = 48;
+// The Back/title strip of full-screen pages, dialogs and pickers.
+constexpr float BAR_HEIGHT = 44;
 constexpr float FOOTER_HEIGHT = 34;
+constexpr float DIALOG_ROUNDING = 8;
 constexpr float ROW_HEIGHT = 70;
 constexpr float SHORT_ROW_HEIGHT = 46;
 constexpr float PADDING = 15;
 constexpr float GAP = 10;
 constexpr float ROUNDING = 6;
+constexpr float ICON_SIZE = 22;
+constexpr float ACTION_COLUMN_WIDTH = 500;
 
 struct Palette
 {
@@ -84,5 +92,84 @@ constexpr const Palette& GetPalette(std::string_view id)
     if (id == ::BigPicture::THEME_CHOICES[i].id)
       return PALETTES[i];
   return DARK;
+}
+
+struct MenuStyleOptions
+{
+  ImVec4 background{0, 0, 0, 0};
+  ImVec2 item_spacing{0, 0};
+  float scrollbar_size = 12;
+  // Selectable fill; transparent where the view draws its own hover and focus frames.
+  ImVec4 header{0, 0, 0, 0};
+  // Left at the global style when unset.
+  std::optional<float> window_rounding;
+  std::optional<float> frame_rounding;
+};
+
+// Keep paired ImGui stack operations together when views share the same controls.
+class ScopedMenuStyle
+{
+public:
+  ScopedMenuStyle(const Palette& palette, const MenuStyleOptions& options)
+  {
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, options.background);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Text, palette.text);
+    ImGui::PushStyleColor(ImGuiCol_Header, options.header);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, options.header);
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, options.header);
+    // Like PCSX2's fullscreen UI, controls never draw ImGui's separate focus outline: their own
+    // highlight follows ImGui's hovered state, which is the focused control after keyboard or
+    // gamepad input and the control under the pointer after mouse input.
+    ImGui::PushStyleColor(ImGuiCol_NavCursor, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Button, palette.header);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, palette.hover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, palette.hover);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, palette.background);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab, palette.header);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, palette.hover);
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabActive, palette.secondary);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, options.item_spacing);
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, options.scrollbar_size);
+    if (options.window_rounding)
+    {
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, *options.window_rounding);
+      ++m_vars;
+    }
+    if (options.frame_rounding)
+    {
+      ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, *options.frame_rounding);
+      ++m_vars;
+    }
+  }
+  ~ScopedMenuStyle()
+  {
+    ImGui::PopStyleVar(m_vars);
+    ImGui::PopStyleColor(14);
+  }
+  ScopedMenuStyle(const ScopedMenuStyle&) = delete;
+  ScopedMenuStyle& operator=(const ScopedMenuStyle&) = delete;
+
+private:
+  int m_vars = 5;
+};
+
+// Uses the caller's current font and clip rectangle; each view retains its own footer geometry.
+// Returns the text position so settings pages can place their context label alongside it.
+inline ImVec2 DrawFooterText(ImDrawList* draw, ImVec2 clip_min, ImVec2 clip_max,
+                             const std::string& text, ImU32 color, float padding,
+                             float wrap_width = 0)
+{
+  const auto size = ImGui::CalcTextSize(text.c_str(), nullptr, false, wrap_width);
+  const ImVec2 position(std::max(padding, clip_max.x - padding - size.x),
+                        clip_min.y + (clip_max.y - clip_min.y - size.y) * 0.5f);
+  draw->PushClipRect(clip_min, clip_max, true);
+  draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), position, color, text.c_str(), nullptr,
+                wrap_width);
+  draw->PopClipRect();
+  return position;
 }
 }  // namespace VideoCommon::BigPicture::Style

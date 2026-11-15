@@ -34,6 +34,7 @@
 #include "Common/HookableEvent.h"
 #include "Common/Lazy.h"
 #include "Common/WorkQueueThread.h"
+#include "Core/AchievementSubmissionQueue.h"
 #include "DiscIO/Volume.h"
 #include "VideoCommon/Assets/CustomTextureData.h"
 
@@ -133,6 +134,13 @@ public:
   bool IsGameLoaded() const;
   void SetBackgroundExecutionAllowed(bool allowed);
 
+  // Tells the manager whether the device currently has a network connection. Platforms without a
+  // connectivity signal never call this and are treated as online. Every call reporting a
+  // connection also retries any deferred submissions, so frontends may call it again when the
+  // connection improves (for example, once it is validated).
+  void SetNetworkAvailable(bool available);
+  size_t GetDeferredSubmissionCount() const;
+
   static std::string CalculateHash(const std::string& file_path);
 
   void FetchPlayerBadge();
@@ -168,6 +176,7 @@ public:
   std::string_view GetGameDisplayName() const;
   rc_client_t* GetClient();
   const Badge& GetGameBadge() const;
+  const Badge& GetSubsetBadge(u32 id) const;
   const Badge& GetAchievementBadge(AchievementId id, bool locked) const;
   const LeaderboardStatus* GetLeaderboardInfo(AchievementId leaderboard_id);
   RichPresence GetRichPresence() const;
@@ -257,6 +266,10 @@ private:
 
   static void Request(const rc_api_request_t* request, rc_client_server_callback_t callback,
                       void* callback_data, rc_client_t* client);
+  bool TryDeferSubmission(const std::string& url, const std::string& post_data);
+  static void RespondDeferred(rc_client_server_callback_t callback, void* callback_data);
+  void FlushDeferredSubmissions();
+  void SubmitDeferredBatch();
   static u32 MemoryPeeker(u32 address, u8* buffer, u32 num_bytes, rc_client_t* client);
   void FetchBadge(Badge* badge, u32 badge_type, BadgeNameFunction function,
                   UpdatedItems callback_data);
@@ -298,6 +311,7 @@ private:
   std::atomic_bool m_background_execution_allowed = true;
   Badge m_player_badge;
   Badge m_game_badge;
+  std::unordered_map<u32, Badge> m_subset_badges;
   bool m_display_welcome_message = false;
   std::unordered_map<AchievementId, Badge> m_unlocked_badges;
   std::unordered_map<AchievementId, Badge> m_locked_badges;
@@ -319,6 +333,16 @@ private:
 
   Common::AsyncWorkThread m_queue;
   Common::AsyncWorkThread m_image_queue;
+
+  // Offline submission queue. m_submission_queue is created once, in Init, and never destroyed.
+  std::unique_ptr<AchievementSubmissionQueue> m_submission_queue;
+  Common::AsyncWorkThread m_submission_worker;
+  std::atomic_bool m_network_available = true;
+  std::atomic_bool m_flush_in_progress = false;
+  // Set by Shutdown so a running batch stops after its current request.
+  std::atomic_bool m_submission_cancelled = false;
+  // Set when a token login failed only because the server could not be reached.
+  std::atomic_bool m_login_deferred = false;
   mutable std::recursive_mutex m_lock;
   std::recursive_mutex m_filereader_lock;
 };  // class AchievementManager

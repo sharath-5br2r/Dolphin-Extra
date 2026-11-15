@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <QComboBox>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLineEdit>
 #include <QMargins>
 #include <QSizePolicy>
 #include <QSlider>
 #include <QStackedWidget>
+#include <QTemporaryDir>
 #include <QToolButton>
 #include <QWidget>
 
@@ -17,12 +21,120 @@
 #include "DolphinQt/GameList/GridProxyModel.h"
 #include "DolphinQt/Settings.h"
 
+#include "UICommon/GameListDiscGroups.h"
+
 #include "ui_GameListWidget.h"
 
 TEST(GameListUiTest, NewProfilesDefaultToGridWithCoverDownloads)
 {
   EXPECT_FALSE(Settings::DEFAULT_PREFERRED_VIEW_IS_LIST);
   EXPECT_TRUE(Config::MAIN_USE_GAME_COVERS.GetDefaultValue());
+}
+
+namespace
+{
+class GameListDiscGroupsTest : public testing::Test
+{
+protected:
+  std::shared_ptr<const UICommon::GameFile> Disc(const QString& filename, u8 number,
+                                                 u8 revision = 0, const char* id = "GAFE01")
+  {
+    // Only disc metadata is needed. No copyrighted game data or bootable image is used.
+    QByteArray header(0x3000, '\0');
+    std::copy_n(id, 6, header.data());
+    header[6] = number;
+    header[7] = revision;
+    header.replace(0x1c, 4, QByteArray::fromHex(QByteArrayLiteral("c2339f3d")));
+    header[0x422] = 0x10;  // A nonzero DOL offset distinguishes normal discs from Datel discs.
+    const QString path = directory.filePath(filename);
+    QFile file(path);
+    EXPECT_TRUE(file.open(QIODevice::WriteOnly)) << file.errorString().toStdString();
+    EXPECT_EQ(file.write(header), header.size());
+    file.close();
+    auto game = std::make_shared<UICommon::GameFile>(path.toStdString());
+    EXPECT_TRUE(game->IsValid());
+    EXPECT_EQ(game->GetDiscNumber(), number);
+    return game;
+  }
+
+  QTemporaryDir directory;
+  UICommon::GameListDiscGroups groups;
+};
+}  // namespace
+
+TEST_F(GameListDiscGroupsTest, CollapsesDiscsInDiscOrderRegardlessOfScanOrder)
+{
+  const auto first = Disc(QStringLiteral("disc1.iso"), 0);
+  const auto second = Disc(QStringLiteral("disc2.iso"), 1);
+  const UICommon::GameListDiscGroups::Games games{second, first};
+  groups.Rebuild(games);
+  ASSERT_EQ(groups.GetDiscs(*first).size(), 2u);
+  EXPECT_EQ(groups.GetDiscs(*second)[0], first);
+  EXPECT_EQ(groups.GetDiscs(*first)[1], second);
+  EXPECT_TRUE(groups.IsRepresentative(*first));
+  EXPECT_FALSE(groups.IsRepresentative(*second));
+}
+
+TEST_F(GameListDiscGroupsTest, KeepsDifferentRevisionsRegionsAndTitlesSeparate)
+{
+  const auto first = Disc(QStringLiteral("disc1.iso"), 0);
+  const auto revision = Disc(QStringLiteral("revision.iso"), 1, 1);
+  const auto region = Disc(QStringLiteral("region.iso"), 1, 0, "GAFP01");
+  const auto title = Disc(QStringLiteral("title.iso"), 1, 0, "GZLE01");
+  const UICommon::GameListDiscGroups::Games games{first, revision, region, title};
+  groups.Rebuild(games);
+  for (const auto& game : games)
+  {
+    EXPECT_TRUE(groups.GetDiscs(*game).empty());
+    EXPECT_TRUE(groups.IsRepresentative(*game));
+  }
+}
+
+TEST_F(GameListDiscGroupsTest, DoesNotCollapseCopiesOfASingleDisc)
+{
+  const auto first = Disc(QStringLiteral("copy1.iso"), 0);
+  const auto copy = Disc(QStringLiteral("copy2.iso"), 0);
+  const UICommon::GameListDiscGroups::Games games{copy, first};
+  groups.Rebuild(games);
+  EXPECT_TRUE(groups.GetDiscs(*first).empty());
+  EXPECT_TRUE(groups.IsRepresentative(*copy));
+}
+
+TEST_F(GameListDiscGroupsTest, RebuildRestoresRemainingDiscAfterRemoval)
+{
+  const auto first = Disc(QStringLiteral("disc1.iso"), 0);
+  const auto second = Disc(QStringLiteral("disc2.iso"), 1);
+  const UICommon::GameListDiscGroups::Games games{first, second};
+  groups.Rebuild(games);
+  EXPECT_FALSE(groups.IsRepresentative(*second));
+  const UICommon::GameListDiscGroups::Games remaining{second};
+  groups.Rebuild(remaining);
+  EXPECT_TRUE(groups.IsRepresentative(*second));
+  EXPECT_TRUE(groups.GetDiscs(*second).empty());
+}
+
+TEST_F(GameListDiscGroupsTest, DoesNotCollapseModDescriptorsWithTheirBaseGames)
+{
+  const auto first = Disc(QStringLiteral("disc1.iso"), 0);
+  const auto second = Disc(QStringLiteral("disc2.iso"), 1);
+  const QString path = directory.filePath(QStringLiteral("mod.json"));
+  QFile file(path);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  const QJsonObject descriptor{
+      {QStringLiteral("type"), QStringLiteral("dolphin-game-mod-descriptor")},
+      {QStringLiteral("version"), 1},
+      {QStringLiteral("base-file"), QString::fromStdString(first->GetFilePath())},
+      {QStringLiteral("display-name"), QStringLiteral("Test Mod")}};
+  file.write(QJsonDocument(descriptor).toJson());
+  file.close();
+  const auto mod = std::make_shared<UICommon::GameFile>(path.toStdString());
+  ASSERT_TRUE(mod->IsValid());
+  ASSERT_TRUE(mod->IsModDescriptor());
+  const UICommon::GameListDiscGroups::Games games{mod, first, second};
+  groups.Rebuild(games);
+  EXPECT_TRUE(groups.IsRepresentative(*mod));
+  EXPECT_TRUE(groups.GetDiscs(*mod).empty());
+  EXPECT_EQ(groups.GetDiscs(*first).size(), 2u);
 }
 
 TEST(GameListUiTest, DefaultViewportFitsSevenColumnsByThreeRows)

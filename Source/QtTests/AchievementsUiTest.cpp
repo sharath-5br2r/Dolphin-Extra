@@ -71,7 +71,7 @@ TEST(AchievementsUiTest, SettingsFormOwnsStockAccountAndDisplayControls)
   Ui::AchievementSettingsWidget ui;
   ui.setupUi(&widget);
 
-  ASSERT_EQ(ui.common_layout->count(), 18);
+  ASSERT_EQ(ui.common_layout->count(), 19);
   EXPECT_EQ(ui.common_layout->alignment(), Qt::AlignTop);
   EXPECT_EQ(ui.common_layout->itemAt(0)->widget(), ui.common_integration_enabled_input);
   EXPECT_EQ(ui.common_layout->itemAt(1)->widget(), ui.common_username_label);
@@ -81,6 +81,7 @@ TEST(AchievementsUiTest, SettingsFormOwnsStockAccountAndDisplayControls)
   EXPECT_EQ(ui.common_layout->itemAt(8)->widget(), ui.function_settings_label);
   EXPECT_EQ(ui.common_layout->itemAt(13)->widget(), ui.display_settings_label);
   EXPECT_EQ(ui.common_layout->itemAt(17)->widget(), ui.common_progress_enabled_input);
+  EXPECT_EQ(ui.common_layout->itemAt(18)->widget(), ui.sound_enabled_input);
 
   EXPECT_EQ(ui.common_username_label->buddy(), ui.common_username_input);
   EXPECT_EQ(ui.common_password_label->buddy(), ui.common_password_input);
@@ -93,7 +94,7 @@ TEST(AchievementsUiTest, SettingsFormOwnsStockAccountAndDisplayControls)
         ui.common_unofficial_enabled_input, ui.common_encore_enabled_input,
         ui.common_spectator_enabled_input, ui.common_discord_presence_enabled_input,
         ui.common_leaderboard_tracker_enabled_input, ui.common_challenge_indicators_enabled_input,
-        ui.common_progress_enabled_input})
+        ui.common_progress_enabled_input, ui.sound_enabled_input})
   {
     EXPECT_STREQ(checkbox->metaObject()->className(), "QCheckBox");
   }
@@ -103,8 +104,8 @@ TEST(AchievementsUiTest, SettingsFormOwnsStockAccountAndDisplayControls)
   EXPECT_EQ(NextTabFocusWidget(ui.common_password_input), ui.common_login_button);
   EXPECT_EQ(NextTabFocusWidget(ui.common_login_button), ui.common_logout_button);
   EXPECT_EQ(NextTabFocusWidget(ui.common_logout_button), ui.common_hardcore_enabled_input);
-  EXPECT_EQ(NextTabFocusWidget(ui.common_progress_enabled_input),
-            ui.common_integration_enabled_input);
+  EXPECT_EQ(NextTabFocusWidget(ui.common_progress_enabled_input), ui.sound_enabled_input);
+  EXPECT_EQ(NextTabFocusWidget(ui.sound_enabled_input), ui.common_integration_enabled_input);
 }
 
 TEST(AchievementsUiTest, HeaderFormOwnsTheSummaryAndProgressOverlay)

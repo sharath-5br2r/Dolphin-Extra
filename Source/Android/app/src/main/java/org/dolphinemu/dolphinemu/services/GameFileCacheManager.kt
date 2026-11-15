@@ -16,6 +16,7 @@ import org.dolphinemu.dolphinemu.features.settings.model.ConfigChangedCallback
 import org.dolphinemu.dolphinemu.model.GameFile
 import org.dolphinemu.dolphinemu.model.GameFileCache
 import org.dolphinemu.dolphinemu.model.TitleDatabase
+import org.dolphinemu.dolphinemu.model.GameListDiscGroups
 import org.dolphinemu.dolphinemu.ui.platform.Platform
 import org.dolphinemu.dolphinemu.ui.platform.PlatformTab
 import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
@@ -29,6 +30,11 @@ object GameFileCacheManager {
     private var gameFileCache: GameFileCache? = null
     private val gameFiles = MutableLiveData(emptyArray<GameFile>())
     private var titleDatabase = AtomicReference<TitleDatabase>(null)
+    private val libraryGameFiles = MutableLiveData(emptyArray<GameFile>())
+    private var discGroups = GameListDiscGroups<GameFile>(
+        emptyList(), GameFile::getPath, GameFile::getDiscNumber
+    )
+    private var collapseMultiDiscGames = false
     private var firstLoadDone = false
     private var recursiveScanEnabled = false
 
@@ -41,8 +47,15 @@ object GameFileCacheManager {
     }
 
     @JvmStatic
+    fun getLibraryGameFiles(): LiveData<Array<GameFile>> = libraryGameFiles
+
+    @JvmStatic
+    fun getDiscChoices(game: GameFile): List<GameFile> =
+        if (collapseMultiDiscGames) discGroups.getDiscs(game) else emptyList()
+
+    @JvmStatic
     fun getGameFilesForPlatformTab(platformTab: PlatformTab): List<GameFile> {
-        val allGames = gameFiles.value!!
+        val allGames = libraryGameFiles.value!!
         val platformTabGames = ArrayList<GameFile>()
         for (game in allGames) {
             if (Platform.fromInt(game.getPlatform()).toPlatformTab() == platformTab) {
@@ -84,6 +97,9 @@ object GameFileCacheManager {
     @JvmStatic
     fun findSecondDiscAndGetPaths(gameFile: GameFile?): Array<String> {
         val nonNullGameFile = gameFile!!
+        if (getDiscChoices(nonNullGameFile).isNotEmpty()) {
+            return discGroups.getBootDiscs(nonNullGameFile).map { it.getPath() }.toTypedArray()
+        }
         val secondFile = findSecondDisc(nonNullGameFile)
         return if (secondFile == null) {
             arrayOf(nonNullGameFile.getPath())
@@ -251,7 +267,26 @@ object GameFileCacheManager {
         Arrays.sort(gameFilesTemp) { lhs, rhs ->
             lhs.getTitle(titleDatabase).compareTo(rhs.getTitle(titleDatabase), ignoreCase = true)
         }
-        gameFiles.postValue(gameFilesTemp)
+        val groups = GameFileCache.getDiscGroups(gameFilesTemp).map { indices ->
+            indices.map { gameFilesTemp[it] }
+        }
+        val snapshot = GameListDiscGroups(groups, GameFile::getPath, GameFile::getDiscNumber)
+        Handler(Looper.getMainLooper()).post {
+            // Publish membership and both views together. NetPlay/disc changes keep the full cache.
+            discGroups = snapshot
+            gameFiles.value = gameFilesTemp
+            refreshLibraryGameFiles()
+        }
+    }
+
+    private fun refreshLibraryGameFiles() {
+        collapseMultiDiscGames = BooleanSetting.MAIN_COLLAPSE_MULTI_DISC_GAMES.boolean
+        val allGames = gameFiles.value!!
+        libraryGameFiles.value = if (collapseMultiDiscGames) {
+            discGroups.collapse(allGames.toList()).toTypedArray()
+        } else {
+            allGames
+        }
     }
 
     private fun createGameFileCacheIfNeeded() {
@@ -271,6 +306,9 @@ object GameFileCacheManager {
                 if (recursiveScanEnabled != newRecursiveScanEnabled) {
                     recursiveScanEnabled = newRecursiveScanEnabled
                     startRescan()
+                }
+                if (collapseMultiDiscGames != BooleanSetting.MAIN_COLLAPSE_MULTI_DISC_GAMES.boolean) {
+                    refreshLibraryGameFiles()
                 }
             }
         }

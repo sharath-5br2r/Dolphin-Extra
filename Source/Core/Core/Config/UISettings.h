@@ -17,6 +17,7 @@ namespace Config
 
 extern const Info<bool> MAIN_USE_DISCORD_PRESENCE;
 extern const Info<bool> MAIN_USE_GAME_COVERS;
+extern const Info<bool> MAIN_COLLAPSE_MULTI_DISC_GAMES;
 extern const Info<bool> MAIN_START_BIG_PICTURE;
 extern const Info<std::string> MAIN_BIG_PICTURE_THEME;
 extern const Info<bool> MAIN_FOCUSED_HOTKEYS;

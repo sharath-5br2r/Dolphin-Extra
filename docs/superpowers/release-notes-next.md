@@ -1,79 +1,93 @@
 # Release Notes — Next Fork Release
 
-## User-Visible Changes
+Changes since [`2606-fork-11`](https://github.com/ilyalissoboi/dolphin/releases/tag/2606-fork-11)
+(`9f91e052fb`): Big Picture performance work
+([#34](https://github.com/ilyalissoboi/dolphin/pull/34),
+[#41](https://github.com/ilyalissoboi/dolphin/pull/41)), per-game library options
+([#35](https://github.com/ilyalissoboi/dolphin/pull/35)), controller-friendly path and number
+settings ([#36](https://github.com/ilyalissoboi/dolphin/pull/36)), game folder management
+([#37](https://github.com/ilyalissoboi/dolphin/pull/37)), shared menu view code
+([#38](https://github.com/ilyalissoboi/dolphin/pull/38)) and controller mapping inside Big Picture
+([#39](https://github.com/ilyalissoboi/dolphin/pull/39),
+[#40](https://github.com/ilyalissoboi/dolphin/pull/40)). Earlier entries in this file shipped in
+previous fork releases and remain in its history.
 
-### Big Picture
+## Big Picture game options
 
-The initial screen now follows PCSX2's four-action layout: Game List, Start Game, Settings,
-and Exit. It uses the same home icons, Roboto text and PromptFont keycaps, with Dolphin branding,
-a local clock, and the signed-in RetroAchievements display name and avatar when available.
-Start Game offers the controller file picker and installed console menus. Exit offers desktop
-mode or application exit; Escape returns from child pages to the home screen.
+- Open a game's options from the library with the new **Game Options** menu button (X on
+  Xbox-style controllers by default), **F6**, or a right-click on its card. Right-click
+  previously opened Library Options, which stays on R1/F3.
+- **Start Game**, including the disc choice for grouped multi-disc games.
+- **Load State** lists that game's ten save-state slots, with previews, without starting it,
+  and boots the game from the chosen slot. Hardcore mode, NetPlay and movie playback block it,
+  as they block loading in a running game.
+- **Game Properties** edits that game's settings without starting it. Executables without a
+  game ID have no per-game settings.
+- **Reset Play Time** asks first, with Cancel selected.
+- Menu-control configurations from earlier releases have no Game Options binding. Bind it in
+  **Settings → Controllers → Big Picture Menu Controls → Mapping**, or use F6.
 
-Big Picture can now open without a running game through View → Big Picture, the startup
-preference in Config → Big Picture, or the GUI `--big-picture` option. Normal desktop startup
-remains the default. The library uses Dolphin's existing scanned games and covers, with grid/list
-views, search, platform/region/tag filters, and title/play-time/file-size sorting. Selection and
-view state survive boot, stop and rescans within the session.
+## Big Picture settings
 
-Add Game Folder, recursive scanning, Refresh, Open Game and the in-game Change Disc action now
-have controller-operated file/folder pickers. Text entry uses physical/system keyboards when
-available, with controller keys as a fallback, and search can be cleared directly from the
-library. Change Disc starts with matching games from the library; Browse Files starts beside
-the running image or in a configured ROM folder. Library Options also
-offers available GameCube IPLs and the installed Wii System Menu, fullscreen,
-desktop return and exit. Big Picture keeps its presentation window and fullscreen state through
-boot, stop and graphics handoffs. Stopping a game launched in this mode returns to the library. Disc
-insertion requested while paused completes after Resume.
+- Path settings open a **Choose Folder** or **Choose File** browser inside the settings menu,
+  starting at the current value. Folder settings list folders only; choices are stored with
+  native separators, as the desktop path pickers store them. **Enter Path** remains for typing.
+- Volume no longer lists 101 rows. On a number setting's options page, Left and Right step the
+  value (with key repeat) within its allowed range; the shoulder buttons still change category.
 
-Starting in Big Picture no longer shows the desktop game grid before the renderer is ready.
-The desktop window stays hidden behind separate/fullscreen Big Picture during game transitions.
-Compatible boot/stop transitions also keep the native drawing surface; fresh surfaces receive
-a black background before graphics initialization instead of showing uninitialized pixels.
-Direct3D 12 releases its old swap-chain buffers at shutdown so the retained window can be
-used again when launching or stopping a game.
-List menus wrap consistently in both directions with keyboard and controller input.
+## Big Picture game folders
 
-Big Picture menus now share a fullscreen dark palette, separate title/summary typography,
-rounded focus outlines and a fixed controller-prompt footer. The library list includes a
-selected-game cover/details panel, with a direct grid/list switch in the toolbar. The pause
-menu uses a narrow action column and running-game title/cover header. Save/load slots use
-four-column cards, and settings retains category navigation with active category and
-global/game context indicators. These layouts retain the menu scale and safe-area preferences.
+- **Library Options → Game Folders** lists the configured folders, with Add Game Folder,
+  Scan Subfolders and Refresh. Selecting a folder asks to remove it from the library; no files
+  are deleted. Folder changes made in desktop settings appear while Big Picture is open.
+- Subfolder scanning remains one setting for all folders.
 
-Big Picture appearance can now be changed live from either its Interface settings or the
-desktop Big Picture pane. Eleven theme families include Light, AMOLED and Dolphin Blue;
-unknown stored theme names are preserved and render with the Dark fallback. Menus include
-drawn action/category icons and checkmarks for current setting values. Library details show
-platform, region, game ID, play time, size, path and tags. At large menu scales, artwork shrinks
-to keep focused cards readable inside safe-area margins.
+## Big Picture controller mapping
 
-Windows file replacement now briefly retries transient sharing/access locks, preventing
-temporary reader locks from immediately producing a blocking configuration/FST save alert.
-Persistent failures still report failure and leave the original files intact.
+- **Settings → Controllers → (controller) → Mapping** lists every input with its current
+  binding. Select one and press a button, key, stick direction or trigger to bind it; with no
+  input for a few seconds, the binding is unchanged. Row options offer **Bind New Input** and
+  **Clear Binding**; **Default Mapping** restores Dolphin's defaults after confirmation.
+- While waiting for an input, the menu ignores controller input, including Back and the Open
+  Menu binding, so those buttons can be bound too.
+- Wii Remotes offer the attached **Extension** (Nunchuk, Classic Controller and others) and
+  its inputs, plus **Attach MotionPlus**.
+- Stick, trigger, rumble and option settings, such as dead zone, range, and sideways or
+  upright Wii Remote, can be tuned on the mapping page. Settings driven by input expressions
+  stay read-only.
+- **Save as profile** names the current mapping with the on-screen keyboard and saves it to
+  the user profile folder, like the desktop profile box.
+- **Big Picture Menu Controls** is now in the controller list, so the menu's own bindings can
+  be mapped, tuned and saved without the desktop. Keyboard navigation remains available.
+- Mapping applies globally and, like device and profile changes, is unavailable while a game
+  runs, during NetPlay or during movies. Motion-sensor passthrough, calibration and controller
+  types remain in desktop settings.
 
-Settings is a top-level Big Picture entry, separate from Library Options. It includes
-interface/menu preferences, volume and audio backend,
-graphics backend, internal resolution, aspect ratio, VSync, integer scaling and a folder-based
-post-processing preset picker. Global and selected/running-game settings show their context,
-inherited values, disabled reasons and apply timing. Reset to Default and Use Inherited Value
-remain separate actions. Settings persist through Dolphin's existing configuration files;
-changing the idle graphics backend rebuilds Big Picture while retaining the settings page.
+## Big Picture performance
 
-The Controllers page selects physical input devices and loads existing user/stock profiles
-for emulated GameCube controllers and Wii Remotes. Per-game profile selection stores a user
-profile reference for the next game start without replacing the global mapping. Controller
-changes require stopped emulation and are blocked during NetPlay and movie sessions. Full
-mapping, controller-type setup and shader parameters remain available on the desktop.
+- Menu pages are no longer rebuilt every frame; large libraries no longer allocate per game on
+  each frame.
+- Settings and library state are shared between updates instead of being rebuilt or copied
+  for each change, decoded cover, or folder listing.
+- Covers are kept across play-time, title, tag and scan updates and are reloaded only when a
+  game's artwork changes or a game leaves and returns to the library. The cover caches hold
+  64 covers, with a 64 MiB limit for decoded artwork.
 
-### Post-Processing
+## RetroAchievements offline queue (Android)
 
-1. **The Post-Processing Renderer setting has been removed.** There is no engine to pick any more: a preset runs through librashader whenever the active graphics backend has a librashader runtime *and* that runtime reports it can run on this system. That now covers D3D11, D3D12, Vulkan and OpenGL on Windows; Metal, Vulkan (MoltenVK) and OpenGL on macOS; and Vulkan on Android arm64-v8a. Dolphin uses its built-in post-processor everywhere else: the Software and Null backends, platforms with no vendored librashader binary (desktop Linux, Android x86_64), and any case where the library is present but unusable — a symbol that will not resolve, or an OpenGL context below librashader's floor (GLES, or desktop GL below GLSL 330). The fallback is automatic, and neither engine is user-selectable.
-
-2. **Shader chains are no longer supported.** The post-processing shader field now accepts a single preset path instead of a semicolon-separated chain. Existing configurations holding a multi-preset chain will resolve to the first entry in the chain. This matches PCSX2's single-preset model and reflects what librashader was already doing silently on the librashader path.
-
-3. **The preset picker is now a filterable tree.** Instead of a flat combo box with all 30,864 presets from the full libretro pack, the post-processing shader picker presents a hierarchical tree with a recursive filter box. Presets declaring `#pragma parameter` directives are now editable through a new *Parameters…* dialog with per-parameter sliders, spin boxes, and per-row *Reset* buttons. Edited parameter values are persisted per preset and survive restarts.
-
-## Corrections to Previous Release
-
-The `2606-fork-2` release notes claimed native `GenerateMipmaps` support for "Metal, OpenGL, D3D11 and D3D12". The correct list is **Metal, OpenGL, and D3D11**. D3D12 has no `GenerateMipmaps` implementation and was incorrectly included.
+- **Settings → RetroAchievements → Queue Submissions While Offline** (on by default) saves
+  achievement unlocks and leaderboard entries earned without a connection, and submits them
+  together once the connection returns. The setting shows how many are waiting.
+- Saved submissions are kept in `Config/RetroAchievementsDeferred.json` until the server accepts
+  or refuses them, so closing the game or the app no longer loses them. They are resent with
+  the original unlock time; API tokens are never written to the file.
+- Submissions are queued as soon as Android reports no network, or when a request gets no
+  response at all. They are sent when Android reports a connection, after logging in, and after
+  any successful contact with the server.
+- Starting Dolphin offline no longer logs you out of RetroAchievements: a login that fails
+  because the server can't be reached keeps the saved token and retries when the network
+  returns. Achievement data still has to be downloaded once per game session, so a game started
+  offline has no achievements until it is restarted online.
+- The queue lives in the shared core, so desktop builds use it too, controlled by
+  `OfflineQueueEnabled` in `RetroAchievements.ini` (no desktop UI yet). Without a connectivity
+  signal there, only requests that get no response are queued.

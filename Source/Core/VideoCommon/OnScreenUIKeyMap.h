@@ -34,6 +34,11 @@ enum class DolphinKey
   Z,  // for text edit CTRL+Z: undo
   F11,
   F1,
+  F2,
+  F3,
+  F4,
+  F5,
+  F6,
 };
 
-using DolphinKeyMap = Common::EnumMap<int, DolphinKey::F1>;
+using DolphinKeyMap = Common::EnumMap<int, DolphinKey::F6>;

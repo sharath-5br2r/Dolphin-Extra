@@ -45,6 +45,8 @@ public:
   void FinishStopToDesktop();
   void PrepareForBoot();
   void InvalidatePresentation();
+  void CompleteCommand(std::uint64_t command_id, BigPicture::ResultStatus status,
+                       std::string message = {});
 
 private:
   BigPicture::HostState ReadState() const override;

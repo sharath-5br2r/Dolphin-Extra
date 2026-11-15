@@ -152,9 +152,13 @@ void BigPictureHost::Publish()
     m_controller.Refresh();
   }
   m_menu_was_open = open;
-  snapshot = m_controller.GetSnapshot();
-  if (m_publish)
-    m_publish(snapshot);
+  // Republish only if the pause transition refreshed the controller's snapshot.
+  if (auto current = m_controller.GetSnapshot(); current != snapshot)
+  {
+    snapshot = std::move(current);
+    if (m_publish)
+      m_publish(snapshot);
+  }
   std::lock_guard lock(m_snapshot_mutex);
   m_snapshot = std::move(snapshot);
 }
@@ -193,6 +197,15 @@ void BigPictureHost::PrepareForBoot()
                          BigPicture::Action::ReturnToDesktop});
     Publish();
   }
+}
+
+void BigPictureHost::CompleteCommand(std::uint64_t command_id, BigPicture::ResultStatus status,
+                                     std::string message)
+{
+  Q_ASSERT(QThread::currentThread() == thread());
+  m_controller.Complete(command_id,
+                        {{}, status, BigPicture::UnavailableReason::None, std::move(message)});
+  Publish();
 }
 
 void BigPictureHost::InvalidatePresentation()

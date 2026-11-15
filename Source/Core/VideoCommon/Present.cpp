@@ -3,6 +3,7 @@
 
 #include "VideoCommon/Present.h"
 
+#include "Common/BigPicture/Library.h"
 #include "Common/ChunkFile.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
@@ -14,7 +15,9 @@
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 
 #include "Present.h"
+#include "VideoCommon/AbstractFramebuffer.h"
 #include "VideoCommon/AbstractGfx.h"
+#include "VideoCommon/AbstractStagingTexture.h"
 #include "VideoCommon/FrameDumper.h"
 #include "VideoCommon/FramebufferManager.h"
 #include "VideoCommon/OnScreenUI.h"
@@ -992,6 +995,43 @@ void Presenter::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
     m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, -1, native_width,
                                       native_height);
   }
+}
+
+std::shared_ptr<const ::BigPicture::LibraryImage> Presenter::CaptureStateThumbnail()
+{
+  if (!m_xfb_entry || !g_gfx->SupportsUtilityDrawing())
+    return {};
+  const auto source = AdjustForCustomCrop(m_xfb_rect);
+  if (source.GetWidth() <= 0 || source.GetHeight() <= 0)
+    return {};
+  const float aspect = CalculateDrawAspectRatio(false);
+  if (!std::isfinite(aspect) || aspect <= 0)
+    return {};
+  const u32 width = static_cast<u32>(std::clamp(240 * aspect, 1.0f, 320.0f));
+  const u32 height = static_cast<u32>(std::clamp(width / aspect, 1.0f, 240.0f));
+  const TextureConfig config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8,
+                             AbstractTextureFlag_RenderTarget,
+                             AbstractTextureType::Texture_2DArray);
+  auto texture = g_gfx->CreateTexture(config, "State preview");
+  if (!texture)
+    return {};
+  auto framebuffer = g_gfx->CreateFramebuffer(texture.get(), nullptr);
+  auto readback = g_gfx->CreateStagingTexture(StagingTextureType::Readback, config);
+  if (!framebuffer || !readback)
+    return {};
+  g_vertex_manager->Flush();
+  g_gfx->ScaleTexture(framebuffer.get(), texture->GetRect(), m_xfb_entry->texture.get(), source);
+  readback->CopyFromTexture(texture.get());
+  readback->Flush();
+  if (!readback->Map())
+    return {};
+  auto image = std::make_shared<::BigPicture::LibraryImage>();
+  image->width = width;
+  image->height = height;
+  image->rgba.resize(width * height * 4);
+  readback->ReadTexels(texture->GetRect(), image->rgba.data(), width * 4);
+  readback->Unmap();
+  return image;
 }
 
 void Presenter::Present(PresentInfo* present_info)

@@ -51,7 +51,13 @@ bool Valid(const Descriptor& descriptor, const Value& value, bool default_reset)
     if (range.step > 0)
     {
       const double steps = (*number - range.minimum) / range.step;
-      if (std::abs(steps - std::round(steps)) > 0.0001)
+      // Float values and float-derived steps lose precision before promotion to double.
+      // Account for that accumulated error without relaxing validation for integer settings.
+      const double tolerance = std::holds_alternative<float>(value) ?
+                                   std::max(0.0001, 2 * std::numeric_limits<float>::epsilon() *
+                                                        std::max(1.0, std::abs(steps))) :
+                                   0.0001;
+      if (std::abs(steps - std::round(steps)) > tolerance)
         return false;
     }
   }
@@ -72,7 +78,8 @@ std::optional<Value> FromDisplay(const Descriptor& descriptor, double display)
             return std::nullopt;
           return Value{static_cast<float>(stored)};
         }
-        else if constexpr (std::is_same_v<T, int> || std::is_same_v<T, u32>)
+        else if constexpr (std::is_same_v<T, int> || std::is_same_v<T, u32> ||
+                           std::is_same_v<T, u64> || std::is_same_v<T, s64>)
         {
           if (!std::isfinite(stored) || stored < std::numeric_limits<T>::lowest() ||
               stored > std::numeric_limits<T>::max() ||
@@ -153,6 +160,8 @@ std::shared_ptr<const Snapshot> Service::ReadSnapshot()
   if (!IsOwner())
     return nullptr;
   SynchronizeVersion();
+  if (m_snapshot && m_snapshot->revision == m_revision)
+    return m_snapshot;
   auto snapshot = std::make_shared<Snapshot>();
   snapshot->revision = m_revision;
   snapshot->target = m_context.target;
@@ -196,6 +205,7 @@ std::shared_ptr<const Snapshot> Service::ReadSnapshot()
     state.enabled = state.disabled_reason.empty();
     snapshot->settings.push_back(std::move(state));
   }
+  m_snapshot = snapshot;
   return snapshot;
 }
 

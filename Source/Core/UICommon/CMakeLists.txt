@@ -4,6 +4,8 @@ add_library(uicommon
   BigPicture/Controller.cpp
   BigPicture/Controller.h
   Settings/Catalog.cpp
+  Settings/ApplicationSettings.cpp
+  Settings/ApplicationSettings.inc
   Settings/Catalog.h
   Settings/ConfigLayerLogic.h
   Settings/Service.cpp
@@ -14,6 +16,7 @@ add_library(uicommon
   DiscordPresence.h
   GameFile.cpp
   GameFile.h
+  GameListDiscGroups.h
   GameFileCache.cpp
   GameFileCache.h
   NetPlayIndex.cpp
@@ -27,6 +30,11 @@ add_library(uicommon
   UICommon.cpp
   UICommon.h
 )
+
+# Parser exit statuses must unwind through the argument wrappers to the frontend.
+if(NOT MSVC)
+  set_source_files_properties(CommandLineParse.cpp PROPERTIES COMPILE_OPTIONS -fexceptions)
+endif()
 
 target_link_libraries(uicommon
 PUBLIC

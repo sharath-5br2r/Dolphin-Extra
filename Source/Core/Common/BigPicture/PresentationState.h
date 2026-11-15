@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -32,8 +33,13 @@ struct InputEvent
     Key,
     Text,
     Navigation,
+    // x and y are fractions of the render surface, so the pointer lands on what is drawn there
+    // whatever the backbuffer's size and the window's scaling.
     MousePosition,
     MouseButtons,
+    // x and y are wheel steps; positive y scrolls up.
+    MouseWheel,
+    MouseLeave,
     Focus,
     Reset
   };
@@ -54,6 +60,13 @@ struct FrameInput
   bool reset = false;
   std::deque<InputEvent> events;
   NavigationStatus navigation;
+};
+
+struct SettingsFocus
+{
+  std::string item;
+  std::string selected;
+  float scroll = 0;
 };
 
 // No graphics resources or host callbacks live here. A suspended state rejects presentation
@@ -77,7 +90,10 @@ public:
   void RequestFrames();
   void SetNavigationStatus(NavigationStatus status);
   void SetNavigationText(NavigationText text);
-  NavigationText GetNavigationText() const;
+  // Immutable after publication, so the graphics owner can keep it across frames.
+  std::shared_ptr<const NavigationText> GetNavigationText() const;
+  std::optional<SettingsFocus> GetSettingsFocus(const std::string& page) const;
+  void SetSettingsFocus(std::string page, SettingsFocus focus);
   void SetMenuFontPaths(std::vector<std::string> paths);
   std::vector<std::string> GetMenuFontPaths() const;
   void RequestNavigation(NavigationRequest request,
@@ -110,7 +126,9 @@ private:
   std::deque<InputEvent> m_events;
   std::vector<int> m_key_map;
   NavigationStatus m_navigation;
-  NavigationText m_navigation_text;
+  std::shared_ptr<const NavigationText> m_navigation_text =
+      std::make_shared<const NavigationText>();
+  std::map<std::string, SettingsFocus> m_settings_focus;
   std::vector<std::string> m_menu_font_paths;
   std::deque<NavigationRequest> m_navigation_requests;
   bool m_reset = true;

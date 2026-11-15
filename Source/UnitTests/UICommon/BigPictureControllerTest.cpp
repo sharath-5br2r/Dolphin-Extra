@@ -48,10 +48,294 @@ protected:
     controller.Refresh();
     Send(Action::OpenMenu);
   }
+  void GroupedLibrary()
+  {
+    Send(Action::OpenMenu);
+    Send(Action::ShowLibrary);
+    auto library = std::make_shared<LibrarySnapshot>();
+    LibraryGame game;
+    game.path = "disc1.iso";
+    game.discs = {{"disc1.iso", "Disc 1"}, {"disc2.iso", "Disc 2"}};
+    library->games.push_back(game);
+    host.state.library = library;
+    host.execute = [this](const Command& command) {
+      if (command.action == Action::Library &&
+          command.library_operation == LibraryOperation::ChooseBootDisc)
+      {
+        auto picker = std::make_shared<LibrarySnapshot>(*host.state.library);
+        picker->files = picker->games.front().discs;
+        picker->picker_boot_disc = true;
+        ++picker->picker_revision;
+        host.state.library = picker;
+        return Result{command, ResultStatus::Succeeded};
+      }
+      host.state.lifecycle = Lifecycle::Booting;
+      return Result{command, ResultStatus::Dispatched};
+    };
+    controller.Refresh();
+  }
+  void GameLibrary()
+  {
+    Send(Action::OpenMenu);
+    Send(Action::ShowLibrary);
+    auto library = std::make_shared<LibrarySnapshot>();
+    LibraryGame game;
+    game.path = "game.iso";
+    game.game_id = "GTEST1";
+    library->games.push_back(game);
+    host.state.library = library;
+    host.execute = [this](const Command& command) {
+      if (command.action == Action::BootState)
+      {
+        host.state.lifecycle = Lifecycle::Booting;
+        return Result{command, ResultStatus::Dispatched};
+      }
+      return Result{command, ResultStatus::Succeeded};
+    };
+    controller.Refresh();
+  }
   FakeHost host;
   Controller controller{host};
   std::uint64_t id = 0;
 };
+
+TEST_F(BigPictureControllerTest, GameFoldersOpenFromOptionsAndConfirmRemoval)
+{
+  Send(Action::OpenMenu);
+  Send(Action::ShowLibrary);
+  host.state.library = std::make_shared<LibrarySnapshot>();
+  host.execute = [](const Command& command) { return Result{command, ResultStatus::Succeeded}; };
+  controller.Refresh();
+  const auto library = [&](LibraryOperation operation, std::string path = {}) {
+    auto command = Make(Action::Library, 0, std::move(path));
+    command.library_operation = operation;
+    controller.Submit(command);
+  };
+  // Removal is only offered from the folder list.
+  library(LibraryOperation::RemoveFolder, "C:/Games");
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  library(LibraryOperation::Options);
+  library(LibraryOperation::Folders);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameFolders);
+  library(LibraryOperation::Recursive);
+  library(LibraryOperation::Refresh);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameFolders);
+  const auto executed = host.executed.size();
+
+  library(LibraryOperation::RemoveFolder, "C:/Games");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Confirmation);
+  EXPECT_EQ(controller.GetSnapshot()->confirmation_default, Action::Cancel);
+  EXPECT_EQ(host.executed.size(), executed);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameFolders);
+  EXPECT_EQ(host.executed.size(), executed);
+  library(LibraryOperation::RemoveFolder, "C:/Games");
+  Send(Action::Confirm);
+  ASSERT_EQ(host.executed.size(), executed + 1);
+  EXPECT_EQ(host.executed.back().library_operation, LibraryOperation::RemoveFolder);
+  EXPECT_EQ(host.executed.back().path, "C:/Games");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameFolders);
+
+  // Adding a folder returns to the list once it is chosen.
+  library(LibraryOperation::AddFolder);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::FilePicker);
+  library(LibraryOperation::ChooseFolder, "C:/Added");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameFolders);
+}
+
+TEST_F(BigPictureControllerTest, GameOptionsTargetOneLibraryGameAndRouteItsScreens)
+{
+  GameLibrary();
+  Send(Action::GameOptions, 0, "missing.iso");
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Library);
+  Send(Action::GameOptions, 0, "game.iso");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameOptions);
+  EXPECT_EQ(controller.GetSnapshot()->options_path, "game.iso");
+  EXPECT_TRUE(host.executed.empty());
+
+  // Every action from the options screen must name the game it was opened for.
+  Send(Action::GameProperties, 0, "missing.iso");
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  EXPECT_TRUE(host.executed.empty());
+  Send(Action::GameProperties, 0, "game.iso");
+  ASSERT_EQ(host.executed.size(), 1u);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Settings);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameOptions);
+
+  Send(Action::GameStates, 0, "game.iso");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::LoadStates);
+  const auto depth = controller.GetSnapshot()->screens.size();
+  Send(Action::GameStates, 0, "game.iso");
+  EXPECT_EQ(controller.GetSnapshot()->screens.size(), depth);
+  Send(Action::BootState, 0, "game.iso");
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  Send(Action::BootState, 3, "game.iso");
+  EXPECT_EQ(host.executed.back().action, Action::BootState);
+  EXPECT_EQ(host.executed.back().slot, 3);
+  ASSERT_TRUE(controller.GetSnapshot()->pending);
+
+  // Like Boot, a state boot completes when the game runs.
+  host.state.lifecycle = Lifecycle::Running;
+  controller.Refresh();
+  EXPECT_FALSE(controller.GetSnapshot()->pending);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Succeeded);
+  EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Desktop);
+}
+
+TEST_F(BigPictureControllerTest, GameStatesFollowLoadingPolicyAndPlayTimeResetIsConfirmed)
+{
+  GameLibrary();
+  Send(Action::GameOptions, 0, "game.iso");
+  host.state.hardcore = true;
+  controller.Refresh();
+  Send(Action::GameStates, 0, "game.iso");
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::Hardcore);
+  EXPECT_TRUE(host.executed.empty());
+  host.state.hardcore = false;
+  controller.Refresh();
+
+  Send(Action::ResetPlayTime, 0, "game.iso");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Confirmation);
+  EXPECT_EQ(controller.GetSnapshot()->confirmation_default, Action::Cancel);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameOptions);
+  EXPECT_TRUE(host.executed.empty());
+  Send(Action::ResetPlayTime, 0, "game.iso");
+  Send(Action::Confirm);
+  ASSERT_EQ(host.executed.size(), 1u);
+  EXPECT_EQ(host.executed.back().action, Action::ResetPlayTime);
+  EXPECT_EQ(host.executed.back().path, "game.iso");
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::GameOptions);
+
+  // Game options are a library feature; a running game has its own menu.
+  Send(Action::Back);
+  host.state.lifecycle = Lifecycle::Running;
+  controller.Refresh();
+  EXPECT_NE(controller.GetSnapshot()->availability[static_cast<std::size_t>(Action::GameOptions)],
+            UnavailableReason::None);
+}
+
+TEST_F(BigPictureControllerTest, AchievementsRequireAnActiveLoginAndReturnToPause)
+{
+  InGame();
+  Send(Action::Achievements);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::LoginRequired);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
+  EXPECT_TRUE(host.executed.empty());
+  host.state.achievements_logged_in = true;
+  host.state.hardcore = true;
+  Send(Action::Achievements);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Achievements);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
+  host.state.achievements_logged_in = false;
+  Send(Action::Achievements);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::LoginRequired);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
+}
+
+TEST_F(BigPictureControllerTest, StopContinuationChoiceIsBoundToConfirmationAndRechecksSupport)
+{
+  InGame();
+  host.state.can_save_continuation = true;
+  Send(Action::Stop);
+  const auto confirmation = controller.GetSnapshot()->confirmation->id;
+  auto stale = Make(Action::Confirm, 1);
+  stale.confirmation_id = confirmation + 1;
+  controller.Submit(stale);
+  EXPECT_TRUE(host.executed.empty());
+  Send(Action::Confirm, -1);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  EXPECT_TRUE(host.executed.empty());
+  host.state.can_save_continuation = false;
+  Send(Action::Confirm, 1);
+  EXPECT_TRUE(host.executed.empty());
+  EXPECT_TRUE(controller.GetSnapshot()->confirmation);
+  host.state.can_save_continuation = true;
+  Send(Action::Confirm, 1);
+  ASSERT_EQ(host.executed.size(), 1u);
+  EXPECT_EQ(host.executed.back().action, Action::Stop);
+  EXPECT_EQ(host.executed.back().slot, 1);
+  EXPECT_EQ(host.executed.back().confirmation_id, confirmation);
+}
+
+TEST_F(BigPictureControllerTest, ExitWithoutContinuationRemainsAvailableWhenSavingIsUnavailable)
+{
+  InGame();
+  Send(Action::Exit);
+  Send(Action::Confirm);
+  ASSERT_EQ(host.executed.size(), 1u);
+  EXPECT_EQ(host.executed.back().action, Action::Exit);
+  EXPECT_EQ(host.executed.back().slot, 0);
+}
+
+TEST_F(BigPictureControllerTest, ContinuationPromptIsModalAndRechecksLoadingPolicy)
+{
+  host.state.continuation_pending = true;
+  host.state.can_load_continuation = true;
+  controller.Refresh();
+  ASSERT_EQ(controller.GetSnapshot()->screens.back(), Screen::Continuation);
+  EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Library);
+  Send(Action::Boot, 0, "another.iso");
+  EXPECT_TRUE(host.executed.empty());
+  host.state.can_load_continuation = false;
+  Send(Action::ContinueGame);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::Hardcore);
+  EXPECT_TRUE(host.executed.empty());
+  host.execute = [&](const Command& command) {
+    host.state.continuation_pending = false;
+    host.state.lifecycle = Lifecycle::Booting;
+    return Result{command, ResultStatus::Dispatched};
+  };
+  Send(Action::FreshBoot);
+  EXPECT_EQ(host.executed.back().action, Action::FreshBoot);
+  controller.Refresh();
+  EXPECT_TRUE(controller.GetSnapshot()->pending);
+  host.state.lifecycle = Lifecycle::Running;
+  controller.Refresh();
+  EXPECT_FALSE(controller.GetSnapshot()->pending);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Succeeded);
+}
+
+TEST_F(BigPictureControllerTest, DeferredBootShowsContinuationChoiceWithoutReportingBootFailure)
+{
+  Send(Action::OpenMenu);
+  host.execute = [&](const Command& command) {
+    host.state.continuation_pending = true;
+    host.state.can_load_continuation = true;
+    return Result{command, ResultStatus::Succeeded};
+  };
+  Send(Action::Boot, 0, "game.iso");
+  EXPECT_FALSE(controller.GetSnapshot()->pending);
+  controller.Refresh();
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Continuation);
+  EXPECT_FALSE(controller.GetSnapshot()->error);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Succeeded);
+}
+
+TEST_F(BigPictureControllerTest, FailedContinuationDeletionCanBeDismissedAndRetried)
+{
+  host.state.continuation_pending = true;
+  controller.Refresh();
+  host.execute = [](const Command& command) {
+    return Result{command, ResultStatus::Failed, UnavailableReason::None, "Read only"};
+  };
+  Send(Action::DeleteContinuation);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Error);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Continuation);
+  EXPECT_TRUE(host.state.continuation_pending);
+  host.execute = [&](const Command& command) {
+    host.state.continuation_pending = false;
+    return Result{command, ResultStatus::Cancelled};
+  };
+  Send(Action::Back);
+  controller.Refresh();
+  EXPECT_FALSE(host.state.continuation_pending);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Home);
+}
 
 TEST_F(BigPictureControllerTest, OpeningAndNestedBackPreserveGuestPauseState)
 {
@@ -76,6 +360,23 @@ TEST_F(BigPictureControllerTest, PublishedSnapshotsRemainImmutable)
   EXPECT_EQ(old->mode, Mode::Desktop);
   EXPECT_TRUE(old->screens.empty());
   EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Library);
+}
+
+TEST_F(BigPictureControllerTest, PerGameSettingsCanOnlyOpenForALaunchedGame)
+{
+  Send(Action::OpenMenu);
+  Send(Action::Settings, 1);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Home);
+  Send(Action::Settings);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Settings);
+  Send(Action::Back);
+  host.state.lifecycle = Lifecycle::Paused;
+  controller.Refresh();
+  Send(Action::OpenMenu);
+  Send(Action::Settings, 2);
+  EXPECT_NE(controller.GetSnapshot()->screens.back(), Screen::Settings);
+  Send(Action::Settings, 1);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Settings);
 }
 
 TEST_F(BigPictureControllerTest, CancelAndBackNeverExecuteDestructiveActions)
@@ -104,6 +405,51 @@ TEST_F(BigPictureControllerTest, ConfirmationIsModalAndRechecksPolicy)
   EXPECT_TRUE(host.executed.empty());
   EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::NetPlay);
   EXPECT_FALSE(controller.GetSnapshot()->confirmation);
+}
+
+TEST_F(BigPictureControllerTest, FullscreenPreservesExitConfirmationAndItsApprovalToken)
+{
+  host.execute = [](const Command& command) { return Result{command, ResultStatus::Succeeded}; };
+  Send(Action::OpenMenu);
+  Send(Action::ExitMenu);
+  Send(Action::Exit);
+  const auto before = controller.GetSnapshot();
+  ASSERT_TRUE(before->confirmation);
+  EXPECT_EQ(before->availability[static_cast<std::size_t>(Action::Fullscreen)],
+            UnavailableReason::None);
+  Send(Action::Fullscreen);
+  const auto after = controller.GetSnapshot();
+  ASSERT_TRUE(after->confirmation);
+  EXPECT_EQ(after->confirmation->id, before->confirmation->id);
+  EXPECT_EQ(after->confirmation->action, Action::Exit);
+  EXPECT_EQ(after->screens, before->screens);
+  EXPECT_EQ(after->generation, before->generation);
+  ASSERT_EQ(host.executed.size(), 1u);
+  EXPECT_EQ(host.executed.back().action, Action::Fullscreen);
+  Send(Action::Confirm);
+  ASSERT_EQ(host.executed.size(), 2u);
+  EXPECT_EQ(host.executed.back().action, Action::Exit);
+}
+
+TEST_F(BigPictureControllerTest, FullscreenPreservesErrorsAndTransitionRestrictions)
+{
+  InGame();
+  host.execute = [](const Command& command) {
+    return Result{command, command.action == Action::Fullscreen ? ResultStatus::Succeeded :
+                                                                  ResultStatus::Failed};
+  };
+  Send(Action::Reset);
+  Send(Action::Confirm);
+  const auto before = controller.GetSnapshot();
+  ASSERT_TRUE(before->error);
+  Send(Action::Fullscreen);
+  EXPECT_EQ(controller.GetSnapshot()->screens, before->screens);
+  ASSERT_TRUE(controller.GetSnapshot()->error);
+  EXPECT_EQ(controller.GetSnapshot()->error->command.id, before->error->command.id);
+  EXPECT_EQ(host.executed.back().action, Action::Fullscreen);
+  host.state.lifecycle = Lifecycle::Stopping;
+  Send(Action::Fullscreen);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::Busy);
 }
 
 TEST_F(BigPictureControllerTest, CommandsAndConfirmationsCannotCrossSessions)
@@ -216,12 +562,31 @@ TEST_F(BigPictureControllerTest, FailedHostActionPreservesMessageAndCanBeDismiss
   EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
 }
 
-TEST_F(BigPictureControllerTest, VoidStateOperationsAreDispatchedRatherThanSuccessful)
+TEST_F(BigPictureControllerTest, StateOperationsStayPendingUntilTheCoreReportsTheirResult)
 {
   InGame();
   Send(Action::SaveState, 10);
-  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Dispatched);
+  ASSERT_TRUE(controller.GetSnapshot()->pending);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Pending);
+  const auto save = host.executed.back().id;
+  Send(Action::LoadState, 1);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::Busy);
+
+  // Only the pending command can be completed.
+  controller.Complete(save + 100, {{}, ResultStatus::Failed});
+  ASSERT_TRUE(controller.GetSnapshot()->pending);
+  controller.Complete(save, {{}, ResultStatus::Succeeded});
   EXPECT_FALSE(controller.GetSnapshot()->pending);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Succeeded);
+  EXPECT_EQ(controller.GetSnapshot()->result->command.slot, 10);
+
+  // A failure is shown on the error screen with the host's message.
+  Send(Action::LoadState, 1);
+  controller.Complete(host.executed.back().id,
+                      {{}, ResultStatus::Failed, UnavailableReason::None, "Unreadable"});
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Error);
+  EXPECT_EQ(controller.GetSnapshot()->error->message, "Unreadable");
+  EXPECT_EQ(controller.GetSnapshot()->error->command.action, Action::LoadState);
 }
 
 TEST_F(BigPictureControllerTest, InvalidSlotsPathsAndUnsupportedActionsNeverReachHost)
@@ -347,6 +712,7 @@ TEST_F(BigPictureControllerTest, OccupiedSlotsRequireMatchingCancelableOverwrite
   ASSERT_EQ(host.executed.size(), 1u);
   EXPECT_EQ(host.executed[0].slot, 10);
   EXPECT_EQ(host.executed[0].confirmation_id, host.executed[0].id);
+  controller.Complete(host.executed[0].id, {{}, ResultStatus::Succeeded});
   Send(Action::ReturnToDesktop);
   Send(Action::SaveState, 10);
   EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
@@ -422,6 +788,76 @@ TEST_F(BigPictureControllerTest, LibrarySetupAndKeyboardPreserveNestedBackAndRej
   EXPECT_EQ(controller.GetSnapshot()->mode, Mode::Library);
 }
 
+TEST_F(BigPictureControllerTest, GroupedBootOpensNavigablePickerAndBackCancelsWithoutBooting)
+{
+  GroupedLibrary();
+  const auto generation = controller.GetSnapshot()->generation;
+  Send(Action::Boot, 0, "disc1.iso");
+  ASSERT_EQ(host.executed.size(), 1u);
+  EXPECT_EQ(host.executed.back().library_operation, LibraryOperation::ChooseBootDisc);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::FilePicker);
+  EXPECT_EQ(controller.GetSnapshot()->generation, generation);
+  EXPECT_FALSE(controller.GetSnapshot()->pending);
+  Send(Action::Back);
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Library);
+  EXPECT_EQ(host.state.lifecycle, Lifecycle::Idle);
+  EXPECT_EQ(host.executed.size(), 1u);
+}
+
+TEST_F(BigPictureControllerTest, GroupedPickerBootsTheChosenSecondDiscWithoutOpeningAnotherPicker)
+{
+  GroupedLibrary();
+  Send(Action::Boot, 0, "disc1.iso");
+  auto choice = Make(Action::Boot, 0, "disc2.iso");
+  choice.library_revision = host.state.library->picker_revision;
+  controller.Submit(choice);
+  ASSERT_EQ(host.executed.size(), 2u);
+  EXPECT_EQ(host.executed.back().action, Action::Boot);
+  EXPECT_EQ(host.executed.back().path, "disc2.iso");
+  ASSERT_TRUE(controller.GetSnapshot()->pending);
+  EXPECT_EQ(controller.GetSnapshot()->pending->action, Action::Boot);
+}
+
+TEST_F(BigPictureControllerTest, GroupedPickerRejectsSelectionsAfterCancelAndFromAnOlderPicker)
+{
+  GroupedLibrary();
+  Send(Action::Boot, 0, "disc1.iso");
+  const auto revision = host.state.library->picker_revision;
+  Send(Action::Cancel);
+  auto cancelled = Make(Action::Boot, 0, "disc2.iso");
+  cancelled.library_revision = revision;
+  controller.Submit(cancelled);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Stale);
+  EXPECT_EQ(host.executed.size(), 1u);
+  Send(Action::Boot, 0, "disc1.iso");
+  ASSERT_EQ(host.executed.size(), 2u);
+  auto old = Make(Action::Boot, 0, "disc2.iso");
+  old.library_revision = revision;
+  controller.Submit(old);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Stale);
+  EXPECT_EQ(host.executed.size(), 2u);
+}
+
+TEST_F(BigPictureControllerTest, GroupedPickerRestrictsChoicesAndRechecksBootPolicy)
+{
+  GroupedLibrary();
+  Send(Action::Boot, 0, "disc1.iso");
+  auto other = Make(Action::Boot, 0, "unrelated.iso");
+  other.library_revision = host.state.library->picker_revision;
+  controller.Submit(other);
+  EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Stale);
+  auto browse = Make(Action::Library);
+  browse.library_operation = LibraryOperation::EnterDirectory;
+  controller.Submit(browse);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  host.state.netplay = true;
+  auto choice = Make(Action::Boot, 0, "disc2.iso");
+  choice.library_revision = host.state.library->picker_revision;
+  controller.Submit(choice);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::NetPlay);
+  EXPECT_EQ(host.executed.size(), 1u);
+}
+
 TEST_F(BigPictureControllerTest, PickerBootFromAnObsoleteListingCannotExecute)
 {
   Send(Action::OpenMenu);
@@ -455,6 +891,16 @@ TEST_F(BigPictureControllerTest, ControllerDiscPickerKeepsPauseAndRechecksNetPla
   EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
   EXPECT_EQ(controller.GetSnapshot()->result->status, ResultStatus::Dispatched);
   EXPECT_EQ(host.state.lifecycle, Lifecycle::Paused);
+}
+
+TEST_F(BigPictureControllerTest, DiscChangeRequiresASelectedPathInsteadOfADesktopHandoff)
+{
+  InGame(Lifecycle::Paused);
+  host.state.can_change_disc = true;
+  Send(Action::ChangeDisc);
+  EXPECT_EQ(controller.GetSnapshot()->result->reason, UnavailableReason::InvalidArgument);
+  EXPECT_TRUE(host.executed.empty());
+  EXPECT_EQ(controller.GetSnapshot()->screens.back(), Screen::Pause);
 }
 
 TEST_F(BigPictureControllerTest, SystemBootUsesTheSameAsynchronousLifecycleAsGameBoot)

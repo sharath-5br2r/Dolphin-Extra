@@ -6,6 +6,7 @@
 #include "Core/AchievementManager.h"
 
 #include <algorithm>
+#include <ctime>
 #include <memory>
 
 #include <fmt/format.h>
@@ -60,6 +61,14 @@ static const Common::HttpRequest::Headers USER_AGENT_HEADER = {
     {"User-Agent", Common::GetUserAgentStr()}};
 #endif  // ANDROID
 
+static constexpr char DEFERRED_SUBMISSIONS_FILENAME[] = "RetroAchievementsDeferred.json";
+
+// Response body handed to rcheevos for a submission that went into the offline queue. rcheevos
+// treats it as a final, non-retryable client error, so it stops tracking the request and leaves
+// delivery to the queue. HandleServerErrorEvent recognizes it and stays quiet.
+static constexpr char DEFERRED_RESPONSE_MESSAGE[] =
+    "Saved to the offline queue; it will be submitted when the connection returns.";
+
 AchievementManager& AchievementManager::GetInstance()
 {
   static AchievementManager s_instance;
@@ -76,6 +85,12 @@ void AchievementManager::Init(void* hwnd)
 
     {
       std::lock_guard lg{m_lock};
+      if (!m_submission_queue)
+      {
+        m_submission_queue = std::make_unique<AchievementSubmissionQueue>(
+            File::GetUserPath(D_CONFIG_IDX) + DEFERRED_SUBMISSIONS_FILENAME);
+        m_submission_queue->Load();
+      }
       m_client = rc_client_create(MemoryPeeker, Request);
     }
     std::string host_url = Config::Get(Config::RA_HOST_URL);
@@ -90,6 +105,10 @@ void AchievementManager::Init(void* hwnd)
     SetHardcoreMode();
     m_queue.Reset("AchievementManagerQueue");
     m_image_queue.Reset("AchievementManagerImageQueue");
+    m_submission_worker.Reset("AchievementSubmissionQueue");
+    m_flush_in_progress = false;
+    m_submission_cancelled = false;
+    m_login_deferred = false;
 
 #ifdef RC_CLIENT_SUPPORTS_RAINTEGRATION
     // Attempt to load the integration DLL from the directory containing the main client executable.
@@ -434,6 +453,24 @@ void AchievementManager::FetchGameBadges()
              },
              {.game_icon = true});
 
+  {
+    std::lock_guard lg{m_lock};
+    if (auto* subsets = rc_client_create_subset_list(m_client))
+    {
+      for (u32 i = 0; i < subsets->num_subsets; ++i)
+      {
+        const u32 id = subsets->subsets[i]->id;
+        FetchBadge(&m_subset_badges[id], RC_IMAGE_TYPE_GAME,
+                   [id](const AchievementManager& manager) {
+                     const auto* subset = rc_client_get_subset_info(manager.m_client, id);
+                     return subset ? std::string(subset->badge_name) : std::string{};
+                   },
+                   {.game_icon = true});
+      }
+      rc_client_destroy_subset_list(subsets);
+    }
+  }
+
   if (!rc_client_has_achievements(m_client))
     return;
 
@@ -776,6 +813,12 @@ const AchievementManager::Badge& AchievementManager::GetGameBadge() const
   return m_game_badge.data.empty() ? m_default_game_badge : m_game_badge;
 }
 
+const AchievementManager::Badge& AchievementManager::GetSubsetBadge(u32 id) const
+{
+  const auto it = m_subset_badges.find(id);
+  return it == m_subset_badges.end() || it->second.data.empty() ? GetGameBadge() : it->second;
+}
+
 const AchievementManager::Badge& AchievementManager::GetAchievementBadge(AchievementId id,
                                                                          bool locked) const
 {
@@ -901,6 +944,7 @@ void AchievementManager::CloseGame()
     m_game_badge.data.clear();
     m_unlocked_badges.clear();
     m_locked_badges.clear();
+    m_subset_badges.clear();
     m_leaderboard_map.clear();
     m_rich_presence.fill('\0');
     m_system.store(nullptr, std::memory_order_release);
@@ -935,6 +979,11 @@ void AchievementManager::Shutdown()
   {
     CloseGame();
     m_queue.Shutdown();
+    // Unsent entries stay on disk; the next Init picks them up again. Signal first so a running
+    // batch stops after its current request instead of working through the whole backlog.
+    m_submission_cancelled = true;
+    m_submission_worker.Cancel();
+    m_submission_worker.Shutdown();
     Config::RemoveConfigChangedCallback(m_config_changed_callback_id);
 
     {
@@ -1078,7 +1127,17 @@ void AchievementManager::LoginCallback(int result, const char* error_message, rc
   {
     WARN_LOG_FMT(ACHIEVEMENTS, "Failed to login {} to RetroAchievements server.",
                  Config::Get(Config::RA_USERNAME));
-    Config::SetBaseOrCurrent(Config::RA_API_TOKEN, "");
+    if (result == RC_NO_RESPONSE)
+    {
+      // The server couldn't be reached, which says nothing about whether the saved token is
+      // valid. Keep it, so being offline doesn't log the user out, and retry once the network is
+      // back.
+      instance.m_login_deferred = instance.HasAPIToken();
+    }
+    else
+    {
+      Config::SetBaseOrCurrent(Config::RA_API_TOKEN, "");
+    }
     instance.update_event.Trigger({.failed_login_code = result});
     instance.login_event.Trigger(result);
     return;
@@ -1109,9 +1168,13 @@ void AchievementManager::LoginCallback(int result, const char* error_message, rc
 
   INFO_LOG_FMT(ACHIEVEMENTS, "Successfully logged in {} to RetroAchievements server.",
                user->username);
-  std::lock_guard lg{instance.GetLock()};
-  Config::SetBaseOrCurrent(Config::RA_API_TOKEN, user->token);
-  instance.FetchPlayerBadge();
+  {
+    std::lock_guard lg{instance.GetLock()};
+    Config::SetBaseOrCurrent(Config::RA_API_TOKEN, user->token);
+    instance.FetchPlayerBadge();
+  }
+  instance.m_login_deferred = false;
+  instance.FlushDeferredSubmissions();
 }
 
 void AchievementManager::FetchBoardInfo(AchievementId leaderboard_id)
@@ -1454,6 +1517,13 @@ void AchievementManager::HandleResetEvent(const rc_client_event_t* client_event)
 
 void AchievementManager::HandleServerErrorEvent(const rc_client_event_t* client_event)
 {
+  const char* message = client_event->server_error->error_message;
+  if (message && std::string_view(message) == DEFERRED_RESPONSE_MESSAGE)
+  {
+    INFO_LOG_FMT(ACHIEVEMENTS, "RetroAchievements {} {} deferred to the offline queue.",
+                 client_event->server_error->api, client_event->server_error->related_id);
+    return;
+  }
   ERROR_LOG_FMT(ACHIEVEMENTS, "RetroAchievements server error: {} {}",
                 client_event->server_error->api, client_event->server_error->error_message);
 }
@@ -1462,40 +1532,228 @@ void AchievementManager::Request(const rc_api_request_t* request,
                                  rc_client_server_callback_t callback, void* callback_data,
                                  rc_client_t* client)
 {
+  auto& instance = AchievementManager::GetInstance();
   std::string url = request->url;
-  std::string post_data = request->post_data;
-  AchievementManager::GetInstance().m_queue.Push(
-      [url = std::move(url), post_data = std::move(post_data), callback, callback_data] {
-        Common::HttpRequest http_request;
-        Common::HttpRequest::Response http_response;
-        if (!post_data.empty())
-        {
-          http_response = http_request.Post(url, post_data, USER_AGENT_HEADER,
+  std::string post_data = request->post_data ? request->post_data : "";
+
+  // Known to be offline: queue unlocks and leaderboard entries without waiting for a timeout.
+  if (!instance.m_network_available && instance.TryDeferSubmission(url, post_data))
+  {
+    RespondDeferred(callback, callback_data);
+    return;
+  }
+
+  instance.m_queue.Push([&instance, url = std::move(url), post_data = std::move(post_data),
+                         callback, callback_data] {
+    Common::HttpRequest http_request;
+    Common::HttpRequest::Response http_response;
+    if (!post_data.empty())
+    {
+      http_response = http_request.Post(url, post_data, USER_AGENT_HEADER,
+                                        Common::HttpRequest::AllowedReturnCodes::All);
+    }
+    else
+    {
+      http_response =
+          http_request.Get(url, USER_AGENT_HEADER, Common::HttpRequest::AllowedReturnCodes::All);
+    }
+
+    rc_api_server_response_t server_response;
+    if (http_response.has_value() && http_response->size() > 0)
+    {
+      server_response.body = reinterpret_cast<const char*>(http_response->data());
+      server_response.body_length = http_response->size();
+      server_response.http_status_code = http_request.GetLastResponseCode();
+    }
+    else if (instance.TryDeferSubmission(url, post_data))
+    {
+      // The server couldn't be reached at all; the offline queue takes over.
+      RespondDeferred(callback, callback_data);
+      return;
+    }
+    else
+    {
+      static constexpr char error_message[] = "Failed HTTP request.";
+      server_response.body = error_message;
+      server_response.body_length = sizeof(error_message);
+      server_response.http_status_code = RC_API_SERVER_RESPONSE_RETRYABLE_CLIENT_ERROR;
+    }
+
+    callback(&server_response, callback_data);
+
+    // Reaching the server proves the connection works, so anything left in the offline queue
+    // (for example from an earlier session) can go out now.
+    if (server_response.http_status_code == 200)
+      instance.FlushDeferredSubmissions();
+  });
+}
+
+bool AchievementManager::TryDeferSubmission(const std::string& url, const std::string& post_data)
+{
+  if (!Config::Get(Config::RA_OFFLINE_QUEUE_ENABLED) || !m_submission_queue)
+    return false;
+
+  auto entry = AchievementSubmissionQueue::ParseRequest(url, post_data, std::time(nullptr));
+  if (!entry)
+    return false;
+
+  const bool is_achievement = entry->type == AchievementSubmissionQueue::Type::Achievement;
+  INFO_LOG_FMT(ACHIEVEMENTS, "No connection: queued {} {} for later submission.",
+               is_achievement ? "achievement" : "leaderboard", entry->target_id);
+  m_submission_queue->Add(std::move(*entry));
+
+  OSD::AddMessage(is_achievement ? "Offline: achievement unlock saved. It will be submitted "
+                                   "when the connection returns." :
+                                   "Offline: leaderboard entry saved. It will be submitted "
+                                   "when the connection returns.",
+                  OSD::Duration::VERY_LONG, OSD::Color::YELLOW);
+  return true;
+}
+
+void AchievementManager::RespondDeferred(rc_client_server_callback_t callback, void* callback_data)
+{
+  rc_api_server_response_t server_response;
+  server_response.body = DEFERRED_RESPONSE_MESSAGE;
+  server_response.body_length = sizeof(DEFERRED_RESPONSE_MESSAGE) - 1;
+  server_response.http_status_code = RC_API_SERVER_RESPONSE_CLIENT_ERROR;
+  callback(&server_response, callback_data);
+}
+
+void AchievementManager::SetNetworkAvailable(bool available)
+{
+  const bool was_available = m_network_available.exchange(available);
+  if (available != was_available)
+    INFO_LOG_FMT(ACHIEVEMENTS, "Network connection {}.", available ? "available" : "lost");
+  if (!available)
+    return;
+
+  {
+    std::lock_guard lg{m_lock};
+    if (!m_client)
+      return;
+  }
+
+  if (m_login_deferred.exchange(false) && HasAPIToken())
+  {
+    // A successful login flushes the queue.
+    INFO_LOG_FMT(ACHIEVEMENTS, "Retrying RetroAchievements login now that the network is back.");
+    Login("");
+    return;
+  }
+  FlushDeferredSubmissions();
+}
+
+size_t AchievementManager::GetDeferredSubmissionCount() const
+{
+  std::lock_guard lg{m_lock};
+  return m_submission_queue ? m_submission_queue->Size() : 0;
+}
+
+void AchievementManager::FlushDeferredSubmissions()
+{
+  if (!m_submission_queue || m_submission_queue->IsEmpty() || !m_network_available)
+    return;
+  if (m_flush_in_progress.exchange(true))
+    return;
+  m_submission_worker.Push([this] {
+    SubmitDeferredBatch();
+    m_flush_in_progress = false;
+  });
+}
+
+void AchievementManager::SubmitDeferredBatch()
+{
+  const std::string username = Config::Get(Config::RA_USERNAME);
+  const std::string api_token = Config::Get(Config::RA_API_TOKEN);
+  if (username.empty() || api_token.empty())
+    return;
+
+  const std::vector<AchievementSubmissionQueue::Entry> entries = m_submission_queue->GetEntries();
+  INFO_LOG_FMT(ACHIEVEMENTS, "Submitting {} deferred RetroAchievements submission(s).",
+               entries.size());
+
+  // One request object for the whole batch lets the connection be reused.
+  Common::HttpRequest http_request;
+  u32 achievements_sent = 0;
+  u32 leaderboards_sent = 0;
+  u32 rejected = 0;
+  bool stopped_early = false;
+
+  for (const AchievementSubmissionQueue::Entry& entry : entries)
+  {
+    if (!m_network_available || m_submission_cancelled)
+    {
+      stopped_early = true;
+      break;
+    }
+    // Entries earned under another account wait until that account logs in again.
+    if (!Common::CaseInsensitiveEquals(entry.username, username))
+      continue;
+
+    const bool is_achievement = entry.type == AchievementSubmissionQueue::Type::Achievement;
+    const std::string_view kind = is_achievement ? "achievement" : "leaderboard entry";
+
+    const auto post_data =
+        AchievementSubmissionQueue::BuildPostData(entry, api_token, std::time(nullptr));
+    if (!post_data)
+    {
+      ERROR_LOG_FMT(ACHIEVEMENTS, "Dropping deferred {} {}: could not build the request.", kind,
+                    entry.target_id);
+      m_submission_queue->Remove(entry.id);
+      ++rejected;
+      continue;
+    }
+
+    const auto response = http_request.Post(entry.url, *post_data, USER_AGENT_HEADER,
                                             Common::HttpRequest::AllowedReturnCodes::All);
-        }
-        else
-        {
-          http_response = http_request.Get(url, USER_AGENT_HEADER,
-                                           Common::HttpRequest::AllowedReturnCodes::All);
-        }
+    const int http_status = response.has_value() ? http_request.GetLastResponseCode() : 0;
+    const std::string_view body =
+        response.has_value() ?
+            std::string_view(reinterpret_cast<const char*>(response->data()), response->size()) :
+            std::string_view{};
 
-        rc_api_server_response_t server_response;
-        if (http_response.has_value() && http_response->size() > 0)
-        {
-          server_response.body = reinterpret_cast<const char*>(http_response->data());
-          server_response.body_length = http_response->size();
-          server_response.http_status_code = http_request.GetLastResponseCode();
-        }
-        else
-        {
-          static constexpr char error_message[] = "Failed HTTP request.";
-          server_response.body = error_message;
-          server_response.body_length = sizeof(error_message);
-          server_response.http_status_code = RC_API_SERVER_RESPONSE_RETRYABLE_CLIENT_ERROR;
-        }
+    switch (AchievementSubmissionQueue::ClassifyResponse(entry, http_status, body))
+    {
+    case AchievementSubmissionQueue::Outcome::Delivered:
+      INFO_LOG_FMT(ACHIEVEMENTS, "Delivered deferred {} {}.", kind, entry.target_id);
+      m_submission_queue->Remove(entry.id);
+      ++(is_achievement ? achievements_sent : leaderboards_sent);
+      break;
+    case AchievementSubmissionQueue::Outcome::Rejected:
+      WARN_LOG_FMT(ACHIEVEMENTS, "Server rejected deferred {} {} (HTTP {}): {}", kind,
+                   entry.target_id, http_status, body);
+      m_submission_queue->Remove(entry.id);
+      ++rejected;
+      break;
+    case AchievementSubmissionQueue::Outcome::RetryLater:
+      WARN_LOG_FMT(ACHIEVEMENTS, "Could not deliver deferred {} {} (HTTP {}); will retry later.",
+                   kind, entry.target_id, http_status);
+      stopped_early = true;
+      break;
+    }
+    if (stopped_early)
+      break;
+  }
 
-        callback(&server_response, callback_data);
-      });
+  if (achievements_sent > 0 || leaderboards_sent > 0)
+  {
+    OSD::AddMessage(fmt::format("RetroAchievements: submitted {} saved achievement unlock(s) and "
+                                "{} saved leaderboard entr{}.",
+                                achievements_sent, leaderboards_sent,
+                                leaderboards_sent == 1 ? "y" : "ies"),
+                    OSD::Duration::VERY_LONG, OSD::Color::GREEN);
+  }
+  if (rejected > 0)
+  {
+    OSD::AddMessage(
+        fmt::format("RetroAchievements: the server refused {} saved submission(s).", rejected),
+        OSD::Duration::VERY_LONG, OSD::Color::RED);
+  }
+  if (stopped_early)
+  {
+    INFO_LOG_FMT(ACHIEVEMENTS, "{} deferred submission(s) left for a later attempt.",
+                 m_submission_queue->Size());
+  }
 }
 
 u32 AchievementManager::MemoryPeeker(u32 address, u8* buffer, u32 num_bytes, rc_client_t* client)

@@ -41,4 +41,5 @@ private:
   std::function<void(const std::string&)> m_message_callback;
 };
 
-extern std::atomic<std::shared_ptr<NetPlayChatUI>> g_netplay_chat_ui;
+std::shared_ptr<NetPlayChatUI> GetNetPlayChatUI();
+void SetNetPlayChatUI(std::shared_ptr<NetPlayChatUI> ui);

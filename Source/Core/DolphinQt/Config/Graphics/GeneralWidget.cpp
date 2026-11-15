@@ -67,6 +67,8 @@ void GeneralWidget::BindSettings()
                             m_game_layer);
   ConfigWidget::BindCatalog(m_ui->vsyncCheckBox, Config::GFX_VSYNC, m_game_layer);
   ConfigWidget::Bind(m_ui->fullscreenCheckBox, Config::MAIN_FULLSCREEN, m_game_layer);
+  ConfigWidget::Bind(m_ui->fullscreenOnDoubleClickCheckBox, Config::MAIN_FULLSCREEN_ON_DOUBLE_CLICK,
+                     m_game_layer);
   ConfigWidget::Bind(m_ui->precisionFrameTimingCheckBox, Config::MAIN_PRECISION_FRAME_TIMING);
   ConfigWidget::Bind(m_ui->autoAdjustWindowSizeCheckBox, Config::MAIN_RENDER_WINDOW_AUTOSIZE,
                      m_game_layer);
@@ -264,6 +266,11 @@ void GeneralWidget::AddDescriptions()
                                tr(TR_INTEGER_SCALING_DESCRIPTION));
   ConfigWidget::SetDescription(m_ui->vsyncCheckBox, {}, tr(TR_VSYNC_DESCRIPTION));
   ConfigWidget::SetDescription(m_ui->fullscreenCheckBox, {}, tr(TR_FULLSCREEN_DESCRIPTION));
+  ConfigWidget::SetDescription(
+      m_ui->fullscreenOnDoubleClickCheckBox, {},
+      tr("Toggles between windowed and fullscreen mode when you double-click the render window "
+         "with the left mouse button.<br><br>"
+         "<dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>"));
   ConfigWidget::SetDescription(m_ui->precisionFrameTimingCheckBox, {},
                                tr("Uses high resolution timers and \"busy waiting\" for improved "
                                   "frame pacing.<br><br>This will marginally increase power usage."

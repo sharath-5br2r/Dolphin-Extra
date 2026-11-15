@@ -51,6 +51,19 @@ Game Entry(std::string path, std::string title, std::string platform = "GameCube
   return game;
 }
 
+// Encodes a solid-color PNG cover; empty if encoding fails.
+std::vector<unsigned char> SolidPng(int width, int height, Qt::GlobalColor color)
+{
+  QImage image(width, height, QImage::Format_RGBA8888);
+  image.fill(color);
+  QByteArray bytes;
+  QBuffer buffer(&bytes);
+  buffer.open(QIODevice::WriteOnly);
+  if (!image.save(&buffer, "PNG"))
+    return {};
+  return {bytes.begin(), bytes.end()};
+}
+
 TEST(BigPictureLibraryTest, PathsSurviveSortFilterAndIncrementalScansWithoutMutatingReaders)
 {
   BigPictureLibrary library(nullptr, {});
@@ -76,6 +89,33 @@ TEST(BigPictureLibraryTest, PathsSurviveSortFilterAndIncrementalScansWithoutMuta
   EXPECT_EQ(retained->games.size(), 2u);
   EXPECT_EQ(retained->selected_path, a.path);
   EXPECT_FALSE(library.Execute(O::Select, a.path, 0).empty());
+}
+
+TEST(BigPictureLibraryTest, GroupedDiscPickerPublishesBothChoicesWithoutDirectoryBrowsing)
+{
+  BigPictureLibrary library(nullptr, {});
+  auto game = Entry("disc1.iso", "Multi-disc game");
+  game.discs = {{"disc1.iso", "Disc 1"}, {"disc2.iso", "Disc 2"}};
+  library.SetGames({game});
+  const auto previous = library.GetSnapshot();
+  ASSERT_TRUE(library.Execute(O::ChooseBootDisc, game.path, 0).empty());
+  const auto picker = library.GetSnapshot();
+  EXPECT_TRUE(picker->picker_boot_disc);
+  EXPECT_FALSE(picker->picker_loading);
+  EXPECT_FALSE(picker->picker_disc);
+  EXPECT_FALSE(picker->picker_folders_only);
+  EXPECT_TRUE(picker->parent_directory.empty());
+  ASSERT_EQ(picker->files.size(), 2u);
+  EXPECT_EQ(picker->files[1].path, "disc2.iso");
+  EXPECT_EQ(picker->files[1].name, "Disc 2");
+  EXPECT_GT(picker->picker_revision, previous->picker_revision);
+  EXPECT_TRUE(previous->files.empty());
+  EXPECT_FALSE(library.Execute(O::ChooseBootDisc, "missing.iso", 0).empty());
+  EXPECT_EQ(library.GetSnapshot()->picker_revision, picker->picker_revision);
+  ASSERT_TRUE(library.Execute(O::ChooseBootDisc, game.path, 0).empty());
+  EXPECT_GT(library.GetSnapshot()->picker_revision, picker->picker_revision);
+  ASSERT_TRUE(library.Execute(O::OpenFile, {}, 0).empty());
+  EXPECT_FALSE(library.GetSnapshot()->picker_boot_disc);
 }
 
 TEST(BigPictureLibraryTest, DetailedMetadataIsTranslatedAndRetainedByImmutableSnapshots)
@@ -207,6 +247,35 @@ TEST(BigPictureLibraryTest, ClearingSearchPreservesOtherFiltersAndCanClearAnUnco
   library.Execute(O::TextKey, "text", 0);
   library.Execute(O::TextClear, {}, 0);
   EXPECT_TRUE(library.GetSnapshot()->draft.empty());
+}
+
+TEST(BigPictureLibraryTest, GameFoldersListConfiguredFoldersAndRemoveOnlyThose)
+{
+  std::vector<std::string> folders{"C:/Games", "D:/More Games"};
+  std::vector<std::string> removed;
+  BigPictureLibrary library(nullptr, {{},
+                                      {},
+                                      {},
+                                      {},
+                                      {},
+                                      {},
+                                      {},
+                                      [&] { return folders; },
+                                      [&](const std::string& path) {
+                                        removed.push_back(path);
+                                        std::erase(folders, path);
+                                      }});
+  EXPECT_EQ(library.GetSnapshot()->folders, folders);
+  EXPECT_FALSE(library.Execute(O::RemoveFolder, "E:/Unknown", 0).empty());
+  EXPECT_TRUE(removed.empty());
+  EXPECT_TRUE(library.Execute(O::RemoveFolder, "C:/Games", 0).empty());
+  EXPECT_EQ(removed, std::vector<std::string>{"C:/Games"});
+  EXPECT_EQ(library.GetSnapshot()->folders, std::vector<std::string>{"D:/More Games"});
+
+  // External configuration changes reach the published list.
+  folders.push_back("F:/New");
+  library.RefreshFolders();
+  EXPECT_EQ(library.GetSnapshot()->folders.size(), 2u);
 }
 
 TEST(BigPictureLibraryTest, DiscPickerUsesUnfilteredLibraryAndPrefersOtherDiscsOfTheRunningGame)
@@ -365,41 +434,46 @@ TEST(BigPictureLibraryTest, LatestPickerWinsAndDiscListingsExcludeExecutables)
 
 TEST(BigPictureLibraryTest, CoverDecodeIsBoundedAndOldCatalogRequestsCannotInstallTextures)
 {
-  QImage image(600, 1000, QImage::Format_RGBA8888);
-  image.fill(Qt::red);
-  QByteArray bytes;
-  QBuffer buffer(&bytes);
-  buffer.open(QIODevice::WriteOnly);
-  ASSERT_TRUE(image.save(&buffer, "PNG"));
+  const auto png = SolidPng(600, 1000, Qt::red);
+  ASSERT_FALSE(png.empty());
   const auto owner = std::this_thread::get_id();
   int reads = 0;
   BigPictureLibrary library(nullptr, {{}, {}, {}, [&](const std::string&) {
                                         EXPECT_EQ(std::this_thread::get_id(), owner);
                                         ++reads;
-                                        return std::vector<unsigned char>(bytes.begin(),
-                                                                          bytes.end());
+                                        return png;
                                       }});
   std::vector<Game> games;
-  for (int i = 0; i < 32; ++i)
+  for (std::size_t i = 0; i < BigPicture::MAX_DECODED_COVERS + 8; ++i)
     games.push_back(Entry(std::to_string(i), "Game"));
   library.SetGames(games);
   const auto revision = library.GetSnapshot()->catalog_revision;
+  const auto cover_bytes = [](const auto& snapshot) {
+    std::size_t bytes = 0;
+    for (const auto& [path, image] : snapshot->covers)
+      bytes += image->rgba.size();
+    return bytes;
+  };
   for (const auto& game : games)
   {
     library.Execute(O::Cover, game.path, revision);
     ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains(game.path); }));
     const auto& cover = *library.GetSnapshot()->covers.at(game.path);
-    EXPECT_LE(cover.width, 256u);
-    EXPECT_LE(cover.height, 384u);
+    EXPECT_LE(cover.width, BigPicture::MAX_COVER_WIDTH);
+    EXPECT_LE(cover.height, BigPicture::MAX_COVER_HEIGHT);
     EXPECT_EQ(cover.rgba.size(), static_cast<std::size_t>(cover.width) * cover.height * 4);
-    EXPECT_LE(library.GetSnapshot()->covers.size(), 24u);
+    EXPECT_LE(library.GetSnapshot()->covers.size(), BigPicture::MAX_DECODED_COVERS);
+    EXPECT_LE(cover_bytes(library.GetSnapshot()), BigPicture::MAX_DECODED_COVER_BYTES);
   }
   const auto retained = library.GetSnapshot();
+  const auto retained_count = retained->covers.size();
+  // These large covers reach the byte budget before the count bound.
+  EXPECT_LT(retained_count, games.size());
   library.SetGames(games);
   library.Execute(O::Cover, "0", revision);
-  EXPECT_EQ(reads, 32);
+  EXPECT_EQ(reads, static_cast<int>(games.size()));
   EXPECT_TRUE(library.GetSnapshot()->covers.empty());
-  EXPECT_EQ(retained->covers.size(), 24u);
+  EXPECT_EQ(retained->covers.size(), retained_count);
   const auto old_revision = library.GetSnapshot()->catalog_revision;
   library.Execute(O::Cover, "0", old_revision);
   library.SetGames(games);
@@ -408,5 +482,176 @@ TEST(BigPictureLibraryTest, CoverDecodeIsBoundedAndOldCatalogRequestsCannotInsta
   ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains("1"); }));
   EXPECT_FALSE(library.GetSnapshot()->covers.contains("0"));
   EXPECT_EQ(library.GetSnapshot()->covers.at("1")->revision, new_revision);
+}
+
+TEST(BigPictureLibraryTest, PauseMetadataRefreshReusesDecodedCoversAndTheGpuCacheRevision)
+{
+  const auto png = SolidPng(40, 60, Qt::red);
+  ASSERT_FALSE(png.empty());
+  int reads = 0;
+  BigPictureLibrary library(nullptr, {{}, {}, {}, [&](const std::string&) {
+                                        ++reads;
+                                        return png;
+                                      }});
+  auto game = Entry("game.iso", "Game");
+  library.SetGames({game});
+  const auto revision = library.GetSnapshot()->catalog_revision;
+  library.Execute(O::Cover, game.path, revision);
+  ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains(game.path); }));
+  const auto retained = library.GetSnapshot();
+  const auto cover = retained->covers.at(game.path);
+  for (int opening = 1; opening <= 5; ++opening)
+  {
+    game.played_ms = opening * 1000;
+    library.SetGames({game}, false);
+    library.Execute(O::Cover, game.path, revision);
+    const auto snapshot = library.GetSnapshot();
+    EXPECT_EQ(snapshot->catalog_revision, revision);
+    EXPECT_EQ(snapshot->covers.at(game.path), cover);
+    EXPECT_EQ(snapshot->games.front().played_ms, game.played_ms);
+  }
+  EXPECT_EQ(reads, 1);
+  EXPECT_EQ(retained->games.front().played_ms, 0u);
+
+  // A real library/cover update still invalidates both caches and rejects old requests.
+  library.SetGames({game});
+  EXPECT_GT(library.GetSnapshot()->catalog_revision, revision);
+  EXPECT_TRUE(library.GetSnapshot()->covers.empty());
+  library.Execute(O::Cover, game.path, revision);
+  EXPECT_EQ(reads, 1);
+  library.Execute(O::Cover, game.path, library.GetSnapshot()->catalog_revision);
+  ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains(game.path); }));
+  EXPECT_EQ(reads, 2);
+  EXPECT_NE(library.GetSnapshot()->covers.at(game.path), cover);
+  EXPECT_EQ(retained->covers.at(game.path), cover);
+}
+
+TEST(BigPictureLibraryTest, PathsThatLeaveTheCatalogReloadTheirCoversWhenTheyReturn)
+{
+  auto a_cover = SolidPng(40, 60, Qt::red);
+  std::vector<unsigned char> b_cover;
+  ASSERT_FALSE(a_cover.empty());
+  int reads = 0;
+  BigPictureLibrary library(nullptr, {{}, {}, {}, [&](const std::string& path) {
+                                        ++reads;
+                                        return path == "a" ? a_cover : b_cover;
+                                      }});
+  const auto a = Entry("a", "A");
+  const auto b = Entry("b", "B");
+  library.SetGames({a, b});
+  const auto revision = library.GetSnapshot()->catalog_revision;
+  library.Execute(O::Cover, a.path, revision);
+  library.Execute(O::Cover, b.path, revision);
+  ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains(a.path); }));
+  EXPECT_TRUE(library.GetSnapshot()->missing_covers.contains(b.path));
+  EXPECT_EQ(library.GetSnapshot()->covers.at(a.path)->rgba[0], 255);
+
+  // Metadata-only refreshes keep the catalog revision, but departed paths lose cached state.
+  library.SetGames({}, false);
+  EXPECT_EQ(library.GetSnapshot()->catalog_revision, revision);
+  EXPECT_TRUE(library.GetSnapshot()->covers.empty());
+  EXPECT_TRUE(library.GetSnapshot()->missing_covers.empty());
+
+  a_cover = SolidPng(40, 60, Qt::blue);
+  b_cover = SolidPng(40, 60, Qt::green);
+  library.SetGames({a, b}, false);
+  library.Execute(O::Cover, a.path, revision);
+  library.Execute(O::Cover, b.path, revision);
+  ASSERT_TRUE(Wait([&] {
+    const auto snapshot = library.GetSnapshot();
+    return snapshot->covers.contains(a.path) && snapshot->covers.contains(b.path);
+  }));
+  EXPECT_EQ(reads, 4);
+  EXPECT_EQ(library.GetSnapshot()->covers.at(a.path)->rgba[2], 255);
+
+  // A departure seen only by a catalog that a scan deferred still drops the cached cover.
+  library.SetScanning(true);
+  library.SetGames({b}, false);
+  library.SetGames({a, b}, false);
+  library.SetScanning(false);
+  EXPECT_FALSE(library.GetSnapshot()->covers.contains(a.path));
+  EXPECT_TRUE(library.GetSnapshot()->covers.contains(b.path));
+}
+
+TEST(BigPictureLibraryTest, MetadataRefreshKeepsInFlightDecodeAndScanRetainsPendingInvalidation)
+{
+  const auto png = SolidPng(40, 60, Qt::blue);
+  ASSERT_FALSE(png.empty());
+  int reads = 0;
+  BigPictureLibrary library(nullptr, {{}, {}, {}, [&](const std::string&) {
+                                        ++reads;
+                                        return png;
+                                      }});
+  auto game = Entry("game.iso", "Game");
+  library.SetGames({game});
+  const auto revision = library.GetSnapshot()->catalog_revision;
+  library.Execute(O::Cover, game.path, revision);
+  game.played_ms = 1000;
+  library.SetGames({game}, false);
+  ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains(game.path); }));
+  EXPECT_EQ(reads, 1);
+  EXPECT_EQ(library.GetSnapshot()->covers.at(game.path)->revision, revision);
+
+  library.SetScanning(true);
+  library.SetGames({game});
+  game.played_ms = 2000;
+  library.SetGames({game}, false);
+  library.SetScanning(false);
+  EXPECT_GT(library.GetSnapshot()->catalog_revision, revision);
+  EXPECT_TRUE(library.GetSnapshot()->covers.empty());
+  EXPECT_EQ(library.GetSnapshot()->games.front().played_ms, 2000u);
+  library.Execute(O::Cover, game.path, library.GetSnapshot()->catalog_revision);
+  ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains(game.path); }));
+  EXPECT_EQ(reads, 2);
+}
+
+TEST(BigPictureLibraryTest, MissingCoverIsNotRetriedOnEveryPauseButCanAppearAfterLibraryUpdate)
+{
+  int reads = 0;
+  BigPictureLibrary library(nullptr, {{}, {}, {}, [&](const std::string&) {
+                                        ++reads;
+                                        return std::vector<unsigned char>{};
+                                      }});
+  const auto game = Entry("game.iso", "Game");
+  library.SetGames({game});
+  for (int opening = 0; opening < 5; ++opening)
+  {
+    library.SetGames({game}, false);
+    library.Execute(O::Cover, game.path, library.GetSnapshot()->catalog_revision);
+  }
+  EXPECT_EQ(reads, 1);
+  EXPECT_TRUE(library.GetSnapshot()->missing_covers.contains(game.path));
+  library.SetGames({game});
+  library.Execute(O::Cover, game.path, library.GetSnapshot()->catalog_revision);
+  EXPECT_EQ(reads, 2);
+}
+
+TEST(BigPictureLibraryTest, SmallCoverImagesKeepTheirNativeResolution)
+{
+  const auto png = SolidPng(40, 60, Qt::blue);
+  ASSERT_FALSE(png.empty());
+  BigPictureLibrary library(nullptr, {{}, {}, {}, [&](const std::string&) { return png; }});
+  library.SetGames({Entry("small", "Small cover")});
+  library.Execute(O::Cover, "small", library.GetSnapshot()->catalog_revision);
+  ASSERT_TRUE(Wait([&] { return library.GetSnapshot()->covers.contains("small"); }));
+  const auto& cover = *library.GetSnapshot()->covers.at("small");
+  EXPECT_EQ(cover.width, 40u);
+  EXPECT_EQ(cover.height, 60u);
+}
+
+TEST(BigPictureLibraryTest, ExplicitViewButtonsAreIdempotentAndShortcutsStillToggle)
+{
+  BigPictureLibrary library(nullptr, {});
+  library.Execute(O::View, "list", 0);
+  EXPECT_FALSE(library.GetSnapshot()->grid);
+  const auto revision = library.GetSnapshot()->view_revision;
+  library.Execute(O::View, "list", 0);
+  EXPECT_FALSE(library.GetSnapshot()->grid);
+  EXPECT_EQ(library.GetSnapshot()->view_revision, revision);
+  library.Execute(O::View, "grid", 0);
+  library.Execute(O::View, "grid", 0);
+  EXPECT_TRUE(library.GetSnapshot()->grid);
+  library.Execute(O::View, {}, 0);
+  EXPECT_FALSE(library.GetSnapshot()->grid);
 }
 }  // namespace

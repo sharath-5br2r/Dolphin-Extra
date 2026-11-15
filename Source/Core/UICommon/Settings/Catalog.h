@@ -47,7 +47,17 @@ struct Environment
   bool movie = false;
   int max_efb_scale = 12;
   std::vector<Choice> graphics_backends;
+  std::vector<Choice> graphics_adapters;
   std::vector<Choice> audio_backends;
+  std::vector<Choice> wasapi_devices;
+  std::vector<Choice> languages;
+  std::vector<Choice> anti_aliasing;
+  std::vector<Choice> cpu_engines;
+  bool gpu_texture_decoding = false;
+  bool bounding_box = false;
+  bool ssaa = false;
+  bool hdr = false;
+  bool stereo = false;
   bool operator==(const Environment&) const = default;
 };
 
@@ -119,4 +129,5 @@ private:
 };
 
 const Catalog& GetCatalog();
+void AppendApplicationSettings(std::vector<Entry>& entries);
 }  // namespace UICommon::Settings

@@ -18,6 +18,7 @@ import org.dolphinemu.dolphinemu.features.settings.model.StringSetting
 import org.dolphinemu.dolphinemu.features.settings.ui.MenuTag
 import org.dolphinemu.dolphinemu.features.settings.ui.SettingsActivity
 import org.dolphinemu.dolphinemu.model.GameFile
+import org.dolphinemu.dolphinemu.services.GameFileCacheManager
 import org.dolphinemu.dolphinemu.ui.main.MainPresenter
 import org.dolphinemu.dolphinemu.ui.platform.Platform
 import org.dolphinemu.dolphinemu.utils.AlertDialogItemsBuilder
@@ -41,6 +42,15 @@ class GamePropertiesDialog : DialogFragment() {
         val isWii = platform == Platform.WII.toInt() || platform == Platform.WIIWARE.toInt()
 
         val itemsBuilder = AlertDialogItemsBuilder(requireContext())
+
+        if (requireArguments().getBoolean(ARG_SHOW_DISC_CHOICES, true)) {
+            val game = GameFileCacheManager.addOrGet(path)
+            if (GameFileCacheManager.getDiscChoices(game).isNotEmpty()) {
+                itemsBuilder.add(R.string.disc_properties) { _, _ ->
+                    GameDiscSelectionDialog.showProperties(requireActivity(), game)
+                }
+            }
+        }
 
         itemsBuilder.add(R.string.properties_details) { _, _ ->
             GameDetailsDialog.newInstance(path)
@@ -173,14 +183,16 @@ class GamePropertiesDialog : DialogFragment() {
         const val ARG_DISC_NUMBER = "disc_number"
         private const val ARG_PLATFORM = "platform"
         private const val ARG_SHOULD_ALLOW_CONVERSION = "should_allow_conversion"
+        private const val ARG_SHOW_DISC_CHOICES = "show_disc_choices"
 
         @JvmStatic
-        fun newInstance(gameFile: GameFile?): GamePropertiesDialog {
+        fun newInstance(gameFile: GameFile?, showDiscChoices: Boolean = true): GamePropertiesDialog {
             val fragment = GamePropertiesDialog()
             val nonNullGameFile = gameFile!!
 
             val arguments = Bundle()
             arguments.putString(ARG_PATH, nonNullGameFile.getPath())
+            arguments.putBoolean(ARG_SHOW_DISC_CHOICES, showDiscChoices)
             arguments.putString(ARG_GAME_ID, nonNullGameFile.getGameId())
             arguments.putString(ARG_GAMETDB_ID, nonNullGameFile.getGameTdbId())
             arguments.putInt(ARG_REVISION, nonNullGameFile.getRevision())

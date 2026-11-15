@@ -154,9 +154,13 @@ void HotkeyScheduler::Run()
     g_controller_interface.SetCurrentInputChannel(ciface::InputChannel::FreeLook);
     g_controller_interface.UpdateInput(ciface::InputChannel::BigPicture);
     auto& presentation = BigPicture::GetPresentationState();
+    // Fullscreen reparenting can deliver a Qt deactivation without a matching activation
+    // to the embedded widget. Reconcile menu focus with the host before sampling input.
+    const bool renderer_has_focus = Host_RendererHasFocus();
+    presentation.SetFocused(renderer_has_focus);
     const auto input_epoch = presentation.GetFrameInputEpoch();
-    const bool toggle = BigPictureInput::Poll(
-        HotkeyManagerEmu::IsEnabled() && Host_RendererHasFocus(), presentation.IsModal());
+    const bool toggle = BigPictureInput::Poll(HotkeyManagerEmu::IsEnabled() && renderer_has_focus,
+                                              presentation.IsModal());
     for (const auto& request : presentation.TakeNavigationRequests())
     {
       if (request.settings_menu)
@@ -185,9 +189,7 @@ void HotkeyScheduler::Run()
     if (toggle)
     {
       const auto snapshot = presentation.GetSnapshot();
-      if (snapshot && (snapshot->mode == BigPicture::Mode::Library ||
-                       snapshot->host.lifecycle == BigPicture::Lifecycle::Running ||
-                       snapshot->host.lifecycle == BigPicture::Lifecycle::Paused))
+      if (snapshot && BigPicture::AcceptsMenuToggle(*snapshot))
       {
         if (snapshot->mode == BigPicture::Mode::Desktop)
         {
@@ -229,8 +231,28 @@ void HotkeyScheduler::Run()
       // old hotkey presses; no emulation/config hotkey may leak through a modal menu.
       if (BigPicture::GetPresentationState().IsModal())
       {
+        // Drain the opening key while captured so a held Escape cannot reopen
+        // the overlay immediately after Back closes it.
+        IsHotkey(HK_OPEN_PAUSE_MENU);
+        IsHotkey(HK_STOP);
         HandleFrameStepHotkeys();
         continue;
+      }
+
+      // Opening wins over legacy Stop=Escape profiles. Start capture before the
+      // queued Qt request, just as the controller's Open Menu binding does.
+      if (IsHotkey(HK_OPEN_PAUSE_MENU) && renderer_has_focus)
+      {
+        const auto snapshot = presentation.GetSnapshot();
+        if (snapshot && snapshot->mode == BigPicture::Mode::Desktop &&
+            (snapshot->host.lifecycle == BigPicture::Lifecycle::Running ||
+             snapshot->host.lifecycle == BigPicture::Lifecycle::Paused))
+        {
+          if (const auto epoch = presentation.BeginMenuRequest(snapshot->generation, input_epoch))
+            emit BigPictureAction(static_cast<int>(BigPicture::Action::OpenMenu),
+                                  snapshot->generation, *epoch);
+          continue;
+        }
       }
 
       // Open

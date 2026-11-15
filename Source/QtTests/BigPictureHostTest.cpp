@@ -34,6 +34,66 @@ TEST(BigPictureHostTest, QueuedNavigationCannotExecuteAfterFocusReset)
   EXPECT_EQ(host.GetSnapshot()->mode, Mode::InGame);
 }
 
+TEST(BigPictureHostTest, ReconciledFocusOpensMenuAndRepeatedSamplesPreserveTheQueuedRequest)
+{
+  auto& presentation = GetPresentationState();
+  presentation.SetRendererReady(true);
+  BigPictureHost host(
+      nullptr, [] { return HostState{Lifecycle::Running}; },
+      [](const Command& command) { return Result{command}; }, {},
+      [&](std::shared_ptr<const Snapshot> snapshot) { presentation.Publish(std::move(snapshot)); });
+  const auto generation = host.GetSnapshot()->generation;
+
+  // Fullscreen reparenting can leave the embedded widget with only a deactivation event.
+  presentation.SetFocused(false);
+  EXPECT_FALSE(presentation.BeginMenuRequest(generation, presentation.GetFrameInputEpoch()));
+  presentation.SetFocused(true);
+  const auto epoch = presentation.BeginMenuRequest(generation, presentation.GetFrameInputEpoch());
+  ASSERT_TRUE(epoch);
+  host.RequestAction(generation, Action::OpenMenu, *epoch);
+
+  // The hotkey owner samples actual host focus each tick, including while Qt is busy.
+  for (int i = 0; i < 10; ++i)
+    presentation.SetFocused(true);
+  EXPECT_TRUE(presentation.IsInputCurrent(*epoch));
+  EXPECT_TRUE(presentation.IsModal());
+  QCoreApplication::processEvents();
+  EXPECT_EQ(host.GetSnapshot()->mode, Mode::InGame);
+  EXPECT_TRUE(presentation.IsModal());
+}
+
+TEST(BigPictureHostTest, RendererTeardownRejectsQueuedOpeningAndReleasesCaptureWithoutPausing)
+{
+  auto& presentation = GetPresentationState();
+  presentation.SetFocused(true);
+  presentation.SetRendererReady(true);
+  HostState state{Lifecycle::Running};
+  int pauses = 0;
+  BigPictureHost host(
+      nullptr, [&] { return state; }, [](const Command& command) { return Result{command}; },
+      [&](bool paused) {
+        if (paused)
+        {
+          ++pauses;
+          state.lifecycle = Lifecycle::Paused;
+          ++state.pause_revision;
+        }
+      },
+      [&](std::shared_ptr<const Snapshot> snapshot) { presentation.Publish(std::move(snapshot)); });
+  const auto generation = host.GetSnapshot()->generation;
+  const auto epoch = presentation.BeginMenuRequest(generation, presentation.GetFrameInputEpoch());
+  ASSERT_TRUE(epoch);
+  ASSERT_TRUE(presentation.GetCapture().modal);
+  host.RequestAction(generation, Action::OpenMenu, *epoch);
+  presentation.SetRendererReady(false);
+  QCoreApplication::processEvents();
+  EXPECT_EQ(host.GetSnapshot()->mode, Mode::Desktop);
+  EXPECT_EQ(state.lifecycle, Lifecycle::Running);
+  EXPECT_EQ(pauses, 0);
+  EXPECT_FALSE(presentation.IsModal());
+  EXPECT_FALSE(presentation.GetCapture().modal);
+}
+
 TEST(BigPictureHostTest, WorkerCommandsExecuteOnlyOnQtOwnerAndSnapshotsStayValid)
 {
   HostState state{Lifecycle::Running};
@@ -56,7 +116,11 @@ TEST(BigPictureHostTest, WorkerCommandsExecuteOnlyOnQtOwnerAndSnapshotsStayValid
   EXPECT_EQ(calls, 1);
   EXPECT_FALSE(old->result);
   ASSERT_TRUE(host.GetSnapshot()->result);
-  EXPECT_EQ(host.GetSnapshot()->result->status, ResultStatus::Dispatched);
+  // A save stays pending until the core reports its outcome to the host.
+  EXPECT_EQ(host.GetSnapshot()->result->status, ResultStatus::Pending);
+  host.CompleteCommand(1, ResultStatus::Succeeded);
+  EXPECT_FALSE(host.GetSnapshot()->pending);
+  EXPECT_EQ(host.GetSnapshot()->result->status, ResultStatus::Succeeded);
 }
 
 TEST(BigPictureHostTest, SessionChangeAndPolicyChangeAreCheckedAfterQueueing)
@@ -118,6 +182,47 @@ TEST(BigPictureHostTest, ClosingMenuOnlyResumesItsOwnPause)
   QCoreApplication::processEvents();
   EXPECT_EQ(resumes, 1);
   EXPECT_EQ(state.lifecycle, Lifecycle::Running);
+}
+
+TEST(BigPictureHostTest, PauseScreenBackResumesAlreadyPausedAndInvalidatedSessions)
+{
+  for (const auto initial : {Lifecycle::Paused, Lifecycle::Running})
+  {
+    HostState state{initial};
+    int explicit_resumes = 0;
+    int implicit_resumes = 0;
+    BigPictureHost host(
+        nullptr, [&] { return state; },
+        [&](const Command& command) {
+          if (command.action == Action::Resume)
+          {
+            ++explicit_resumes;
+            state.lifecycle = Lifecycle::Running;
+            ++state.pause_revision;
+            return Result{command, ResultStatus::Succeeded};
+          }
+          return Result{command, ResultStatus::Dispatched};
+        },
+        [&](bool pause) {
+          state.lifecycle = pause ? Lifecycle::Paused : Lifecycle::Running;
+          ++state.pause_revision;
+          if (!pause)
+            ++implicit_resumes;
+        });
+    host.RequestAction(host.GetSnapshot()->generation, Action::OpenMenu);
+    QCoreApplication::processEvents();
+    // Loading a state or pausing externally must not prevent the pause screen's return action.
+    ++state.pause_revision;
+    host.Refresh();
+    // The pause screen maps Escape/Back to this explicit action.
+    host.RequestAction(host.GetSnapshot()->generation, Action::Resume);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(state.lifecycle, Lifecycle::Running);
+    EXPECT_EQ(host.GetSnapshot()->mode, Mode::Desktop);
+    EXPECT_TRUE(host.GetSnapshot()->screens.empty());
+    EXPECT_EQ(explicit_resumes, 1);
+    EXPECT_EQ(implicit_resumes, 0);
+  }
 }
 
 TEST(BigPictureHostTest, ExternalPauseResumeAndFocusLossInvalidateMenuPauseOwnership)
@@ -264,6 +369,8 @@ TEST(BigPictureHostTest, LoadInvalidatesImplicitResumeButExplicitResumeRemainsAv
   QCoreApplication::processEvents();
   host.RequestAction(generation, Action::LoadState, {}, 1);
   QCoreApplication::processEvents();
+  ASSERT_TRUE(host.GetSnapshot()->pending);
+  host.CompleteCommand(host.GetSnapshot()->pending->id, ResultStatus::Succeeded);
   host.RequestBack();
   QCoreApplication::processEvents();
   host.RequestBack();

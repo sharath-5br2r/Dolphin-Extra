@@ -27,6 +27,13 @@
 namespace
 {
 using namespace UICommon::Settings;
+
+TEST(SharedSettingsDeathTest, UnsupportedCatalogBindingsFailFast)
+{
+  const Config::Location location{Config::System::Main, "SharedSettingsDeathTest", "Missing"};
+  EXPECT_DEATH_IF_SUPPORTED(ConfigWidget::CatalogDescriptor(location), "");
+}
+
 class SharedSettingsTest : public testing::Test
 {
 protected:
@@ -68,7 +75,8 @@ protected:
 TEST_F(SharedSettingsTest, ColdSnapshotDoesNotPopulateOrDependOnWidgetRegistry)
 {
   const auto translated = ConfigWidget::TranslateSettingsSnapshot(*service->ReadSnapshot());
-  EXPECT_EQ(translated->settings.size(), 16u);
+  EXPECT_EQ(translated->settings.size(), service->ReadSnapshot()->settings.size());
+  EXPECT_GE(translated->settings.size(), 180u);
   EXPECT_TRUE(ConfigWidget::ConfigSettingRegistry::Instance().Entries().empty());
   EXPECT_FALSE(translated->settings.front().descriptor.label.empty());
 }

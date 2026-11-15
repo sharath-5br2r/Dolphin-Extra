@@ -35,6 +35,9 @@ public:
                        ProgressCallback callback = nullptr);
   ~HttpRequest();
   bool IsValid() const;
+  // Thread-safe: abort an active transfer and reject future requests on this instance.
+  // The owner must still join any request thread before destroying the instance.
+  void Cancel();
 
   using Response = std::optional<std::vector<u8>>;
   using Headers = std::map<std::string, std::optional<std::string>>;

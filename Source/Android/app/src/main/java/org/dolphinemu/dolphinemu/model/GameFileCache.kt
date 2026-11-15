@@ -50,6 +50,10 @@ class GameFileCache {
     external fun save(): Boolean
 
     companion object {
+        // Groups contain indices into games, in the same disc/path order as the desktop library.
+        @JvmStatic
+        external fun getDiscGroups(games: Array<GameFile>): Array<IntArray>
+
         @JvmStatic
         private external fun newGameFileCache(): Long
 

@@ -52,6 +52,7 @@ add_executable(qt-tests EXCLUDE_FROM_ALL
   TriforcePaneUiTest.cpp
   WiiPaneUiTest.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/EmulationStatusWidget.cpp
+  ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureFiles.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureHost.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureLibrary.cpp
   ${CMAKE_SOURCE_DIR}/Source/Core/DolphinQt/BigPictureSettings.cpp

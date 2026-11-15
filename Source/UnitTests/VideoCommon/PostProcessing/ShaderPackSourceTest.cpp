@@ -29,6 +29,73 @@ TEST(ShaderPackSource, UnknownIdReturnsNull)
   EXPECT_EQ(FindShaderPackSource("nope"), nullptr);
 }
 
+TEST(ShaderPackSource, LatestLolaReleaseSelectsRetroArchZipForANewTag)
+{
+  const auto* source = FindShaderPackSource("lola-retro");
+  ASSERT_NE(source, nullptr);
+  const auto url = FindShaderPackReleaseAssetUrl(*source, R"({
+    "tag_name": "v99.0",
+    "zipball_url": "https://api.github.com/repos/zoran123456/lola-retro/zipball/v99.0",
+    "assets": [
+      {"name": "lola-retro-kodi-v99.0.zip", "browser_download_url": "https://github.com/wrong-kodi.zip"},
+      {"name": "lola-retro-amiberry-v99.0.zip", "browser_download_url": "https://github.com/wrong-amiberry.zip"},
+      {"name": "lola-retro-v99.0.zip", "browser_download_url": "https://github.com/zoran123456/lola-retro/releases/download/v99.0/lola-retro-v99.0.zip"},
+      {"name": "lola-retro-86box-v99.0.zip", "browser_download_url": "https://github.com/wrong-86box.zip"}
+    ]
+  })");
+  ASSERT_TRUE(url.has_value());
+  EXPECT_EQ(*url, "https://github.com/zoran123456/lola-retro/releases/download/v99.0/"
+                  "lola-retro-v99.0.zip");
+}
+
+TEST(ShaderPackSource, LatestReleaseDoesNotFallBackToOtherPortsOrOlderAssets)
+{
+  const auto* source = FindShaderPackSource("lola-retro");
+  ASSERT_NE(source, nullptr);
+  EXPECT_FALSE(FindShaderPackReleaseAssetUrl(*source, R"({
+    "tag_name": "v99.0", "assets": [
+      {"name": "lola-retro-kodi-v99.0.zip", "browser_download_url": "https://github.com/kodi.zip"},
+      {"name": "lola-retro-v98.0.zip", "browser_download_url": "https://github.com/older.zip"}
+    ]
+  })"));
+}
+
+TEST(ShaderPackSource, LatestReleaseRejectsMalformedOrMissingMetadata)
+{
+  const auto* source = FindShaderPackSource("lola-retro");
+  ASSERT_NE(source, nullptr);
+  for (const char* json : {"not JSON", "null", "[]", "{}", R"({"message":"rate limit exceeded"})",
+                           R"({"tag_name":42,"assets":[]})", R"({"tag_name":"","assets":[]})",
+                           R"({"tag_name":"v99.0","assets":{}})",
+                           R"({"tag_name":"v99.0","assets":[null,42,{}, {"name":42}]})"})
+  {
+    SCOPED_TRACE(json);
+    EXPECT_FALSE(FindShaderPackReleaseAssetUrl(*source, json));
+  }
+}
+
+TEST(ShaderPackSource, LatestReleaseRejectsAmbiguousOrInvalidDownloadUrls)
+{
+  const auto* source = FindShaderPackSource("lola-retro");
+  ASSERT_NE(source, nullptr);
+  EXPECT_FALSE(FindShaderPackReleaseAssetUrl(*source, R"({
+    "tag_name":"v99.0", "assets":[
+      {"name":"lola-retro-v99.0.zip","browser_download_url":"https://github.com/first.zip"},
+      {"name":"lola-retro-v99.0.zip","browser_download_url":"https://github.com/second.zip"}
+    ]
+  })"));
+  for (const char* url : {"null", "42", "\"\"", "\"http://github.com/asset.zip\"",
+                          "\"https://github.com.example/asset.zip\""})
+  {
+    SCOPED_TRACE(url);
+    EXPECT_FALSE(FindShaderPackReleaseAssetUrl(
+        *source,
+        std::string(
+            R"({"tag_name":"v99.0","assets":[{"name":"lola-retro-v99.0.zip","browser_download_url":)") +
+            url + "}]}"));
+  }
+}
+
 TEST(ShaderPackSource, RetroCrisisDependsOnLibretro)
 {
   const ShaderPackSource* rc = FindShaderPackSource("retrocrisis");

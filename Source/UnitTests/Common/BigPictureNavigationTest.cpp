@@ -123,6 +123,7 @@ TEST(BigPictureNavigationTest, RenderRequestsAreBoundedAndCannotSurviveFocusOrSe
 TEST(BigPictureNavigationTest, OpeningCaptureCoversQtDeliveryAndCannotBecomeStuck)
 {
   PresentationState state;
+  state.SetRendererReady(true);
   auto snapshot = std::make_shared<Snapshot>();
   snapshot->host.lifecycle = Lifecycle::Running;
   state.Publish(snapshot);
@@ -152,4 +153,30 @@ TEST(BigPictureNavigationTest, OpeningCaptureCoversQtDeliveryAndCannotBecomeStuc
   snapshot->generation = 2;
   state.Publish(snapshot);
   EXPECT_FALSE(state.IsModal());
+}
+
+TEST(BigPictureNavigationTest, UnsupportedRendererRejectsOpeningWithoutCapturingInput)
+{
+  PresentationState state;
+  for (const auto lifecycle : {Lifecycle::Running, Lifecycle::Paused})
+  {
+    auto snapshot = std::make_shared<Snapshot>();
+    snapshot->host.lifecycle = lifecycle;
+    state.Publish(snapshot);
+    state.SetRendererReady(false);
+    const auto frame_epoch = state.GetFrameInputEpoch();
+    const auto input_epoch = state.GetInputEpoch();
+    EXPECT_FALSE(state.BeginMenuRequest(snapshot->generation, frame_epoch));
+    EXPECT_FALSE(state.IsModal());
+    EXPECT_FALSE(state.GetCapture().modal);
+    EXPECT_EQ(state.GetFrameInputEpoch(), frame_epoch);
+    EXPECT_EQ(state.GetInputEpoch(), input_epoch);
+
+    state.SetRendererReady(true);
+    const auto request = state.BeginMenuRequest(snapshot->generation, state.GetFrameInputEpoch());
+    ASSERT_TRUE(request);
+    EXPECT_TRUE(state.IsModal());
+    state.FinishMenuRequest(request);
+    EXPECT_FALSE(state.IsModal());
+  }
 }

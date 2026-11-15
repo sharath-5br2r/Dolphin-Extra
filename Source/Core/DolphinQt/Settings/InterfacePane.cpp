@@ -79,6 +79,7 @@ void InterfacePane::BindSettings()
   ConfigWidget::Bind(m_ui->useBuiltinTitleDatabaseCheckBox,
                      Config::MAIN_USE_BUILT_IN_TITLE_DATABASE);
   ConfigWidget::Bind(m_ui->useCoversCheckBox, Config::MAIN_USE_GAME_COVERS);
+  ConfigWidget::Bind(m_ui->collapseMultiDiscGamesCheckBox, Config::MAIN_COLLAPSE_MULTI_DISC_GAMES);
   ConfigWidget::Bind(m_ui->focusedHotkeysCheckBox, Config::MAIN_FOCUSED_HOTKEYS);
   ConfigWidget::Bind(m_ui->disableScreensaverCheckBox, Config::MAIN_DISABLE_SCREENSAVER);
   ConfigWidget::Bind(m_ui->timeTrackingCheckBox, Config::MAIN_TIME_TRACKING);
@@ -293,6 +294,11 @@ void InterfacePane::AddDescriptions()
   ConfigWidget::SetDescription(m_ui->focusedHotkeysCheckBox, QString{},
                                tr(TR_FOCUSED_HOTKEYS_DESCRIPTION));
   ConfigWidget::SetDescription(m_ui->useCoversCheckBox, QString{}, tr(TR_USE_COVERS_DESCRIPTION));
+  ConfigWidget::SetDescription(
+      m_ui->collapseMultiDiscGamesCheckBox, {},
+      tr("Shows the discs of a multi-disc game as a single library entry and asks which disc to "
+         "start when you launch it. Different game revisions and regions remain separate."
+         "<br><br><dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>"));
   ConfigWidget::SetDescription(m_ui->disableScreensaverCheckBox, QString{},
                                tr(TR_DISABLE_SCREENSAVER_DESCRIPTION));
   ConfigWidget::SetDescription(m_ui->timeTrackingCheckBox, QString{}, tr(TR_TIME_TRACKING));

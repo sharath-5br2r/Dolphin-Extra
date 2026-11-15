@@ -3,6 +3,11 @@
 
 #include "VideoCommon/OnScreenUI.h"
 
+#include <algorithm>
+#include <cfloat>
+#include <charconv>
+#include <string_view>
+
 #include "Common/BigPicture/PresentationState.h"
 #include "Common/CommonPaths.h"
 #include "Common/EnumMap.h"
@@ -47,6 +52,22 @@
 
 namespace VideoCommon
 {
+namespace
+{
+// Callers validate image bounds before uploading. Cache lifetimes remain with the graphics owner.
+std::unique_ptr<AbstractTexture> UploadMenuImage(const ::BigPicture::LibraryImage& image,
+                                                 std::string_view label)
+{
+  TextureConfig config;
+  config.width = image.width;
+  config.height = image.height;
+  auto texture = g_gfx->CreateTexture(config, label);
+  if (texture)
+    texture->Load(0, image.width, image.height, image.width, image.rgba.data(), image.rgba.size());
+  return texture;
+}
+}  // namespace
+
 bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
 {
   std::unique_lock<std::mutex> imgui_lock(m_imgui_mutex);
@@ -112,7 +133,8 @@ bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
 
   m_imgui_last_frame_time = Common::Timer::NowUs();
   m_ready = true;
-  ::BigPicture::GetPresentationState().SetRendererReady(true);
+  // Software can initialize the OSD resources but cannot draw the modal menu.
+  ::BigPicture::GetPresentationState().SetRendererReady(g_gfx->SupportsUtilityDrawing());
   BeginImGuiFrameUnlocked(width, height);  // lock is already held
 
   return true;
@@ -334,10 +356,10 @@ void OnScreenUI::DrawDebugText()
 
   if (!::BigPicture::GetPresentationState().IsModal())
   {
-    if (const auto chat = g_netplay_chat_ui.load();
+    if (const auto chat = GetNetPlayChatUI();
         chat && Config::Get(Config::GFX_SHOW_NETPLAY_MESSAGES))
       chat->Display();
-    if (const auto golf = g_netplay_golf_ui.load();
+    if (const auto golf = GetNetPlayGolfUI();
         golf && Config::Get(Config::NETPLAY_GOLF_MODE_OVERLAY))
       golf->Display();
   }
@@ -603,6 +625,8 @@ void OnScreenUI::ProcessInput()
       ImGuiKey_Space,     ImGuiKey_Enter,     ImGuiKey_Escape,     ImGuiKey_KeypadEnter,
       ImGuiKey_A,         ImGuiKey_C,         ImGuiKey_V,          ImGuiKey_X,
       ImGuiKey_Y,         ImGuiKey_Z,         ImGuiKey_F11,        ImGuiKey_F1,
+      ImGuiKey_F2,        ImGuiKey_F3,        ImGuiKey_F4,         ImGuiKey_F5,
+      ImGuiKey_F6,
   };
 
   auto input = ::BigPicture::GetPresentationState().TakeInput();
@@ -614,9 +638,9 @@ void OnScreenUI::ProcessInput()
   const auto snapshot = ::BigPicture::GetPresentationState().GetSnapshot();
   const bool modal = snapshot && snapshot->mode != ::BigPicture::Mode::Desktop &&
                      ::BigPicture::GetPresentationState().IsModal();
-  const bool home =
-      modal && !snapshot->screens.empty() && snapshot->screens.back() == ::BigPicture::Screen::Home;
-  io.ConfigNavCursorVisibleAlways = modal && !home;
+  // ImGui hides the keyboard focus highlight after mouse input; the navigation toolkit shows
+  // it again for keyboard and gamepad input.
+  io.ConfigNavCursorVisibleAlways = false;
   io.ConfigFlags &= ~(ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad);
   io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
   if (modal)
@@ -633,9 +657,9 @@ void OnScreenUI::ProcessInput()
       if (File::Exists(font_path))
       {
         static constexpr ImWchar prompt_ranges[] = {
-            0x2198, 0x2199, 0x219c, 0x219d, 0x21b0, 0x21b3, 0x21ba, 0x21bb, 0x21ce,
-            0x21ce, 0x21d0, 0x21d3, 0x21e0, 0x21e8, 0x23f4, 0x23f4, 0x23f6, 0x23f6,
-            0x242e, 0x242f, 0x243a, 0x243c, 0x2460, 0x2460, 0x246a, 0x246a, 0};
+            0x2198, 0x2199, 0x219c, 0x21a3, 0x21b0, 0x21b3, 0x21ba, 0x21bb, 0x21ce, 0x21ce, 0x21d0,
+            0x21d3, 0x21e0, 0x21e8, 0x235d, 0x2367, 0x23f4, 0x23f7, 0x242e, 0x242f, 0x243a, 0x243c,
+            0x2460, 0x2464, 0x246a, 0x246a, 0x2699, 0x2699, 0xe005, 0xf8ff, 0};
         ImFontConfig config;
         config.GlyphExcludeRanges = prompt_ranges;
         m_menu_font = io.Fonts->AddFontFromFileTTF(font_path.c_str(), 0, &config);
@@ -649,6 +673,15 @@ void OnScreenUI::ProcessInput()
         config.MergeMode = true;
         config.DstFont = m_menu_font;
         io.Fonts->AddFontFromFileTTF(prompt_path.c_str(), 0, &config);
+      }
+      const auto awesome_path =
+          File::GetSysDirectory() + RESOURCES_DIR "/BigPicture/fa-solid-900.ttf";
+      if (File::Exists(awesome_path))
+      {
+        ImFontConfig config;
+        config.MergeMode = true;
+        config.DstFont = m_menu_font;
+        io.Fonts->AddFontFromFileTTF(awesome_path.c_str(), 0, &config);
       }
       for (const auto& path : fallback_paths)
       {
@@ -672,10 +705,11 @@ void OnScreenUI::ProcessInput()
     io.ClearEventsQueue();
     ImGui::SetWindowFocus(nullptr);
     m_navigation_toolkit.InvalidateFocus();
+    m_pending_menu.DiscardHeld();
   }
 
   m_dolphin_to_imgui_map.clear();
-  for (int dolphin_key = 0; dolphin_key <= static_cast<int>(DolphinKey::F1); dolphin_key++)
+  for (int dolphin_key = 0; dolphin_key <= static_cast<int>(DolphinKey::F6); dolphin_key++)
   {
     const int imgui_key = dolphin_to_imgui_map[DolphinKey(dolphin_key)];
     if (imgui_key >= 0)
@@ -711,7 +745,13 @@ void OnScreenUI::ProcessInput()
       }
       break;
     case ::BigPicture::InputEvent::Type::MousePosition:
-      io.AddMousePosEvent(event.x, event.y);
+      io.AddMousePosEvent(event.x * io.DisplaySize.x, event.y * io.DisplaySize.y);
+      break;
+    case ::BigPicture::InputEvent::Type::MouseWheel:
+      io.AddMouseWheelEvent(event.x, event.y);
+      break;
+    case ::BigPicture::InputEvent::Type::MouseLeave:
+      io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
       break;
     case ::BigPicture::InputEvent::Type::MouseButtons:
       for (size_t i = 0; i < std::size(io.MouseDown); ++i)
@@ -726,6 +766,7 @@ void OnScreenUI::ProcessInput()
       io.ClearInputMouse();
       io.ClearEventsQueue();
       ImGui::SetWindowFocus(nullptr);
+      m_pending_menu.DiscardHeld();
       break;
     }
   }
@@ -738,18 +779,62 @@ void OnScreenUI::DrawNavigation()
   if (!snapshot || snapshot->mode == ::BigPicture::Mode::Desktop || !presentation.IsModal())
   {
     m_navigation_toolkit.InvalidateFocus();
+    m_menu_snapshot.reset();
+    m_menu = {};
+    m_pending_menu.Reset();
     return;
   }
   if (m_navigation_generation != snapshot->generation)
   {
     m_navigation_toolkit.Reset();
+    m_state_textures = {};
+    m_achievement_textures.clear();
     m_navigation_generation = snapshot->generation;
   }
-  const auto text = presentation.GetNavigationText();
+  const auto shared_text = presentation.GetNavigationText();
+  const auto& text = *shared_text;
   if (text.title.empty())
     return;
   auto options = m_navigation.options;
-  const auto menu = BigPicture::BuildInGameMenu(*snapshot, text, options);
+  const auto now = BigPicture::PendingMenuHold::Clock::now();
+  if (m_menu_snapshot != snapshot || m_menu_text != shared_text || m_menu_options != options)
+  {
+    m_pending_menu.Replace(m_menu_snapshot.get(), m_menu, *snapshot, now);
+    m_menu = BigPicture::BuildInGameMenu(*snapshot, text, options);
+    m_menu_snapshot = snapshot;
+    m_menu_text = shared_text;
+    m_menu_options = options;
+  }
+  const auto& menu = m_pending_menu.Visible(*snapshot, m_menu, now);
+  if (m_achievement_snapshot != menu.page.achievements)
+  {
+    m_achievement_snapshot = menu.page.achievements;
+    m_achievement_images.clear();
+    if (m_achievement_snapshot)
+      for (const auto& subset : m_achievement_snapshot->subsets)
+      {
+        m_achievement_images.emplace("achievement:subset:" + std::to_string(subset.id),
+                                     subset.badge);
+        for (const auto& group : subset.groups)
+          for (const auto& achievement : group.achievements)
+            m_achievement_images.emplace("achievement:badge:" + std::to_string(achievement.id),
+                                         achievement.badge);
+      }
+    std::erase_if(m_achievement_textures,
+                  [&](const auto& entry) { return !m_achievement_images.contains(entry.first); });
+  }
+  if (menu.page.presentation == BigPicture::MenuPresentation::Settings &&
+      m_navigation_toolkit.GetMemory(menu.page.id).item.empty())
+  {
+    if (const auto focus = presentation.GetSettingsFocus(menu.page.id))
+    {
+      BigPicture::FocusMemory memory;
+      memory.item = focus->item;
+      memory.selected = focus->selected;
+      memory.scroll = focus->scroll;
+      m_navigation_toolkit.RestoreMemory(menu.page.id, std::move(memory));
+    }
+  }
   ++m_cover_frame;
   m_cover_uploads = 0;
   if (snapshot->host.library && m_cover_revision != snapshot->host.library->catalog_revision)
@@ -760,104 +845,19 @@ void OnScreenUI::DrawNavigation()
   const bool text_input =
       !snapshot->screens.empty() && snapshot->screens.back() == ::BigPicture::Screen::TextInput;
   const bool home = menu.page.id == "home";
-  const std::string prompts = m_navigation_input.IsKeyboard() ?
-                                  (home       ? text.home_keyboard_prompts :
-                                   text_input ? text.library_keyboard_prompts :
-                                                text.keyboard_prompts) :
-                                  BigPicture::GetControllerPrompts(m_navigation, text, home);
+  const bool settings = menu.page.presentation == BigPicture::MenuPresentation::Settings;
+  const bool settings_text = menu.page.settings_text;
+  const auto prompts = GetNavigationPrompts(menu.page, text, text_input);
   const auto result = m_navigation_toolkit.Draw(
-      menu.page, options, prompts, m_menu_font, [&](const std::string& path) {
-        if (path.starts_with("home:"))
-        {
-          const auto upload = [&](const ::BigPicture::LibraryImage& image) {
-            TextureConfig config;
-            config.width = image.width;
-            config.height = image.height;
-            const bool menu_icon = path != "home:avatar" && path != "home:logo";
-            if (menu_icon)
-              config.levels = std::bit_width(std::max(image.width, image.height));
-            auto texture = g_gfx->CreateTexture(config, "Big Picture home");
-            if (texture)
-            {
-              auto pixels = image.rgba;
-              // The monochrome SVGs have white coverage. Keep transparent texels white
-              // too, avoiding dark fringes when filtering straight-alpha artwork.
-              if (menu_icon)
-                for (std::size_t i = 0; i < pixels.size(); i += 4)
-                  pixels[i] = pixels[i + 1] = pixels[i + 2] = 255;
-              u32 width = image.width, height = image.height;
-              for (u32 level = 0; level < config.levels; ++level)
-              {
-                texture->Load(level, width, height, width, pixels.data(), pixels.size());
-                if (level + 1 == config.levels)
-                  break;
-                const u32 next_width = std::max(1u, width / 2);
-                const u32 next_height = std::max(1u, height / 2);
-                std::vector<u8> next(next_width * next_height * 4, 255);
-                for (u32 y = 0; y < next_height; ++y)
-                  for (u32 x = 0; x < next_width; ++x)
-                  {
-                    unsigned alpha = 0;
-                    for (u32 dy = 0; dy < 2; ++dy)
-                      for (u32 dx = 0; dx < 2; ++dx)
-                        alpha += pixels[(std::min(y * 2 + dy, height - 1) * width +
-                                         std::min(x * 2 + dx, width - 1)) *
-                                            4 +
-                                        3];
-                    next[(y * next_width + x) * 4 + 3] = static_cast<u8>((alpha + 2) / 4);
-                  }
-                pixels = std::move(next);
-                width = next_width;
-                height = next_height;
-              }
-            }
-            return texture;
-          };
-          if (path == "home:avatar")
-          {
-            const auto& avatar = snapshot->host.achievements_avatar;
-            if (!avatar)
-              return ImTextureID{};
-            if (!m_home_avatar || m_home_avatar->width != avatar->width ||
-                m_home_avatar->height != avatar->height || m_home_avatar->rgba != avatar->rgba)
-            {
-              m_home_textures[path] = upload(*avatar);
-              m_home_avatar = avatar;
-            }
-          }
-          else if (!m_home_textures.contains(path))
-          {
-            std::string filename;
-            if (path == "home:logo")
-              filename = "dolphin_logo.png";
-            else if (path == "home:media-cdrom" || path == "home:start-game" ||
-                     path == "home:applications-system" || path == "home:exit")
-              filename = "BigPicture/" + path.substr(5) + ".png";
-            else
-              return ImTextureID{};
-            std::string bytes;
-            Common::UniqueBuffer<u8> pixels;
-            u32 width = 0, height = 0;
-            auto& texture = m_home_textures[path];
-            if (File::ReadFileToString(File::GetSysDirectory() + RESOURCES_DIR "/" + filename,
-                                       bytes) &&
-                Common::LoadPNG(std::span(reinterpret_cast<const u8*>(bytes.data()), bytes.size()),
-                                &pixels, &width, &height) &&
-                width && height && width <= 1024 && height <= 1024)
-            {
-              ::BigPicture::LibraryImage image;
-              image.width = width;
-              image.height = height;
-              image.rgba.assign(pixels.data(), pixels.data() + width * height * 4);
-              texture = upload(image);
-            }
-          }
-          return reinterpret_cast<ImTextureID>(m_home_textures[path].get());
-        }
-        return snapshot->host.library ? GetLibraryCover(*snapshot->host.library, path) :
-                                        ImTextureID{};
-      });
-  if (snapshot->host.library && menu.page.id == "library" && result.focused.starts_with("game:") &&
+      menu.page, options, prompts, m_menu_font,
+      [&](const std::string& path) { return GetNavigationTexture(*snapshot, path); });
+  if (settings)
+  {
+    const auto memory = m_navigation_toolkit.GetMemory(menu.page.id);
+    presentation.SetSettingsFocus(menu.page.id, {memory.item, memory.selected, memory.scroll});
+  }
+  if (!snapshot->pending && snapshot->host.library && menu.page.id == "library" &&
+      result.focused.starts_with("game:") &&
       result.focused.substr(5) != snapshot->host.library->selected_path)
   {
     ::BigPicture::NavigationRequest request{snapshot->generation, ::BigPicture::Action::Library};
@@ -866,6 +866,32 @@ void OnScreenUI::DrawNavigation()
     presentation.RequestNavigation(std::move(request), m_input_epoch);
   }
   bool typed_activation = false;
+  if (settings_text && snapshot->host.settings_menu)
+  {
+    const auto send = [&](::BigPicture::SettingsOperation operation, std::string value = {}) {
+      ::BigPicture::NavigationRequest request{snapshot->generation,
+                                              ::BigPicture::Action::SettingsMenu};
+      request.settings_menu = ::BigPicture::SettingsRequest{snapshot->host.settings_menu->revision,
+                                                            operation, std::move(value)};
+      presentation.RequestNavigation(std::move(request), m_input_epoch);
+    };
+    for (const auto c : ImGui::GetIO().InputQueueCharacters)
+    {
+      if (c < 32)
+        continue;
+      char buffer[5]{};
+      ImTextCharToUtf8(buffer, c);
+      send(::BigPicture::SettingsOperation::TextKey, buffer);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_Backspace))
+      send(::BigPicture::SettingsOperation::TextErase);
+    const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
+                       ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+    if (m_navigation_input.IsKeyboard() && enter)
+      send(::BigPicture::SettingsOperation::TextDone);
+    typed_activation =
+        m_navigation_input.IsKeyboard() && (enter || ImGui::IsKeyPressed(ImGuiKey_Space));
+  }
   if (home && (ImGui::IsKeyPressed(ImGuiKey_Space, false) ||
                ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)))
   {
@@ -873,10 +899,12 @@ void OnScreenUI::DrawNavigation()
                                    m_input_epoch);
     typed_activation = true;
   }
-  if (home &&
-      (ImGui::IsKeyPressed(ImGuiKey_F11, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)))
+  if (result.fullscreen || (home && ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)))
+  {
     presentation.RequestNavigation({snapshot->generation, ::BigPicture::Action::Fullscreen},
                                    m_input_epoch);
+    typed_activation = true;
+  }
   if (home && ImGui::IsKeyPressed(ImGuiKey_F1, false))
     presentation.RequestNavigation({snapshot->generation, ::BigPicture::Action::About},
                                    m_input_epoch);
@@ -908,14 +936,221 @@ void OnScreenUI::DrawNavigation()
         m_navigation_input.IsKeyboard() && (enter || ImGui::IsKeyPressed(ImGuiKey_Space));
   }
   if (!typed_activation)
-    if (const auto request = menu.Activate(result))
+    if (const auto request = m_pending_menu.Activate(*snapshot, menu, result))
       presentation.RequestNavigation(*request, m_input_epoch);
+}
+
+std::string OnScreenUI::GetNavigationPrompts(const BigPicture::MenuPage& page,
+                                             const ::BigPicture::NavigationText& text,
+                                             bool text_input) const
+{
+  using Presentation = BigPicture::MenuPresentation;
+  bool setting_options = false;
+  if (page.presentation == Presentation::Settings)
+  {
+    const auto memory = m_navigation_toolkit.GetMemory(page.id);
+    const auto& selected = memory.selected.empty() ? page.default_focus : memory.selected;
+    setting_options = std::ranges::any_of(page.items, [&](const auto& item) {
+      return item.id == selected && item.enabled && item.has_options;
+    });
+  }
+  const bool home = page.id == "home";
+  const bool pause = page.presentation == Presentation::Pause;
+  if (m_navigation_input.IsKeyboard())
+  {
+    switch (page.presentation)
+    {
+    case Presentation::Pause:
+      return text.pause_keyboard_prompts;
+    case Presentation::States:
+      return text.state_keyboard_hints;
+    case Presentation::Achievements:
+      return text.achievements_keyboard_hints;
+    case Presentation::Library:
+      return text.library_keyboard_hints;
+    case Presentation::Settings:
+      if (!page.increase.empty())
+        return text.settings_adjust_keyboard_hints;
+      return text.settings_keyboard_hints +
+             (setting_options ? "   " + text.settings_keyboard_options : "");
+    case Presentation::FilePicker:
+      return text.picker_keyboard_hints;
+    case Presentation::Launch:
+      return text.start_keyboard_hints;
+    default:
+      if (home)
+        return text.home_keyboard_prompts;
+      return text_input || page.settings_text ? text.library_keyboard_prompts :
+                                                text.keyboard_prompts;
+    }
+  }
+  switch (page.presentation)
+  {
+  case Presentation::States:
+    return BigPicture::GetStateControllerPrompts(m_navigation, text);
+  case Presentation::Achievements:
+    return BigPicture::GetAchievementsControllerPrompts(m_navigation, text);
+  case Presentation::Library:
+    return BigPicture::GetLibraryControllerPrompts(m_navigation, text);
+  case Presentation::Settings:
+    return BigPicture::GetSettingsControllerPrompts(m_navigation, text, setting_options,
+                                                    !page.increase.empty());
+  case Presentation::FilePicker:
+  case Presentation::Launch:
+    return BigPicture::GetLaunchControllerPrompts(m_navigation, text,
+                                                  page.presentation == Presentation::FilePicker);
+  default:
+    return BigPicture::GetControllerPrompts(m_navigation, text, home, pause);
+  }
+}
+
+ImTextureID OnScreenUI::GetNavigationTexture(const ::BigPicture::Snapshot& snapshot,
+                                             const std::string& path)
+{
+  if (path.starts_with("achievement:"))
+  {
+    const auto found = m_achievement_images.find(path);
+    if (found == m_achievement_images.end() || !found->second)
+      return ImTextureID{};
+    const auto& badge = found->second;
+    if (!badge->width || !badge->height || badge->width > 512 || badge->height > 512 ||
+        badge->rgba.size() != static_cast<std::size_t>(badge->width) * badge->height * 4)
+      return ImTextureID{};
+    if (!m_achievement_textures.contains(path) && m_achievement_textures.size() >= 64)
+    {
+      auto oldest = std::ranges::min_element(
+          m_achievement_textures, {}, [](const auto& entry) { return entry.second.last_frame; });
+      if (oldest->second.last_frame == m_cover_frame)
+        return ImTextureID{};
+      m_achievement_textures.erase(oldest);
+    }
+    auto& cached = m_achievement_textures[path];
+    if (cached.image != badge)
+    {
+      auto texture = UploadMenuImage(*badge, "Achievement badge");
+      if (!texture)
+        return ImTextureID{};
+      cached = {badge, std::move(texture)};
+    }
+    cached.last_frame = m_cover_frame;
+    return reinterpret_cast<ImTextureID>(cached.texture.get());
+  }
+  if (path.starts_with("state:"))
+  {
+    std::size_t index;
+    const auto [end, error] = std::from_chars(path.data() + 6, path.data() + path.size(), index);
+    if (error != std::errc{} || end != path.data() + path.size() ||
+        index >= m_state_textures.size())
+      return ImTextureID{};
+    const auto& preview = snapshot.host.state_slots[index].preview;
+    auto& cached = m_state_textures[index];
+    if (!preview || !preview->width || !preview->height || preview->width > 320 ||
+        preview->height > 240 || preview->rgba.size() != preview->width * preview->height * 4)
+      return ImTextureID{};
+    if (cached.image != preview)
+    {
+      auto texture = UploadMenuImage(*preview, "State preview");
+      if (!texture)
+        return ImTextureID{};
+      cached = {preview, std::move(texture)};
+    }
+    return reinterpret_cast<ImTextureID>(cached.texture.get());
+  }
+  if (path.starts_with("home:"))
+  {
+    const auto upload = [&](const ::BigPicture::LibraryImage& image) {
+      TextureConfig config;
+      config.width = image.width;
+      config.height = image.height;
+      const bool menu_icon = path != "home:avatar" && path != "home:logo";
+      if (menu_icon)
+        config.levels = std::bit_width(std::max(image.width, image.height));
+      auto texture = g_gfx->CreateTexture(config, "Big Picture home");
+      if (texture)
+      {
+        auto pixels = image.rgba;
+        // The monochrome SVGs have white coverage. Keep transparent texels white
+        // too, avoiding dark fringes when filtering straight-alpha artwork.
+        if (menu_icon)
+          for (std::size_t i = 0; i < pixels.size(); i += 4)
+            pixels[i] = pixels[i + 1] = pixels[i + 2] = 255;
+        u32 width = image.width, height = image.height;
+        for (u32 level = 0; level < config.levels; ++level)
+        {
+          texture->Load(level, width, height, width, pixels.data(), pixels.size());
+          if (level + 1 == config.levels)
+            break;
+          const u32 next_width = std::max(1u, width / 2);
+          const u32 next_height = std::max(1u, height / 2);
+          std::vector<u8> next(next_width * next_height * 4, 255);
+          for (u32 y = 0; y < next_height; ++y)
+            for (u32 x = 0; x < next_width; ++x)
+            {
+              unsigned alpha = 0;
+              for (u32 dy = 0; dy < 2; ++dy)
+                for (u32 dx = 0; dx < 2; ++dx)
+                  alpha += pixels[(std::min(y * 2 + dy, height - 1) * width +
+                                   std::min(x * 2 + dx, width - 1)) *
+                                      4 +
+                                  3];
+              next[(y * next_width + x) * 4 + 3] = static_cast<u8>((alpha + 2) / 4);
+            }
+          pixels = std::move(next);
+          width = next_width;
+          height = next_height;
+        }
+      }
+      return texture;
+    };
+    if (path == "home:avatar")
+    {
+      const auto& avatar = snapshot.host.achievements_avatar;
+      if (!avatar)
+        return ImTextureID{};
+      if (!m_home_avatar || m_home_avatar->width != avatar->width ||
+          m_home_avatar->height != avatar->height || m_home_avatar->rgba != avatar->rgba)
+      {
+        m_home_textures[path] = upload(*avatar);
+        m_home_avatar = avatar;
+      }
+    }
+    else if (!m_home_textures.contains(path))
+    {
+      std::string filename;
+      if (path == "home:logo")
+        filename = "dolphin_logo.png";
+      else if (path == "home:media-cdrom" || path == "home:start-game" ||
+               path == "home:applications-system" || path == "home:exit" ||
+               path == "home:start-file" || path == "home:drive-cdrom" || path == "home:start-bios")
+        filename = "BigPicture/" + path.substr(5) + ".png";
+      else
+        return ImTextureID{};
+      std::string bytes;
+      Common::UniqueBuffer<u8> pixels;
+      u32 width = 0, height = 0;
+      auto& texture = m_home_textures[path];
+      if (File::ReadFileToString(File::GetSysDirectory() + RESOURCES_DIR "/" + filename, bytes) &&
+          Common::LoadPNG(std::span(reinterpret_cast<const u8*>(bytes.data()), bytes.size()),
+                          &pixels, &width, &height) &&
+          width && height && width <= 1024 && height <= 1024)
+      {
+        ::BigPicture::LibraryImage image;
+        image.width = width;
+        image.height = height;
+        image.rgba.assign(pixels.data(), pixels.data() + width * height * 4);
+        texture = upload(image);
+      }
+    }
+    return reinterpret_cast<ImTextureID>(m_home_textures[path].get());
+  }
+  return snapshot.host.library ? GetLibraryCover(*snapshot.host.library, path) : ImTextureID{};
 }
 
 ImTextureID OnScreenUI::GetLibraryCover(const ::BigPicture::LibrarySnapshot& library,
                                         const std::string& path)
 {
-  if (!m_cover_textures.contains(path) && m_cover_textures.size() >= 32)
+  if (!m_cover_textures.contains(path) &&
+      m_cover_textures.size() >= ::BigPicture::MAX_DECODED_COVERS)
   {
     auto oldest = std::ranges::min_element(m_cover_textures, {},
                                            [](const auto& item) { return item.second.last_frame; });
@@ -942,17 +1177,12 @@ ImTextureID OnScreenUI::GetLibraryCover(const ::BigPicture::LibrarySnapshot& lib
   if (!cached.texture && m_cover_uploads < 2 && it != library.covers.end())
   {
     const auto& image = *it->second;
-    if (image.width && image.height && image.width <= 256 && image.height <= 384 &&
+    if (image.width && image.height && image.width <= ::BigPicture::MAX_COVER_WIDTH &&
+        image.height <= ::BigPicture::MAX_COVER_HEIGHT &&
         image.rgba.size() == static_cast<std::size_t>(image.width) * image.height * 4)
     {
       ++m_cover_uploads;
-      TextureConfig config;
-      config.width = image.width;
-      config.height = image.height;
-      cached.texture = g_gfx->CreateTexture(config, "Big Picture cover");
-      if (cached.texture)
-        cached.texture->Load(0, image.width, image.height, image.width, image.rgba.data(),
-                             image.rgba.size());
+      cached.texture = UploadMenuImage(image, "Big Picture cover");
     }
   }
   return reinterpret_cast<ImTextureID>(cached.texture.get());
@@ -970,13 +1200,14 @@ void OnScreenUI::SetMousePos(float x, float y)
 {
   auto& state = ::BigPicture::GetPresentationState();
   const auto snapshot = state.GetSnapshot();
+  // Positions are fractions of the surface; this API takes backbuffer pixels.
   state.Enqueue({::BigPicture::InputEvent::Type::MousePosition,
                  snapshot ? snapshot->generation : 0,
                  0,
                  false,
                  {},
-                 x,
-                 y});
+                 x / static_cast<float>(std::max(1u, m_backbuffer_width)),
+                 y / static_cast<float>(std::max(1u, m_backbuffer_height))});
 }
 
 void OnScreenUI::SetMousePress(u32 button_mask)

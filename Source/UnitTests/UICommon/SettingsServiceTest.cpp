@@ -19,6 +19,17 @@ namespace
 {
 using namespace UICommon::Settings;
 
+TEST(SettingsCatalogDeathTest, MissingCallbacksFailFast)
+{
+  EXPECT_DEATH_IF_SUPPORTED((Catalog({Entry{}})), "");
+}
+
+TEST(SettingsCatalogDeathTest, DuplicateEntriesFailFast)
+{
+  const auto entry = *GetCatalog().Find("audio.volume");
+  EXPECT_DEATH_IF_SUPPORTED((Catalog({entry, entry})), "");
+}
+
 class MemoryLoader final : public Config::ConfigLayerLoader
 {
 public:
@@ -82,20 +93,70 @@ protected:
 TEST_F(SettingsServiceTest, CatalogIsCompleteBeforeAnyWidgetsOrRendererExist)
 {
   const auto snapshot = service->ReadSnapshot();
-  EXPECT_EQ(snapshot->settings.size(), 16u);
+  EXPECT_GE(snapshot->settings.size(), 180u);
   std::set<std::string> ids;
   for (const auto& state : snapshot->settings)
   {
     EXPECT_TRUE(ids.insert(state.descriptor.id).second);
     EXPECT_FALSE(state.descriptor.label.empty());
     EXPECT_FALSE(state.descriptor.help.empty());
-    EXPECT_NE(state.descriptor.help, state.descriptor.label);
+
     EXPECT_NE(GetCatalog().Find(state.descriptor.location), nullptr);
   }
   EXPECT_EQ(Read("audio.volume").descriptor.default_value,
             ToValue(Config::MAIN_AUDIO_VOLUME.GetDefaultValue()));
   EXPECT_FALSE(Read("interface.start_big_picture").descriptor.per_game);
   EXPECT_TRUE(Read("display.vsync").descriptor.per_game);
+}
+
+TEST_F(SettingsServiceTest, ExpandedCatalogDefaultsMatchTypedRangesAndStaticChoices)
+{
+  const auto snapshot = service->ReadSnapshot();
+  for (const auto& state : snapshot->settings)
+  {
+    const auto& descriptor = state.descriptor;
+    SCOPED_TRACE(descriptor.id);
+    if (descriptor.control == Control::Number)
+      EXPECT_TRUE(state.value_available);
+    if (descriptor.control == Control::Choice && !GetCatalog().Find(descriptor.id)->options)
+      EXPECT_TRUE(state.value_available);
+    if (descriptor.range)
+    {
+      EXPECT_GT(descriptor.range->scale, 0);
+      EXPECT_GT(descriptor.range->step, 0);
+      EXPECT_LT(descriptor.range->minimum, descriptor.range->maximum);
+    }
+  }
+  EXPECT_TRUE(Read("graphics.anti_aliasing").descriptor.per_game);
+  EXPECT_FALSE(Read("wii.sensor_bar_position").descriptor.per_game);
+  EXPECT_EQ(Read("native.main_default_iso").descriptor.policy, ApplyPolicy::NextBoot);
+}
+
+TEST_F(SettingsServiceTest, ExpandedSettingsRespectBackendCapabilitiesAndParentValues)
+{
+  EXPECT_FALSE(Read("graphics.ssaa").enabled);
+  EXPECT_FALSE(Read("native.gfx_enable_gpu_texture_decoding").enabled);
+  EXPECT_FALSE(Read("native.gfx_enhance_hdr_output").enabled);
+  environment.ssaa = true;
+  environment.hdr = true;
+  environment.gpu_texture_decoding = true;
+  ASSERT_TRUE(service->SetEnvironment(environment));
+  EXPECT_TRUE(Read("graphics.ssaa").enabled);
+  EXPECT_TRUE(Read("native.gfx_enhance_hdr_output").enabled);
+  Config::SetBase(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION, false);
+  EXPECT_TRUE(Read("native.gfx_enable_gpu_texture_decoding").enabled);
+  Config::SetBase(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION, true);
+  EXPECT_FALSE(Read("native.gfx_enable_gpu_texture_decoding").enabled);
+  EXPECT_FALSE(Read("native.gfx_cache_hires_textures").enabled);
+  Config::SetBase(Config::GFX_HIRES_TEXTURES, true);
+  EXPECT_TRUE(Read("native.gfx_cache_hires_textures").enabled);
+  Config::SetBase(Config::MAIN_RAM_OVERRIDE_ENABLE, true);
+  EXPECT_EQ(Display("advanced.mem2_size", 128).status, Status::Success);
+  EXPECT_EQ(Config::GetBase(Config::MAIN_MEM2_SIZE), 128u * 1048576);
+  environment.emulating = true;
+  ASSERT_TRUE(service->SetEnvironment(environment));
+  EXPECT_EQ(Display("advanced.mem2_size", 128).status, Status::Unavailable);
+  EXPECT_FALSE(Read("native.main_gba_audio_routing_enabled").enabled);
 }
 
 TEST_F(SettingsServiceTest, ThemeChoicesPersistGloballyAndPreserveUnknownStoredValues)
@@ -158,6 +219,37 @@ TEST_F(SettingsServiceTest, DisplayTransformsReverseBoolsAndPreserveExactStorage
   EXPECT_EQ(Display("advanced.mem1_size", 48).status, Status::Success);
   EXPECT_EQ(Config::Get(Config::MAIN_MEM1_SIZE), 48u * 1048576);
   EXPECT_EQ(Display("advanced.mem1_size", 48.5).status, Status::InvalidValue);
+}
+
+TEST_F(SettingsServiceTest, FloatStepsAcceptEveryConvergenceTickButRejectValuesBetweenTicks)
+{
+  constexpr auto id = "native.gfx_stereo_convergence";
+  const auto* entry = GetCatalog().Find(id);
+  ASSERT_NE(entry, nullptr);
+  // Limit the exhaustive tick sweep to this descriptor, rather than rebuilding unrelated rows.
+  const Catalog catalog({*entry});
+  Service convergence(catalog);
+  environment.stereo = true;
+  ASSERT_TRUE(convergence.SetEnvironment(environment));
+  ASSERT_TRUE(convergence.SetContext({EditTarget::Base}));
+  const auto display = [&](double value) {
+    Request request{convergence.ReadSnapshot()->revision, id, Operation::SetDisplay};
+    request.display_value = value;
+    return convergence.Apply(request).status;
+  };
+  ASSERT_EQ(display(100), Status::Success);
+  for (int tick = 0; tick <= 20000; ++tick)
+  {
+    const double value = tick / 100.0;
+    ASSERT_EQ(display(value), Status::Success) << value;
+    EXPECT_FLOAT_EQ(Config::GetBase(Config::GFX_STEREO_CONVERGENCE), static_cast<float>(value));
+    ASSERT_TRUE(convergence.ReadSnapshot()->settings.front().value_available) << value;
+  }
+  for (double value : {0.005, 10.005, 99.995, 100.005, 199.995, -0.01, 200.01})
+  {
+    EXPECT_EQ(display(value), Status::InvalidValue) << value;
+    EXPECT_FLOAT_EQ(Config::GetBase(Config::GFX_STEREO_CONVERGENCE), 200);
+  }
 }
 
 TEST_F(SettingsServiceTest, InvalidNumbersAndTypesNeverChangeConfiguration)

@@ -38,7 +38,7 @@ TEST(InterfacePaneUiTest, FormOwnsTheInterfaceSettingsStructure)
   EXPECT_EQ(ui.rootLayout->itemAt(1)->widget(), ui.renderWindowGroup);
   EXPECT_NE(ui.rootLayout->itemAt(2)->spacerItem(), nullptr);
 
-  ASSERT_EQ(ui.userInterfaceLayout->count(), 7);
+  ASSERT_EQ(ui.userInterfaceLayout->count(), 8);
   EXPECT_EQ(ui.userInterfaceLayout->itemAt(0)->layout(), ui.selectionLayout);
   EXPECT_EQ(ui.userInterfaceLayout->itemAt(1)->widget(), ui.useBuiltinTitleDatabaseCheckBox);
   EXPECT_EQ(ui.userInterfaceLayout->itemAt(2)->widget(), ui.useCoversCheckBox);
@@ -46,6 +46,7 @@ TEST(InterfacePaneUiTest, FormOwnsTheInterfaceSettingsStructure)
   EXPECT_EQ(ui.userInterfaceLayout->itemAt(4)->widget(), ui.focusedHotkeysCheckBox);
   EXPECT_EQ(ui.userInterfaceLayout->itemAt(5)->widget(), ui.disableScreensaverCheckBox);
   EXPECT_EQ(ui.userInterfaceLayout->itemAt(6)->widget(), ui.timeTrackingCheckBox);
+  EXPECT_EQ(ui.userInterfaceLayout->itemAt(7)->widget(), ui.collapseMultiDiscGamesCheckBox);
 
   EXPECT_EQ(ui.selectionLayout->rowCount(), 3);
   EXPECT_EQ(ui.selectionLayout->fieldGrowthPolicy(),
@@ -85,7 +86,8 @@ TEST(InterfacePaneUiTest, FormOwnsTheInterfaceSettingsStructure)
   EXPECT_EQ(NextTabFocusWidget(ui.themeComboBox), ui.styleComboBox);
   EXPECT_EQ(NextTabFocusWidget(ui.styleComboBox), ui.useBuiltinTitleDatabaseCheckBox);
   EXPECT_EQ(NextTabFocusWidget(ui.useBuiltinTitleDatabaseCheckBox), ui.useCoversCheckBox);
-  EXPECT_EQ(NextTabFocusWidget(ui.timeTrackingCheckBox), ui.keepWindowOnTopCheckBox);
+  EXPECT_EQ(NextTabFocusWidget(ui.timeTrackingCheckBox), ui.collapseMultiDiscGamesCheckBox);
+  EXPECT_EQ(NextTabFocusWidget(ui.collapseMultiDiscGamesCheckBox), ui.keepWindowOnTopCheckBox);
   EXPECT_EQ(NextTabFocusWidget(ui.pauseOnFocusLossCheckBox), ui.cursorOnMovementRadioButton);
   EXPECT_EQ(NextTabFocusWidget(ui.cursorOnMovementRadioButton), ui.cursorNeverRadioButton);
   EXPECT_EQ(NextTabFocusWidget(ui.cursorNeverRadioButton), ui.cursorAlwaysRadioButton);

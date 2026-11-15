@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "Common/BigPicture/Achievements.h"
 #include "Common/BigPicture/Library.h"
 #include "Common/BigPicture/Settings.h"
 #include "Common/Settings/Descriptor.h"
@@ -38,7 +39,11 @@ enum class Screen
   Home,
   StartGame,
   ExitMenu,
-  About
+  About,
+  Achievements,
+  Continuation,
+  GameOptions,
+  GameFolders
 };
 enum class Lifecycle
 {
@@ -80,12 +85,34 @@ enum class Action
   StartGame,
   ExitMenu,
   About,
+  Achievements,
+  ContinueGame,
+  FreshBoot,
+  DeleteContinuation,
+  // Per-game library actions; each carries the selected game's path.
+  GameOptions,
+  GameProperties,
+  GameStates,
+  BootState,
+  ResetPlayTime,
   Count
 };
 
+constexpr bool IsContinuationAction(Action action)
+{
+  return action == Action::ContinueGame || action == Action::FreshBoot ||
+         action == Action::DeleteContinuation;
+}
+
+constexpr bool IsStopAction(Action action)
+{
+  return action == Action::Stop || action == Action::Exit;
+}
+
 constexpr bool IsBootAction(Action action)
 {
-  return action == Action::Boot || action == Action::BootIPL || action == Action::BootSystemMenu;
+  return action == Action::Boot || action == Action::BootIPL || action == Action::BootSystemMenu ||
+         action == Action::BootState || IsContinuationAction(action);
 }
 enum class UnavailableReason
 {
@@ -99,6 +126,7 @@ enum class UnavailableReason
   DiscUnavailable,
   DesktopRequired,
   EmptySlot,
+  LoginRequired,
   Count
 };
 enum class ResultStatus
@@ -145,6 +173,7 @@ struct StateSlot
   bool occupied = false;
   bool readable = false;
   std::string description;
+  std::shared_ptr<const LibraryImage> preview;
 };
 
 struct HostState
@@ -169,6 +198,16 @@ struct HostState
   std::string menu_theme = "Dark";
   std::string achievements_username;
   std::shared_ptr<const LibraryImage> achievements_avatar;
+  std::string game_details;
+  std::string game_play_time;
+  std::string game_rich_presence;
+  std::string game_achievement_progress;
+  bool achievements_logged_in = false;
+  std::shared_ptr<const AchievementsSnapshot> achievements;
+  bool can_save_continuation = false;
+  bool continuation_pending = false;
+  bool can_load_continuation = false;
+  std::string continuation_title;
 };
 
 // Value-only contracts: no Qt, emulator objects, config-layer pointers or GPU resources.
@@ -181,6 +220,8 @@ struct Snapshot
   std::vector<Screen> screens;
   std::array<UnavailableReason, static_cast<std::size_t>(Action::Count)> availability{};
   std::optional<Command> confirmation;
+  // The library game that the game options screen and its state browser act on.
+  std::string options_path;
   // Confirmations always initially focus Cancel; the navigation toolkit consumes this value.
   Action confirmation_default = Action::Cancel;
   std::optional<Command> pending;
@@ -188,4 +229,14 @@ struct Snapshot
   // Error presentation survives later rejected commands/acknowledgments until dismissed.
   std::optional<Result> error;
 };
+
+// Whether Big Picture's own Open Menu binding may open or close the menu now. While a controller
+// binding is being captured, every input belongs to the capture, including that binding.
+inline bool AcceptsMenuToggle(const Snapshot& snapshot)
+{
+  if (snapshot.host.settings_menu && snapshot.host.settings_menu->capturing)
+    return false;
+  return snapshot.mode == Mode::Library || snapshot.host.lifecycle == Lifecycle::Running ||
+         snapshot.host.lifecycle == Lifecycle::Paused;
+}
 }  // namespace BigPicture

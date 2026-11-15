@@ -16,6 +16,7 @@
 #include "Common/ScopeGuard.h"
 #include "VideoCommon/PostProcessing/ShaderPackDownload.h"
 #include "VideoCommon/PostProcessing/ShaderPackSource.h"
+#include "VideoCommon/PostProcessing/SlangPreset.h"
 
 using namespace VideoCommon;
 
@@ -102,6 +103,52 @@ TEST(ShaderPackDownload, InstallSourceAppliesSubpathAndSubdir)
   EXPECT_EQ(result.preset_count, 1u);
   EXPECT_TRUE(File::Exists(shaders_root + "/shaders_slang/crt/satpixie-crt.slangp"));
   EXPECT_FALSE(File::Exists(shaders_root + "/shaders_slang/Reshade/ignore.fx"));
+}
+
+TEST(ShaderPackDownload, LolaRetroPreservesPackLayoutAndRelativeShaderPaths)
+{
+  const std::string dir = File::CreateTempDir();
+  ASSERT_FALSE(dir.empty());
+  Common::ScopeGuard guard{[&] { File::DeleteDirRecursively(dir); }};
+
+  const ShaderPackSource* source = FindShaderPackSource("lola-retro");
+  ASSERT_NE(source, nullptr);
+  EXPECT_TRUE(source->depends_on.empty());
+
+  const std::string zip = dir + "/lola-retro.zip";
+  const std::string preset_text = "shaders = 1\nshader0 = ../../shaders/crt.slang\n";
+  // The official release keeps full, lite and HDR presets next to their shared shader tree.
+  WriteZip(zip, {{"lola-retro/systems/curved/gamecube.slangp", preset_text},
+                 {"lola-retro/lite/systems/flat/gamecube.slangp",
+                  "shaders = 1\nshader0 = ../../../shaders/crt-lite.slang\n"},
+                 {"lola-retro/hdr/systems/curved/gamecube.slangp", "shaders = 0\n"},
+                 {"lola-retro/shaders/crt.slang", "#include \"include/params.inc\"\n"},
+                 {"lola-retro/shaders/crt-lite.slang", "#include \"include/params.inc\"\n"},
+                 {"lola-retro/shaders/include/params.inc", "// shared parameters\n"},
+                 {"lola-retro/LICENSE", "MIT license\n"}});
+
+  const std::string shaders_root = dir + "/Shaders";
+  const std::string existing_shader = shaders_root + "/shaders_slang/crt/satpixie-crt.slangp";
+  ASSERT_TRUE(File::CreateFullPath(existing_shader));
+  ASSERT_TRUE(File::CreateEmptyFile(existing_shader));
+
+  const auto result = InstallShaderPackSource(*source, zip, shaders_root);
+  ASSERT_TRUE(result.ok) << result.error;
+  EXPECT_EQ(result.preset_count, 3u);
+  EXPECT_TRUE(File::Exists(shaders_root + "/" + source->install_marker));
+  EXPECT_TRUE(File::Exists(existing_shader));
+
+  const std::string pack_root = shaders_root + "/shaders_slang/lola-retro";
+  std::string error;
+  const auto preset = ParseSlangPreset(preset_text, pack_root + "/systems/curved", &error);
+  ASSERT_TRUE(preset.has_value()) << error;
+  ASSERT_EQ(preset->passes.size(), 1u);
+  EXPECT_EQ(preset->passes[0].shader_path, NormalizePath(pack_root + "/shaders/crt.slang"));
+  EXPECT_TRUE(File::Exists(preset->passes[0].shader_path));
+  EXPECT_TRUE(File::Exists(pack_root + "/shaders/include/params.inc"));
+  EXPECT_TRUE(File::Exists(pack_root + "/lite/systems/flat/gamecube.slangp"));
+  EXPECT_TRUE(File::Exists(pack_root + "/hdr/systems/curved/gamecube.slangp"));
+  EXPECT_TRUE(File::Exists(pack_root + "/LICENSE"));
 }
 
 TEST(ShaderPackDownload, UnknownIdReturnsError)

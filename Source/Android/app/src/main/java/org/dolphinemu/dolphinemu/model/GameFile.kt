@@ -24,6 +24,8 @@ class GameFile private constructor(private val pointer: Long) {
 
     external fun getPath(): String
 
+    external fun getFileName(): String
+
     external fun getGameId(): String
 
     external fun getGameTdbId(): String

@@ -7,14 +7,21 @@
 
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <string>
 #include <type_traits>
 
 #include "Common/CommonTypes.h"
+#include "Common/HookableEvent.h"
 
 namespace Core
 {
 class System;
+}
+
+namespace BigPicture
+{
+struct LibraryImage;
 }
 
 namespace State
@@ -94,9 +101,14 @@ struct SlotInfo
   bool exists = false;
   bool readable = false;
   std::string description;
+  std::shared_ptr<const BigPicture::LibraryImage> preview;
 };
 // A single locked metadata read for menu snapshots. This does not validate the state payload.
 SlotInfo GetSlotInfo(u32 slot);
+// The same, for a game that need not be running. An invalid game ID reads as an empty slot.
+SlotInfo GetSlotInfo(const std::string& game_id, u32 slot);
+// The numbered slot file for a game; empty if the game ID cannot name a file.
+std::string GetSlotPath(const std::string& game_id, u32 slot);
 
 // These don't happen instantly - they get scheduled as events.
 // ...But only if we're not in the main CPU thread.
@@ -118,6 +130,12 @@ void LoadSelected(Core::System& system);
 void SaveAs(Core::System& system, std::string filename);
 void LoadAs(Core::System& system, std::string filename);
 
+// A continuation is separate from numbered slots and the user's undo-save backup.
+std::string GetContinuationPath(const std::string& game_id);
+bool DeleteContinuation(const std::string& filename);
+// Host-thread operation: captures and finishes writing before returning. Failure must cancel stop.
+bool SaveContinuation(Core::System& system, const std::string& filename);
+
 void LoadLastSaved(Core::System& system, int i = 1);
 void SaveFirstSaved(Core::System& system);
 void UndoSaveState(Core::System& system);
@@ -126,4 +144,37 @@ void UndoLoadState(Core::System& system);
 // for calling back into UI code without introducing a dependency on it in core
 using AfterLoadCallbackFunc = std::function<void()>;
 void SetOnAfterLoadCallback(AfterLoadCallbackFunc callback);
+// Invoked on the save worker after writing the state and its optional preview finishes.
+// Callbacks must queue UI work rather than reading slots while the save task holds its lock.
+[[nodiscard]] Common::EventHook AddAfterSaveCallback(std::function<void()> callback);
+
+struct OperationResult
+{
+  enum class Kind
+  {
+    Save,
+    Load
+  };
+  enum class Error
+  {
+    None,
+    // Loading is disabled (NetPlay or RetroAchievements hardcore mode).
+    NotAllowed,
+    // The emulated system could not be serialized.
+    Capture,
+    // The state file could not be written or moved into place.
+    Write,
+    // The state file is missing or unreadable.
+    Unreadable,
+    // The state was read but could not be applied; the previous state was restored.
+    Incompatible
+  };
+  Kind kind = Kind::Save;
+  std::string filename;
+  Error error = Error::None;
+};
+// Reports the outcome of every save to or load from a state file, including continuations, on
+// the thread that finishes it (the CPU or savestate worker thread). Callbacks must queue UI work.
+[[nodiscard]] Common::EventHook
+AddResultCallback(std::function<void(const OperationResult&)> callback);
 }  // namespace State

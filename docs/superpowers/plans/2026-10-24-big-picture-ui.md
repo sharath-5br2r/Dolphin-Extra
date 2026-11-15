@@ -2,8 +2,9 @@
 
 **Date:** 2026-10-24
 
-**Status:** Implementation in progress; slices 0–8 complete; slice 9 visual refinement implemented,
-appearance review and platform/hardware gates pending
+**Status:** Implementation in progress; slices 0–9 implemented, plus the PCSX2 gap follow-ups
+(#34–#41) including controller mapping; slice 10 hardening, appearance review and
+platform/hardware gates pending
 
 **Dolphin baseline:** `dd2cae1601216a4e254424d37d57ba47da1c2221`
 
@@ -244,6 +245,31 @@ card sizing for large text with maximum safe-area margins.
 Reference comparison captures, user appearance review and platform/hardware gates remain open;
 final state-browser/release hardening follows in slice 10.
 Platform/hardware release checks remain required.
+
+**Progress, 2026-10-30:** A comparison with the local PCSX2 fork's FullscreenUI found feature,
+code-quality and performance gaps. The following PRs closed them:
+- Per-frame menu rebuilds, per-refresh settings snapshots and cover cache churn
+  ([#34](https://github.com/ilyalissoboi/dolphin/pull/34)); library snapshot lists are now shared
+  copy-on-write ([#41](https://github.com/ilyalissoboi/dolphin/pull/41)).
+- Per-game library options: start, load a game's states without booting, Game Properties
+  without a running game, and play-time reset
+  ([#35](https://github.com/ilyalissoboi/dolphin/pull/35)).
+- Folder/file browsing for path settings and Left/Right number stepping
+  ([#36](https://github.com/ilyalissoboi/dolphin/pull/36)); game folder management
+  ([#37](https://github.com/ilyalissoboi/dolphin/pull/37)).
+- Shared view focus tracking, styles and layout constants
+  ([#38](https://github.com/ilyalissoboi/dolphin/pull/38)).
+- Controller mapping inside Big Picture: press-to-bind capture with menu input suspended, Clear
+  and Default Mapping ([#39](https://github.com/ilyalissoboi/dolphin/pull/39)); Wii Remote
+  extensions, tuning settings, profile saving and the menu's own bindings
+  ([#40](https://github.com/ilyalissoboi/dolphin/pull/40)).
+
+Section 3's exclusion of controller mapping now covers only expression editing, motion-sensor
+passthrough, calibration and controller types, which remain desktop workflows. None of this
+work has yet run on controller hardware; it counts towards the platform/hardware gates below.
+Optional PCSX2 extras remain unscheduled: a speed toggle, frame dump and leaderboards in the
+pause menu; favourites and boot variants in the library; and custom backgrounds,
+transitions, notifications and a cover downloader.
 
 | Slice | Work and primary touchpoints | Completion gate |
 |---|---|---|

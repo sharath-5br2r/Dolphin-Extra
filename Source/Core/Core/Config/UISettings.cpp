@@ -9,6 +9,8 @@ namespace Config
 
 const Info<bool> MAIN_USE_DISCORD_PRESENCE{{System::Main, "General", "UseDiscordPresence"}, true};
 const Info<bool> MAIN_USE_GAME_COVERS{{System::Main, "General", "UseGameCovers"}, true};
+const Info<bool> MAIN_COLLAPSE_MULTI_DISC_GAMES{
+    {System::Main, "GameList", "CollapseMultiDiscGames"}, false};
 const Info<bool> MAIN_START_BIG_PICTURE{{System::Main, "General", "StartBigPicture"}, false};
 const Info<std::string> MAIN_BIG_PICTURE_THEME{{System::Main, "General", "BigPictureTheme"},
                                                "Dark"};

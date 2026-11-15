@@ -20,6 +20,11 @@ class AbstractTexture;
 struct SurfaceInfo;
 enum class DolphinKey;
 
+namespace BigPicture
+{
+struct LibraryImage;
+}
+
 namespace VideoCommon
 {
 class IPostProcessor;
@@ -42,6 +47,8 @@ public:
   void SetNextSwapEstimatedTime(u64 ticks, TimePoint host_time);
 
   void Present(PresentInfo* present_info = nullptr);
+  // Graphics owner only; captures the retained game frame without menu/OSD pixels.
+  std::shared_ptr<const ::BigPicture::LibraryImage> CaptureStateThumbnail();
   void ClearLastXfbId() { m_last_xfb_id = std::numeric_limits<u64>::max(); }
 
   bool Initialize();

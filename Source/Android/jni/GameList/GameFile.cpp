@@ -39,6 +39,11 @@ jobject GameFileToJava(JNIEnv* env, std::shared_ptr<const UICommon::GameFile> ga
       reinterpret_cast<jlong>(new std::shared_ptr<const UICommon::GameFile>(std::move(game_file))));
 }
 
+std::shared_ptr<const UICommon::GameFile> GameFileFromJava(JNIEnv* env, jobject game_file)
+{
+  return GetRef(env, game_file);
+}
+
 extern "C" {
 
 JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_model_GameFile_finalize(JNIEnv* env,
@@ -103,6 +108,12 @@ JNIEXPORT jstring JNICALL Java_org_dolphinemu_dolphinemu_model_GameFile_getGameI
                                                                                   jobject obj)
 {
   return ToJString(env, GetRef(env, obj)->GetGameID());
+}
+
+JNIEXPORT jstring JNICALL Java_org_dolphinemu_dolphinemu_model_GameFile_getFileName(JNIEnv* env,
+                                                                                    jobject obj)
+{
+  return ToJString(env, GetRef(env, obj)->GetFileName());
 }
 
 JNIEXPORT jstring JNICALL Java_org_dolphinemu_dolphinemu_model_GameFile_getGameTdbId(JNIEnv* env,

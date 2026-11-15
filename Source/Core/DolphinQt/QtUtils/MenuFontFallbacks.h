@@ -45,6 +45,10 @@ inline std::vector<std::string> FindMenuFontFallbacks(const QStringList& directo
              QStringLiteral("NotoSansJP-Regular.ttf"), QStringLiteral("meiryo.ttc"),
              QStringLiteral("Hiragino Sans GB.ttc"), QStringLiteral("Arial Unicode.ttf"),
              QStringLiteral("msgothic.ttc")});
+  add_first({QStringLiteral("seguisym.ttf"), QStringLiteral("NotoSansSymbols2-Regular.ttf"),
+             QStringLiteral("Symbola.ttf")});
+  add_first({QStringLiteral("seguiemj.ttf"), QStringLiteral("NotoEmoji-Regular.ttf"),
+             QStringLiteral("Apple Symbols.ttf")});
   return result;
 }
 }  // namespace QtUtils

@@ -34,5 +34,7 @@ private:
   Environment m_environment;
   u64 m_revision = 1;
   u64 m_config_version = 0;
+  // Every input of a snapshot (config, context, environment, applied edits) bumps the revision.
+  std::shared_ptr<const Snapshot> m_snapshot;
 };
 }  // namespace UICommon::Settings

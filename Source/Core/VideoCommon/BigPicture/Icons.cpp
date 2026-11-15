@@ -5,11 +5,133 @@
 
 #include <algorithm>
 #include <cmath>
+#include <imgui_internal.h>
 
 namespace VideoCommon::BigPicture
 {
+ImWchar GetMenuIconCodepoint(MenuIcon icon)
+{
+  switch (icon)
+  {
+  case MenuIcon::Locked:
+    return 0xf023;
+  case MenuIcon::Unlocked:
+    return 0xf09c;
+  case MenuIcon::Play:
+    return 0xf04b;
+  case MenuIcon::Stop:
+    return 0xf04d;
+  case MenuIcon::Power:
+    return 0xf011;
+  case MenuIcon::Trophy:
+    return 0xf091;
+  case MenuIcon::StateSave:
+    return 0xf019;
+  case MenuIcon::StateLoad:
+    return 0xf2ea;
+  case MenuIcon::Save:
+    return 0xf0c7;
+  case MenuIcon::Load:
+    return 0xf07c;
+  case MenuIcon::Settings:
+    return 0x2699;
+  case MenuIcon::Reset:
+    return 0xf2ea;
+  case MenuIcon::Camera:
+    return 0xf030;
+  case MenuIcon::Exit:
+    return 0xf2f5;
+  case MenuIcon::Display:
+    return 0xf26c;
+  case MenuIcon::Grid:
+    return 0xf00a;
+  case MenuIcon::List:
+    return 0xf03a;
+  case MenuIcon::Search:
+    return 0xf002;
+  case MenuIcon::Folder:
+    return 0xf07c;
+  case MenuIcon::FolderSolid:
+    return 0xf07b;
+  case MenuIcon::Back:
+    return 0xf060;
+  case MenuIcon::Controller:
+    return 0x2360;
+  case MenuIcon::Audio:
+    return 0x2365;
+  case MenuIcon::Disc:
+    return 0xf51f;
+  case MenuIcon::File:
+    return 0xf15b;
+  case MenuIcon::Filter:
+    return 0xf0b0;
+  case MenuIcon::Theme:
+    return 0xf1fc;
+  case MenuIcon::Check:
+    return 0xf00c;
+  case MenuIcon::Globe:
+    return 0xf0ac;
+  case MenuIcon::Image:
+    return 0x2366;
+  case MenuIcon::CPU:
+    return 0x235e;
+  case MenuIcon::Keyboard:
+    return 0x2361;
+  case MenuIcon::Warning:
+    return 0xf071;
+  case MenuIcon::Network:
+    return 0xf6ff;
+  case MenuIcon::Achievements:
+    return 0xf091;
+  case MenuIcon::Speed:
+    return 0xf624;
+  case MenuIcon::Memory:
+    return 0x2364;
+  case MenuIcon::Mouse:
+    return 0xf8cc;
+  case MenuIcon::Clock:
+    return 0xf017;
+  case MenuIcon::Window:
+    return 0xf2d0;
+  case MenuIcon::Cube:
+    return 0xf1b2;
+  case MenuIcon::Sliders:
+    return 0xf1de;
+  case MenuIcon::Wrench:
+    return 0xf0ad;
+  case MenuIcon::Remote:
+    return 0xf3cd;
+  case MenuIcon::Puzzle:
+    return 0xf12e;
+  default:
+    return 0;
+  }
+}
+
 void DrawMenuIcon(ImDrawList* draw, MenuIcon icon, ImVec2 position, float size, ImU32 color)
 {
+  if (const auto codepoint = GetMenuIconCodepoint(icon))
+  {
+    auto* font = ImGui::GetFont();
+    float font_size = size;
+    if (const auto* glyph = font->GetFontBaked(font_size)->FindGlyphNoFallback(codepoint))
+    {
+      const float width = glyph->X1 - glyph->X0;
+      const float height = glyph->Y1 - glyph->Y0;
+      font_size *= std::min({1.0f, size / std::max(1.0f, width), size / std::max(1.0f, height)});
+      glyph = font->GetFontBaked(font_size)->FindGlyphNoFallback(codepoint);
+      if (glyph)
+      {
+        char text[5]{};
+        ImTextCharToUtf8(text, codepoint);
+        draw->AddText(font, font_size,
+                      ImVec2(position.x + (size - (glyph->X1 - glyph->X0)) * 0.5f - glyph->X0,
+                             position.y + (size - (glyph->Y1 - glyph->Y0)) * 0.5f - glyph->Y0),
+                      color, text);
+        return;
+      }
+    }
+  }
   const float scale = size / 24;
   const float stroke = std::max(1.0f, 1.7f * scale);
   const auto p = [&](float x, float y) {
@@ -27,10 +149,30 @@ void DrawMenuIcon(ImDrawList* draw, MenuIcon icon, ImVec2 position, float size, 
   switch (icon)
   {
   case MenuIcon::Play:
-    draw->AddTriangleFilled(p(5, 3), p(21, 12), p(5, 21), color);
+    draw->AddTriangle(p(5, 3), p(21, 12), p(5, 21), color, stroke);
     break;
   case MenuIcon::Stop:
-    draw->AddRectFilled(p(4, 4), p(20, 20), color, 2 * scale);
+    rect(4, 4, 20, 20);
+    break;
+  case MenuIcon::Power:
+    draw->PathArcTo(p(12, 13), 9 * scale, -0.95f, 4.09f, 32);
+    draw->PathStroke(color, 0, stroke);
+    line(12, 1, 12, 12);
+    break;
+  case MenuIcon::Trophy:
+    line(6, 3, 18, 3);
+    line(6, 3, 7, 11);
+    line(18, 3, 17, 11);
+    line(7, 11, 12, 15);
+    line(17, 11, 12, 15);
+    line(12, 15, 12, 21);
+    line(7, 21, 17, 21);
+    line(6, 5, 2, 5);
+    line(2, 5, 3, 11);
+    line(3, 11, 7, 12);
+    line(18, 5, 22, 5);
+    line(22, 5, 21, 11);
+    line(21, 11, 17, 12);
     break;
   case MenuIcon::Save:
     rect(3, 3, 21, 21);
@@ -80,9 +222,9 @@ void DrawMenuIcon(ImDrawList* draw, MenuIcon icon, ImVec2 position, float size, 
     line(7, 22, 17, 22);
     break;
   case MenuIcon::Grid:
-    for (int y = 0; y < 3; ++y)
-      for (int x = 0; x < 3; ++x)
-        draw->AddRectFilled(p(3 + x * 7, 3 + y * 7), p(7 + x * 7, 7 + y * 7), color, scale);
+    rect(3, 3, 21, 21);
+    line(12, 3, 12, 21);
+    line(3, 12, 21, 12);
     break;
   case MenuIcon::List:
     for (int y = 5; y <= 19; y += 7)
@@ -102,6 +244,24 @@ void DrawMenuIcon(ImDrawList* draw, MenuIcon icon, ImVec2 position, float size, 
     line(22, 9, 20, 21);
     line(20, 21, 2, 21);
     line(2, 21, 2, 6);
+    break;
+  case MenuIcon::FolderSolid:
+    draw->AddRectFilled(p(1, 7), p(23, 22), color, 2 * scale);
+    draw->AddRectFilled(p(1, 3), p(11, 12), color, 2 * scale);
+    draw->AddRectFilled(p(9, 5), p(23, 12), color, 2 * scale);
+    break;
+  case MenuIcon::Globe:
+    circle(12, 12, 10);
+    draw->AddEllipse(p(12, 12), ImVec2(5 * scale, 10 * scale), color, 0, 32, stroke);
+    line(2, 12, 22, 12);
+    break;
+  case MenuIcon::Image:
+    rect(2, 3, 22, 21);
+    draw->AddCircleFilled(p(16, 8), 2 * scale, color);
+    line(3, 19, 9, 11);
+    line(9, 11, 15, 19);
+    line(15, 19, 19, 14);
+    line(19, 14, 22, 18);
     break;
   case MenuIcon::Back:
     line(3, 12, 22, 12);
@@ -161,19 +321,21 @@ MenuIcon GetActionIcon(::BigPicture::Action action)
   using A = ::BigPicture::Action;
   switch (action)
   {
+  case A::Achievements:
+    return MenuIcon::Achievements;
   case A::Boot:
   case A::BootIPL:
   case A::BootSystemMenu:
   case A::Resume:
     return MenuIcon::Play;
   case A::Stop:
-    return MenuIcon::Stop;
+    return MenuIcon::Power;
   case A::SaveStates:
   case A::SaveState:
-    return MenuIcon::Save;
+    return MenuIcon::StateSave;
   case A::LoadStates:
   case A::LoadState:
-    return MenuIcon::Load;
+    return MenuIcon::StateLoad;
   case A::Settings:
   case A::DesktopSettings:
     return MenuIcon::Settings;
@@ -214,11 +376,14 @@ MenuIcon GetLibraryIcon(::BigPicture::LibraryOperation operation)
   case O::AddFolder:
   case O::EnterDirectory:
   case O::ChooseFolder:
+  case O::Folders:
+  case O::RemoveFolder:
     return MenuIcon::Folder;
   case O::OpenFile:
   case O::EditPath:
     return MenuIcon::File;
   case O::OpenDisc:
+  case O::ChooseBootDisc:
   case O::BrowseDiscs:
     return MenuIcon::Disc;
   case O::Options:

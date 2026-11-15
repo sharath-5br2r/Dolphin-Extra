@@ -8,6 +8,35 @@
 
 #include "Common/BigPicture/PresentationState.h"
 #include "VideoCommon/NetPlayChatUI.h"
+#include "VideoCommon/NetPlayGolfUI.h"
+
+TEST(NetPlayChatUITest, PublishedSnapshotSurvivesWorkerClearingTheUI)
+{
+  SetNetPlayChatUI(std::make_shared<NetPlayChatUI>(nullptr));
+  auto snapshot = GetNetPlayChatUI();
+  std::weak_ptr<NetPlayChatUI> lifetime = snapshot;
+  std::thread worker([] { SetNetPlayChatUI(nullptr); });
+  worker.join();
+
+  EXPECT_EQ(GetNetPlayChatUI(), nullptr);
+  EXPECT_FALSE(lifetime.expired());
+  snapshot.reset();
+  EXPECT_TRUE(lifetime.expired());
+}
+
+TEST(NetPlayGolfUITest, PublishedSnapshotSurvivesWorkerClearingTheUI)
+{
+  SetNetPlayGolfUI(std::make_shared<NetPlayGolfUI>(std::weak_ptr<NetPlay::NetPlayClient>{}));
+  auto snapshot = GetNetPlayGolfUI();
+  std::weak_ptr<NetPlayGolfUI> lifetime = snapshot;
+  std::thread worker([] { SetNetPlayGolfUI(nullptr); });
+  worker.join();
+
+  EXPECT_EQ(GetNetPlayGolfUI(), nullptr);
+  EXPECT_FALSE(lifetime.expired());
+  snapshot.reset();
+  EXPECT_TRUE(lifetime.expired());
+}
 
 TEST(NetPlayChatUITest, WorkerActivationRequiresNoImGuiContext)
 {

@@ -1,6 +1,8 @@
 add_library(core
   AchievementManager.cpp
   AchievementManager.h
+  AchievementSubmissionQueue.cpp
+  AchievementSubmissionQueue.h
   ActionReplay.cpp
   ActionReplay.h
   ARDecrypt.cpp

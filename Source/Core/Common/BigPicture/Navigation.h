@@ -25,6 +25,8 @@ enum class NavButton
   Back,
   Previous,
   Next,
+  // Appended so stored bindings keep their positions.
+  Options,
   Count
 };
 constexpr std::size_t NAV_BUTTON_COUNT = static_cast<std::size_t>(NavButton::Count);
@@ -129,6 +131,46 @@ struct NavigationText
   std::string navigate;
   std::string about_title;
   std::string about_description;
+  std::string pause_keyboard_prompts;
+  std::string return_to_game;
+  std::string game_grid;
+  std::string game_list;
+  std::string library_keyboard_hints;
+  std::string library_change_view;
+  std::string library_select_game;
+  std::string start_file;
+  std::string start_file_description;
+  std::string start_ipl_description;
+  std::string start_wii_description;
+  std::string start_keyboard_hints;
+  std::string picker_title;
+  std::string picker_keyboard_hints;
+  std::string settings_keyboard_hints;
+  std::string settings_keyboard_options;
+  std::string settings_change_page;
+  std::string settings_options;
+  std::string settings_navigation;
+  std::array<std::string, 3> settings_navigation_help;
+  std::string global_settings;
+  std::string game_settings;
+  std::string state_keyboard_hints;
+  std::string achievements_empty;
+  std::string achievements_loading;
+  std::string achievements_keyboard_hints;
+  std::string achievements_subsets;
+  std::string continuation_title;
+  std::string continuation_description;
+  std::string exit_and_save;
+  std::string exit_without_saving;
+  std::string game_options;
+  std::string confirm_reset_play_time;
+  std::string settings_adjust;
+  std::string settings_adjust_keyboard_hints;
+  std::string state_saved;
+  std::string state_loaded;
+  std::string library_folders_help;
+  std::string library_no_folders;
+  std::string confirm_remove_folder;
 };
 
 struct NavigationRequest

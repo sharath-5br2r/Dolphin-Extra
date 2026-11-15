@@ -26,4 +26,12 @@ object AchievementModel {
 
     @JvmStatic
     external fun shutdown()
+
+    /** Tells native code whether the device has a network connection. */
+    @JvmStatic
+    external fun setNetworkAvailable(available: Boolean)
+
+    /** Number of unlocks and leaderboard entries waiting for a connection. */
+    @JvmStatic
+    external fun getDeferredSubmissionCount(): Int
 }

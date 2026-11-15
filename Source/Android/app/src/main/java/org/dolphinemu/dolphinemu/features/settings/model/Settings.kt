@@ -110,6 +110,7 @@ class Settings : Closeable {
         const val SECTION_INI_GENERAL = "General"
         const val SECTION_INI_CORE = "Core"
         const val SECTION_INI_INTERFACE = "Interface"
+        const val SECTION_INI_GAME_LIST = "GameList"
         const val SECTION_INI_DSP = "DSP"
         const val SECTION_INI_GBA = "GBA"
         const val SECTION_INI_NETPLAY = "NetPlay"

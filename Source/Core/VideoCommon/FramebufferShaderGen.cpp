@@ -676,17 +676,28 @@ std::string GenerateImGuiPixelShader(bool linear_space_output)
 {
   ShaderCode code;
   EmitSamplerDeclarations(code, 0, 1, false);
+  if (linear_space_output)
+  {
+    // ImGui's textures and vertex colors are sRGB, while HDR backbuffers use linear scRGB.
+    // Decode both before tinting and blending; alpha is coverage and must stay linear.
+    code.Write("float3 ImGuiSRGBToLinear(float3 color)\n"
+               "{{\n"
+               "  return mix(pow((color + 0.055f) / 1.055f, float3(2.4f)),\n"
+               "             color / 12.92f, lessThanEqual(color, float3(0.04045f)));\n"
+               "}}\n");
+  }
   EmitPixelMainDeclaration(code, 1, 1);
   code.Write("{{\n"
-             "  ocol0 = ");
+             "  float4 texel = ");
   EmitSampleTexture(code, 0, "float3(v_tex0.xy, 0.0)");
-  // We approximate to gamma 2.2 instead of sRGB as it barely matters for this case.
+  code.Write(";\n");
   // Note that if HDR is enabled, ideally we should multiply by
   // the paper white brightness for readability.
   if (linear_space_output)
-    code.Write(" * pow(v_col0, float4(2.2f, 2.2f, 2.2f, 1.0f));\n}}\n");
+    code.Write("  ocol0 = float4(ImGuiSRGBToLinear(texel.rgb) * ImGuiSRGBToLinear(v_col0.rgb),\n"
+               "                 texel.a * v_col0.a);\n}}\n");
   else
-    code.Write(" * v_col0;\n}}\n");
+    code.Write("  ocol0 = texel * v_col0;\n}}\n");
 
   return code.GetBuffer();
 }

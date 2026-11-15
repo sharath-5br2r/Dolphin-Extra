@@ -175,6 +175,10 @@ NetKDRequestDevice::NetKDRequestDevice(EmulationKernel& ios, const std::string& 
 
 NetKDRequestDevice::~NetKDRequestDevice()
 {
+  // The guest is gone. Cancel stalled HTTP transfers before joining their workers;
+  // draining queued WiiConnect24 requests can otherwise take a minute per request.
+  INFO_LOG_FMT(IOS_WC24, "Stopping WiiConnect24 workers");
+  m_http.Cancel();
   auto socket_manager = GetEmulationKernel().GetSocketManager();
   if (socket_manager)
     socket_manager->Clean();
@@ -188,8 +192,10 @@ NetKDRequestDevice::~NetKDRequestDevice()
   }
 
   m_scheduler_timer_thread.join();
+  m_scheduler_work_queue.Cancel();
   m_scheduler_work_queue.Shutdown();
-  m_work_queue.Shutdown();
+  m_work_queue.StopAndCancel();
+  INFO_LOG_FMT(IOS_WC24, "WiiConnect24 workers stopped");
 }
 
 void NetKDRequestDevice::Update()

@@ -112,6 +112,13 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="collapseMultiDiscGamesCheckBox">
+        <property name="text">
+         <string>Collapse Multi-Disc Games into a Single Entry</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -221,6 +228,7 @@
   <tabstop>focusedHotkeysCheckBox</tabstop>
   <tabstop>disableScreensaverCheckBox</tabstop>
   <tabstop>timeTrackingCheckBox</tabstop>
+  <tabstop>collapseMultiDiscGamesCheckBox</tabstop>
   <tabstop>keepWindowOnTopCheckBox</tabstop>
   <tabstop>confirmOnStopCheckBox</tabstop>
   <tabstop>usePanicHandlersCheckBox</tabstop>

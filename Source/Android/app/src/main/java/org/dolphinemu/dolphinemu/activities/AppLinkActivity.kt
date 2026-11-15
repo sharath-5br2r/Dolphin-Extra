@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.fragment.app.FragmentActivity
+import org.dolphinemu.dolphinemu.dialogs.GameDiscSelectionDialog
 import org.dolphinemu.dolphinemu.model.GameFile
 import org.dolphinemu.dolphinemu.services.GameFileCacheManager
 import org.dolphinemu.dolphinemu.ui.main.TvMainActivity
@@ -20,6 +21,7 @@ import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 class AppLinkActivity : FragmentActivity() {
     private lateinit var playAction: PlayAction
     private lateinit var afterDirectoryInitializationRunner: AfterDirectoryInitializationRunner
+    private var launchRequested = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,14 +90,20 @@ class AppLinkActivity : FragmentActivity() {
      * Action if program(game) is selected
      */
     private fun play(action: PlayAction, game: GameFile?) {
+        if (launchRequested) return
+        launchRequested = true
         Log.d(TAG, "Playing game ${action.gameId} from channel ${action.channelId}")
-        game?.let { startGame(it) } ?: Log.e(TAG, "Invalid Game: " + action.gameId)
-        finish()
+        if (game != null) {
+            startGame(game)
+        } else {
+            Log.e(TAG, "Invalid Game: " + action.gameId)
+            finish()
+        }
     }
 
     private fun startGame(game: GameFile) {
         afterDirectoryInitializationRunner.cancel()
-        EmulationActivity.launch(this, GameFileCacheManager.findSecondDiscAndGetPaths(game), false)
+        GameDiscSelectionDialog.launchGame(this, game, finishActivity = true)
     }
 
     companion object {

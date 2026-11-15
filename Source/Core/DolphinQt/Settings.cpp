@@ -539,8 +539,8 @@ void Settings::ResetNetPlayClient(NetPlay::NetPlayClient* client)
 {
   m_client.reset(client);
 
-  g_netplay_chat_ui.store(nullptr);
-  g_netplay_golf_ui.store(nullptr);
+  SetNetPlayChatUI(nullptr);
+  SetNetPlayGolfUI(nullptr);
 }
 
 std::shared_ptr<NetPlay::NetPlayServer> Settings::GetNetPlayServer()

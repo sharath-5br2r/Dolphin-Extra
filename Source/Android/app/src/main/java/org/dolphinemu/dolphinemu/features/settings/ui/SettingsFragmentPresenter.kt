@@ -535,6 +535,14 @@ class SettingsFragmentPresenter(
     }
 
     private fun addInterfaceSettings(sl: ArrayList<SettingsItem>) {
+        sl.add(
+            SwitchSetting(
+                context,
+                BooleanSetting.MAIN_COLLAPSE_MULTI_DISC_GAMES,
+                R.string.collapse_multi_disc_games,
+                R.string.collapse_multi_disc_games_description
+            )
+        )
         // Hide the orientation setting if the device only supports one orientation. Old devices which
         // support both portrait and landscape may report support for neither, so we use ==, not &&.
         val packageManager = context.packageManager
@@ -1316,6 +1324,23 @@ class SettingsFragmentPresenter(
                     0
                 )
             )
+            val pendingSubmissions = AchievementModel.getDeferredSubmissionCount()
+            var offlineQueueDescription: CharSequence =
+                context.getString(R.string.achievements_offline_queue_enabled_description)
+            if (pendingSubmissions > 0) {
+                offlineQueueDescription = context.getString(
+                    R.string.achievements_offline_queue_pending,
+                    offlineQueueDescription,
+                    pendingSubmissions
+                )
+            }
+            sl.add(
+                SwitchSetting(
+                    BooleanSetting.ACHIEVEMENTS_OFFLINE_QUEUE_ENABLED,
+                    context.getString(R.string.achievements_offline_queue_enabled),
+                    offlineQueueDescription
+                )
+            )
         }
     }
 
@@ -1897,6 +1922,16 @@ class SettingsFragmentPresenter(
                 0,
                 false
             ) { promptRetroCrisisProfile() }
+        )
+        sl.add(
+            RunRunnable(
+                context,
+                R.string.post_processing_download_lola_retro,
+                R.string.post_processing_download_lola_retro_description,
+                R.string.post_processing_download_lola_retro_confirmation,
+                0,
+                false
+            ) { downloadShaderPack("lola-retro", "") }
         )
 
         sl.add(
