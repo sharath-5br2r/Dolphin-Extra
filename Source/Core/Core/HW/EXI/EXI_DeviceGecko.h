@@ -25,9 +25,13 @@ public:
 
   // Client for this server object
   std::unique_ptr<sf::TcpSocket> client;
+  // Set before starting the client thread; cleared after it closes the socket.
+  Common::Flag client_connected{false};
   void ClientThread();
   std::thread clientThread;
-  std::mutex transfer_lock;
+
+  std::mutex send_lock;
+  std::mutex recv_lock;
 
   std::deque<u8> send_fifo;
   std::deque<u8> recv_fifo;
@@ -39,7 +43,6 @@ private:
   // Only ever one server thread
   static void GeckoConnectionWaiter();
 
-  static u16 server_port;
   static Common::Flag server_running;
   static std::thread connectionThread;
   static std::mutex connection_lock;
@@ -66,5 +69,8 @@ private:
   };
 
   static const u32 ident = 0x04700000;
+
+  // Only accessed by the CPU thread. Refilled from recv_fifo under recv_lock
+  std::deque<u8> m_recv_buffer;
 };
 }  // namespace ExpansionInterface

@@ -96,7 +96,7 @@
 #define WIIBANNERS_DIR "WiiBanners"
 #define NETPLAY_SAVE_DIR "NetplaySave"
 #define LAUNCHER_DIR "Launcher"
-
+#define SOUNDS_DIR "Sounds"
 
 // This one is only used to remove it if it was present
 #define SHADERCACHE_LEGACY_DIR "ShaderCache"

@@ -7,8 +7,6 @@
 #include <mutex>
 #include <unordered_set>
 
-#include <SFML/Network/UdpSocket.hpp>
-
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/Swap.h"
@@ -180,14 +178,6 @@ void Wiimote::WriteReport(Report rpt)
         return;
       break;
 
-    case OutputReportID::SpeakerEnable:
-      m_speaker_enable = (rpt[2] & 0x4) != 0;
-      break;
-
-    case OutputReportID::SpeakerMute:
-      m_speaker_mute = (rpt[2] & 0x4) != 0;
-      break;
-
     default:
       break;
     }
@@ -278,8 +268,7 @@ void Wiimote::InterruptDataOutput(const u8* data, const u32 size)
       leds_rpt.leds = 0xf;
     }
   }
-  else if (rpt[1] == u8(OutputReportID::SpeakerData) &&
-           (!m_speaker_enabled_in_dolphin_config || !m_speaker_enable || m_speaker_mute))
+  else if (rpt[1] == u8(OutputReportID::SpeakerData) && !m_speaker_enabled_in_dolphin_config)
   {
     rpt.resize(3);
     // Translate undesired speaker data reports into rumble reports.
@@ -299,13 +288,6 @@ bool Wiimote::Read()
   // Drop the report if not connected.
   if (m_is_linked && result > 0)
   {
-    if (m_balance_board_dump_port > 0 && m_index == WIIMOTE_BALANCE_BOARD)
-    {
-      static sf::UdpSocket Socket;
-      (void)Socket.send(rpt.data(), rpt.size(), sf::IpAddress::LocalHost,
-                        m_balance_board_dump_port);
-    }
-
     // Add it to queue
     rpt.resize(result);
     m_read_reports.Push(std::move(rpt));
@@ -317,13 +299,6 @@ bool Wiimote::Read()
 bool Wiimote::Write(const TimedReport& timed_report)
 {
   auto const& rpt = timed_report.report;
-
-  if (m_balance_board_dump_port > 0 && m_index == WIIMOTE_BALANCE_BOARD)
-  {
-    static sf::UdpSocket Socket;
-    (void)Socket.send((char*)rpt.data(), rpt.size(), sf::IpAddress::LocalHost,
-                      m_balance_board_dump_port);
-  }
 
   // Write the report at the proper time, mainly for speaker data, not that it will help much.
   std::this_thread::sleep_until(timed_report.time);
@@ -872,7 +847,6 @@ void Wiimote::WriteThreadFunc()
 void Wiimote::RefreshConfig()
 {
   m_speaker_enabled_in_dolphin_config = Config::Get(Config::MAIN_WIIMOTE_ENABLE_SPEAKER);
-  m_balance_board_dump_port = Config::Get(Config::MAIN_BB_DUMP_PORT);
 }
 
 int Wiimote::GetIndex() const

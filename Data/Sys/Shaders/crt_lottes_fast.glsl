@@ -135,7 +135,7 @@ GUIName = Curvature
 OptionName = CURVATURE
 MaxValue = 0.25
 MinValue = 0.0
-DefaultValue = 0.02
+DefaultValue = 0.0
 StepAmount = 0.01
 
 [OptionRangeFloat]
@@ -151,7 +151,7 @@ GUIName = Corner Round
 OptionName = CORNER
 MaxValue = 11.0
 MinValue = 0.0
-DefaultValue = 3.0
+DefaultValue = 0.0
 StepAmount = 1.0
 
 [OptionRangeFloat]

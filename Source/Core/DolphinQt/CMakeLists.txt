@@ -1,3 +1,23 @@
+if (WIN32)
+  set(DOLPHIN_QT_X64_ROOT "${PROJECT_SOURCE_DIR}/Externals/Qt/Qt6.8.3/x64")
+  set(DOLPHIN_QT_ARM64_ROOT "${PROJECT_SOURCE_DIR}/Externals/Qt/Qt6.8.3/ARM64")
+
+  if(_M_ARM_64)
+    set(DOLPHIN_QT_ROOT "${DOLPHIN_QT_ARM64_ROOT}")
+    set(DOLPHIN_QT_TARGET_SPEC "win32-arm64-msvc")
+  else()
+    set(DOLPHIN_QT_ROOT "${DOLPHIN_QT_X64_ROOT}")
+    set(DOLPHIN_QT_TARGET_SPEC "win32-msvc")
+  endif()
+
+  if(DOLPHIN_HOST STREQUAL "ARM64")
+    set(DOLPHIN_QT_HOST_ROOT "${DOLPHIN_QT_ARM64_ROOT}")
+  else()
+    set(DOLPHIN_QT_HOST_ROOT "${DOLPHIN_QT_X64_ROOT}")
+  endif()
+
+  list(APPEND CMAKE_PREFIX_PATH "${DOLPHIN_QT_ROOT}")
+endif()
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -663,25 +683,25 @@ if (NOT APPLE AND NOT ANDROID)
   # Symlink Sys
   add_custom_command(TARGET dolphin-emu POST_BUILD
     COMMAND ${CMAKE_COMMAND}
-      -Dtarget="${CMAKE_SOURCE_DIR}/Data/Sys"
+      -Dtarget="${PROJECT_SOURCE_DIR}/Data/Sys"
       -Dlink="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Sys"
-      -P="${CMAKE_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
+      -P="${PROJECT_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
   )
 
   # Symlink COPYING
   add_custom_command(TARGET dolphin-emu POST_BUILD
     COMMAND ${CMAKE_COMMAND}
-      -Dtarget="${CMAKE_SOURCE_DIR}/COPYING"
+      -Dtarget="${PROJECT_SOURCE_DIR}/COPYING"
       -Dlink="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/COPYING"
-      -P="${CMAKE_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
+      -P="${PROJECT_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
   )
 
   # Symlink Licenses dir
   add_custom_command(TARGET dolphin-emu POST_BUILD
     COMMAND ${CMAKE_COMMAND}
-      -Dtarget="${CMAKE_SOURCE_DIR}/LICENSES"
+      -Dtarget="${PROJECT_SOURCE_DIR}/LICENSES"
       -Dlink="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Licenses"
-      -P="${CMAKE_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
+      -P="${PROJECT_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
   )
 endif()
 if (WIN32)
@@ -690,7 +710,7 @@ if (WIN32)
     COMMAND ${CMAKE_COMMAND}
       -Dtarget="${CMAKE_CURRENT_SOURCE_DIR}/qt.conf.win"
       -Dlink="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/qt.conf"
-      -P="${CMAKE_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
+      -P="${PROJECT_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
   )
 
   if (ENABLE_AUTOUPDATE)
@@ -699,7 +719,7 @@ if (WIN32)
       COMMAND ${CMAKE_COMMAND}
         -Dtarget="${CMAKE_BINARY_DIR}/build_info.txt"
         -Dlink="${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/build_info.txt"
-        -P="${CMAKE_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
+        -P="${PROJECT_SOURCE_DIR}/CMake/DolphinSymlinkOrCopy.cmake"
     )
   endif()
 
@@ -772,8 +792,8 @@ else()
 endif()
 
 if(NOT DISABLE_NLS AND GETTEXT_MSGFMT_EXECUTABLE)
-  set(pot_file "${CMAKE_SOURCE_DIR}/Languages/po/dolphin-emu.pot")
-  file(GLOB LINGUAS ${CMAKE_SOURCE_DIR}/Languages/po/*.po)
+  set(pot_file "${PROJECT_SOURCE_DIR}/Languages/po/dolphin-emu.pot")
+  file(GLOB LINGUAS ${PROJECT_SOURCE_DIR}/Languages/po/*.po)
 
   target_sources(dolphin-emu PRIVATE ${pot_file} ${LINGUAS})
   source_group("Localization" FILES ${LINGUAS})
@@ -782,7 +802,14 @@ if(NOT DISABLE_NLS AND GETTEXT_MSGFMT_EXECUTABLE)
   foreach(po ${LINGUAS})
     get_filename_component(lang ${po} NAME_WE)
 
-    set(mo_dir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Languages/${lang})
+    if(APPLE)
+      # set_source_files_properties for MACOSX_PACKAGE_LOCATION won't work with CMAKE_RUNTIME_OUTPUT_DIRECTORY
+      # because it contains a generator expression, which won't be evaluated. We don't need to place translations
+      # next to the binary on macOS anyway, so just use a staging directory in CMAKE_CURRENT_BINARY_DIR.
+      set(mo_dir "${CMAKE_CURRENT_BINARY_DIR}/Languages/${lang}")
+    else()
+      set(mo_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Languages/${lang}")
+    endif()
     set(mo ${mo_dir}/dolphin-emu.mo)
 
     target_sources(dolphin-emu PRIVATE ${mo})
@@ -822,8 +849,8 @@ if(APPLE)
   set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/qt.conf" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
   # Copy icon into the bundle
-  target_sources(dolphin-emu PRIVATE "${CMAKE_SOURCE_DIR}/Data/Dolphin.icns")
-  set_source_files_properties("${CMAKE_SOURCE_DIR}/Data/Dolphin.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+  target_sources(dolphin-emu PRIVATE "${PROJECT_SOURCE_DIR}/Data/Dolphin.icns")
+  set_source_files_properties("${PROJECT_SOURCE_DIR}/Data/Dolphin.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 
   # Manually include plugins
   find_package(Qt6QMacStylePlugin REQUIRED PATHS ${Qt6Widgets_DIR})
@@ -839,14 +866,14 @@ if(APPLE)
   set_source_files_properties("${qtmacstyle_location}" PROPERTIES MACOSX_PACKAGE_LOCATION MacOS/styles)
 
   # Copy resources into the bundle
-  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/Data/Sys")
-  file(GLOB_RECURSE resources RELATIVE "${CMAKE_SOURCE_DIR}/Data" "${CMAKE_SOURCE_DIR}/Data/Sys/*")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/Data/Sys")
+  file(GLOB_RECURSE resources RELATIVE "${PROJECT_SOURCE_DIR}/Data" "${PROJECT_SOURCE_DIR}/Data/Sys/*")
   foreach(res ${resources})
-    target_sources(dolphin-emu PRIVATE "${CMAKE_SOURCE_DIR}/Data/${res}")
+    target_sources(dolphin-emu PRIVATE "${PROJECT_SOURCE_DIR}/Data/${res}")
     get_filename_component(resdir "${res}" DIRECTORY)
-    set_source_files_properties("${CMAKE_SOURCE_DIR}/Data/${res}" PROPERTIES
+    set_source_files_properties("${PROJECT_SOURCE_DIR}/Data/${res}" PROPERTIES
       MACOSX_PACKAGE_LOCATION "Resources/${resdir}")
-    source_group("Resources" FILES "${CMAKE_SOURCE_DIR}/Data/${res}")
+    source_group("Resources" FILES "${PROJECT_SOURCE_DIR}/Data/${res}")
   endforeach()
 
   include(DolphinInjectVersionInfo)
@@ -898,7 +925,7 @@ if(APPLE)
   if(MACOS_CODE_SIGNING)
     add_custom_command(TARGET dolphin-emu
       POST_BUILD
-      COMMAND "${CMAKE_SOURCE_DIR}/Tools/mac-codesign.sh"
+      COMMAND "${PROJECT_SOURCE_DIR}/Tools/mac-codesign.sh"
       "-e" "${CMAKE_CURRENT_SOURCE_DIR}/DolphinEmu$<$<CONFIG:Debug>:Debug>.entitlements"
       "${MACOS_CODE_SIGNING_IDENTITY}"
       "$<TARGET_BUNDLE_DIR:dolphin-emu>"

@@ -148,6 +148,13 @@
      </property>
     </widget>
    </item>
+   <item>
+    <widget class="QCheckBox" name="sound_enabled_input">
+     <property name="text">
+      <string>Play Sounds for Notifications</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <tabstops>
@@ -164,6 +171,7 @@
   <tabstop>common_leaderboard_tracker_enabled_input</tabstop>
   <tabstop>common_challenge_indicators_enabled_input</tabstop>
   <tabstop>common_progress_enabled_input</tabstop>
+  <tabstop>sound_enabled_input</tabstop>
  </tabstops>
  <resources/>
  <connections/>

@@ -15,7 +15,6 @@
 #include "Common/Event.h"
 #include "Common/Flag.h"
 #include "Common/SPSCQueue.h"
-#include "Common/WorkQueueThread.h"
 
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteCommon/WiimoteConstants.h"
@@ -152,10 +151,6 @@ private:
 
   std::atomic<bool> m_is_linked = false;
 
-  // We track the speaker state to convert unnecessary speaker data into rumble reports.
-  bool m_speaker_enable = false;
-  bool m_speaker_mute = false;
-
   // And we track the rumble state to drop unnecessary rumble reports.
   bool m_rumble_state = false;
 
@@ -171,7 +166,6 @@ private:
   Common::Event m_write_event;
 
   bool m_speaker_enabled_in_dolphin_config = false;
-  int m_balance_board_dump_port = 0;
 
   Config::ConfigChangedCallbackID m_config_changed_callback_id;
 };

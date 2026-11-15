@@ -83,6 +83,8 @@ static Common::UniqueBuffer<u8> s_undo_load_buffer;
 // Used to estimate buffer size for the next save.
 static u32 s_last_state_size = 0;
 
+static u32 s_selected_slot = 1;
+
 // Shared locks are acquired for each state save task.
 // Tasks generally transition from: Calling thread -> CPU thread -> Compress/Write thread.
 // Holding an "exclusive" lock will:
@@ -524,13 +526,13 @@ static bool GetVersionFromLZO(StateHeader& header, File::IOFile& f)
 {
   // Just read the first block, since it will contain the full revision string
   lzo_uint32 cur_len = 0;  // size of compressed bytes
-  lzo_uint new_len = 0;    // size of uncompressed bytes
-  Common::UniqueBuffer<u8> buffer(header.legacy_header.lzo_size);
+  Common::UniqueBuffer<u8> buffer(IN_LEN);
+  lzo_uint new_len = buffer.size();  // output buffer capacity
 
-  if (!f.ReadArray(&cur_len, 1) || !f.ReadBytes(out, cur_len))
+  if (!f.ReadArray(&cur_len, 1) || cur_len > OUT_LEN || !f.ReadBytes(out, cur_len))
     return false;
 
-  const int res = lzo1x_decompress(out, cur_len, buffer.data(), &new_len, nullptr);
+  const int res = lzo1x_decompress_safe(out, cur_len, buffer.data(), &new_len, nullptr);
   if (res != LZO_E_OK)
   {
     // This doesn't seem to happen anymore.
@@ -541,7 +543,7 @@ static bool GetVersionFromLZO(StateHeader& header, File::IOFile& f)
   }
 
   // Read in cookie and string length
-  if (buffer.size() >= sizeof(StateHeaderVersion))
+  if (new_len >= sizeof(StateHeaderVersion))
   {
     memcpy(&header.version_header, buffer.data(), sizeof(StateHeaderVersion));
   }
@@ -549,12 +551,12 @@ static bool GetVersionFromLZO(StateHeader& header, File::IOFile& f)
   {
     PanicAlertFmtT("Internal LZO Error - failed to parse decompressed version cookie and version "
                    "string length ({0})",
-                   buffer.size());
+                   new_len);
     return false;
   }
 
   // Read in the string
-  if (buffer.size() >= sizeof(StateHeaderVersion) + header.version_header.version_string_length)
+  if (new_len >= sizeof(StateHeaderVersion) + header.version_header.version_string_length)
   {
     header.version_string.assign(
         reinterpret_cast<char*>(buffer.data() + sizeof(StateHeaderVersion)),
@@ -563,7 +565,7 @@ static bool GetVersionFromLZO(StateHeader& header, File::IOFile& f)
   else
   {
     PanicAlertFmtT("Internal LZO Error - failed to parse decompressed version string ({0} / {1})",
-                   header.version_header.version_string_length, buffer.size());
+                   header.version_header.version_string_length, new_len);
     return false;
   }
 
@@ -949,6 +951,45 @@ void Save(Core::System& system, u32 slot)
 void Load(Core::System& system, u32 slot)
 {
   LoadAs(system, MakeStateFilename(slot));
+}
+
+u32 GetSelectedSlot()
+{
+  return s_selected_slot;
+}
+
+void SetSelectedSlot(u32 slot)
+{
+  s_selected_slot = std::clamp<u32>(slot, 1, NUM_STATES);
+}
+
+void SelectSlot(u32 slot)
+{
+  SetSelectedSlot(slot);
+
+  Core::DisplayMessage(fmt::format("Selected slot {} - {}", s_selected_slot,
+                                   GetInfoStringOfSlot(s_selected_slot, false)),
+                       2500);
+}
+
+u32 GetNextSlot()
+{
+  return s_selected_slot >= NUM_STATES ? 1 : s_selected_slot + 1;
+}
+
+u32 GetPreviousSlot()
+{
+  return s_selected_slot <= 1 ? NUM_STATES : s_selected_slot - 1;
+}
+
+void SaveSelected(Core::System& system)
+{
+  Save(system, s_selected_slot);
+}
+
+void LoadSelected(Core::System& system)
+{
+  Load(system, s_selected_slot);
 }
 
 void LoadLastSaved(Core::System& system, int i)

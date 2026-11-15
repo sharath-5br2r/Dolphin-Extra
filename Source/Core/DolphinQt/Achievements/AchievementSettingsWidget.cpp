@@ -122,6 +122,9 @@ void AchievementSettingsWidget::SetDescriptions()
       tr("Enable progress notifications on achievements.<br><br>Displays a brief popup message "
          "whenever the player makes progress on an achievement that tracks an accumulated value, "
          "such as 60 out of 120 stars."));
+  ConfigWidget::SetDescription(
+      m_ui->sound_enabled_input, {},
+      tr("Play audio cues for unlocking achievements and submitting to leaderboards."));
 }
 
 void AchievementSettingsWidget::ConnectWidgets()
@@ -148,6 +151,8 @@ void AchievementSettingsWidget::ConnectWidgets()
           &AchievementSettingsWidget::ToggleDiscordPresence);
   connect(m_ui->common_progress_enabled_input, &QCheckBox::toggled, this,
           &AchievementSettingsWidget::ToggleProgress);
+  connect(m_ui->sound_enabled_input, &QCheckBox::toggled, this,
+          &AchievementSettingsWidget::SaveSettings);
 }
 
 void AchievementSettingsWidget::OnControllerInterfaceConfigure()
@@ -221,6 +226,9 @@ void AchievementSettingsWidget::LoadSettings()
   SignalBlocking(m_ui->common_progress_enabled_input)
       ->setChecked(Config::Get(Config::RA_PROGRESS_ENABLED));
   SignalBlocking(m_ui->common_progress_enabled_input)->setEnabled(enabled);
+
+  SignalBlocking(m_ui->sound_enabled_input)->setChecked(Config::Get(Config::RA_SOUND_ENABLED));
+  m_ui->sound_enabled_input->setEnabled(enabled);
 }
 
 void AchievementSettingsWidget::SaveSettings()
@@ -244,6 +252,7 @@ void AchievementSettingsWidget::SaveSettings()
                            m_ui->common_discord_presence_enabled_input->isChecked());
   Config::SetBaseOrCurrent(Config::RA_PROGRESS_ENABLED,
                            m_ui->common_progress_enabled_input->isChecked());
+  Config::SetBaseOrCurrent(Config::RA_SOUND_ENABLED, m_ui->sound_enabled_input->isChecked());
   Config::Save();
 }
 

@@ -10,8 +10,8 @@ target_link_libraries(tests PRIVATE fmt::fmt gtest::gtest core uicommon)
 add_test(NAME tests COMMAND tests)
 add_custom_command(TARGET tests POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Sys"
-  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/Data/Sys" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Sys"
-  COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/Source/UnitTests/VideoCommon/PostProcessing/TestData" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TestData"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/Data/Sys" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Sys"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/Source/UnitTests/VideoCommon/PostProcessing/TestData" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TestData"
 )
 
 # Copy librashader into the test binary's directory so LibrashaderParameters.EnumerateFixturePreset
