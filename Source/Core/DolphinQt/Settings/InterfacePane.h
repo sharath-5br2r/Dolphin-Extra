@@ -37,6 +37,7 @@ private:
   void OnLanguageChanged();
 
   void OnEmulationStateChanged(Core::State state);
+  void OnHardcoreModeChanged(bool enabled);
 
   std::unique_ptr<Ui::InterfacePane> m_ui;
 };

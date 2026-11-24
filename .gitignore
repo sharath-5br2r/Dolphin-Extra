@@ -47,8 +47,9 @@ CMakeLists.txt.user
 .flatpak-builder
 # Ignore the scratch tree update-source-strings.sh uses for .ui files
 /Languages/.ui-scratch/
-
 # clangd cache for Neovim
 .cache/clangd
 # Ignore CMake user presets
 CMakeUserPresets.json
+# Ignore FetchContent source directory
+.FetchContent/
