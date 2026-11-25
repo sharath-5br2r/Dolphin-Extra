@@ -52,7 +52,9 @@ cp -a %{_sourcedir}/COPYING %{_sourcedir}/LICENSES .
 %build
 cmake -S %{_sourcedir} -B %{_builddir}/build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX=%{_prefix}
+  -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 ninja -C %{_builddir}/build
 
 %install

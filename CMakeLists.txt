@@ -777,7 +777,7 @@ if(USE_RCLONE)
       elseif(APPLE)
         set(LIBRCLONE_NAME "librclone.dylib")
       else()
-        set(LIBRCLONE_NAME "librclone.so")
+        set(LIBRCLONE_NAME "librclone.a")
       endif()
     endif()
 
@@ -829,13 +829,25 @@ if(USE_RCLONE)
         VERBATIM
       )
     else()
+      if(NOT ANDROID AND NOT APPLE)
+        set(LIBRCLONE_BUILDMODE "c-archive")
+      else()
+        set(LIBRCLONE_BUILDMODE "c-shared")
+      endif()
       add_custom_target(rclone_build
         COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBRCLONE_OUTPUT_DIR}"
-        COMMAND ${RCLONE_ENV_VARS} ${CMAKE_COMMAND} -E chdir "${RCLONE_SOURCE_DIR}" ${GO_EXECUTABLE} build -trimpath -buildmode=c-shared -ldflags=-s -o "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" ./librclone
+        COMMAND ${RCLONE_ENV_VARS} ${CMAKE_COMMAND} -E chdir "${RCLONE_SOURCE_DIR}" ${GO_EXECUTABLE} build -trimpath -buildmode=${LIBRCLONE_BUILDMODE} -ldflags=-s -o "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" ./librclone
         BYPRODUCTS "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
-        COMMENT "Building librclone shared library with Go and CGo"
+        COMMENT "Building librclone (${LIBRCLONE_BUILDMODE}) with Go and CGo"
         VERBATIM
       )
+      if(NOT ANDROID AND NOT APPLE)
+        add_library(rclone_static STATIC IMPORTED GLOBAL)
+        set_target_properties(rclone_static PROPERTIES
+          IMPORTED_LOCATION "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
+        )
+        add_dependencies(rclone_static rclone_build)
+      endif()
     endif()
     message(STATUS "librclone: ENABLED (found Go at ${GO_EXECUTABLE}, CC=${RCLONE_CC_VAR})")
   else()

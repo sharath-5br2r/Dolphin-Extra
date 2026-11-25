@@ -37,6 +37,15 @@ struct RcloneRPCResult
   int Status;
 };
 
+#ifdef HAVE_STATIC_RCLONE
+extern "C" {
+void RcloneInitialize();
+void RcloneFinalize();
+RcloneRPCResult RcloneRPC(char* method, char* input);
+void RcloneFreeString(char* str);
+}
+#endif
+
 using RcloneInitializeFn = void (*)();
 using RcloneFinalizeFn = void (*)();
 using RcloneRPCFn = RcloneRPCResult (*)(char* method, char* input);
@@ -88,6 +97,15 @@ static bool EnsureLibrcloneLoaded()
   if (s_librclone_initialized)
     return true;
 
+#ifdef HAVE_STATIC_RCLONE
+  s_rclone_init = &RcloneInitialize;
+  s_rclone_finalize = &RcloneFinalize;
+  s_rclone_rpc = &RcloneRPC;
+  s_rclone_free = &RcloneFreeString;
+  s_rclone_init();
+  s_librclone_initialized = true;
+  return true;
+#else
   const std::string path = FindRclonePath();
   if (s_librclone.Open(path.c_str()) || s_librclone.Open("librclone") ||
       s_librclone.Open("librclone.dll") || s_librclone.Open("librclone.so"))
@@ -139,6 +157,7 @@ static bool EnsureLibrcloneLoaded()
     }
   }
   return false;
+#endif
 }
 
 std::optional<std::string> RcloneRPC(const std::string& method, const std::string& json_input)

@@ -863,3 +863,8 @@ if(USE_RETRO_ACHIEVEMENTS)
     target_compile_definitions(core PUBLIC -DRC_CLIENT_SUPPORTS_RAINTEGRATION)
   endif()
 endif()
+
+if(TARGET rclone_static)
+  target_link_libraries(core PRIVATE rclone_static)
+  target_compile_definitions(core PRIVATE -DHAVE_STATIC_RCLONE=1)
+endif()
