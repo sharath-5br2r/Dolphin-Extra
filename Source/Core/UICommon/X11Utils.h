@@ -10,6 +10,10 @@
 #include <X11/extensions/Xrandr.h>
 #endif
 #include <X11/Xlib.h>
+#undef None
+#undef Status
+#undef Bool
+#undef Success
 
 // EWMH state actions, see
 // http://freedesktop.org/wiki/Specifications/wm-spec?action=show&redirect=Standards%2Fwm-spec

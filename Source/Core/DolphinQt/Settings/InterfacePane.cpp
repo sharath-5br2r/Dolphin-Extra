@@ -138,7 +138,7 @@ void InterfacePane::ConnectLayout()
   connect(m_ui->useCoversCheckBox, &QCheckBox::toggled, &Settings::Instance(),
           &Settings::RefreshMetadata);
   connect(m_ui->showDebuggingUiCheckBox, &QCheckBox::toggled, &Settings::Instance(),
-          &Settings::SetDebugModeEnabled);
+          &Settings::DebugModeToggled);
   connect(m_ui->themeComboBox, &QComboBox::currentIndexChanged, &Settings::Instance(),
           &Settings::ThemeChanged);
   connect(m_ui->styleComboBox, &QComboBox::currentIndexChanged, this,
@@ -157,7 +157,7 @@ void InterfacePane::ConnectLayout()
 void InterfacePane::UpdateShowDebuggingCheckbox()
 {
   SignalBlocking(m_ui->showDebuggingUiCheckBox)
-      ->setChecked(Settings::Instance().IsDebugModeEnabled());
+      ->setChecked(Config::Get(Config::MAIN_ENABLE_DEBUGGING));
 
   static constexpr char TR_SHOW_DEBUGGING_UI_DESCRIPTION[] = QT_TR_NOOP(
       "Shows Dolphin's debugging user interface. This lets you view and modify a game's code and "

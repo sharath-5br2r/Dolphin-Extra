@@ -6,6 +6,10 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
+#undef None
+#undef Status
+#undef Bool
+#undef Success
 #include <memory>
 #include <thread>
 

@@ -3,9 +3,6 @@
 
 #include "InputCommon/ControllerInterface/Xlib/XInput2.h"
 
-#include <X11/XKBlib.h>
-#include <X11/extensions/XInput2.h>
-
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>

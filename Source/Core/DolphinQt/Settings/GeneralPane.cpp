@@ -131,7 +131,6 @@ void GeneralPane::ConnectLayout()
 
   connect(m_ui->fallbackRegionComboBox, &QComboBox::currentIndexChanged, this,
           &GeneralPane::OnSaveConfig);
-  connect(&Settings::Instance(), &Settings::FallbackRegionChanged, this, &GeneralPane::LoadConfig);
 
 #if defined(USE_ANALYTICS) && USE_ANALYTICS
   connect(&Settings::Instance(), &Settings::AnalyticsToggled, this, &GeneralPane::LoadConfig);
@@ -171,7 +170,7 @@ void GeneralPane::LoadConfig()
   if (selection < m_ui->speedLimitComboBox->count())
     SignalBlocking(m_ui->speedLimitComboBox)->setCurrentIndex(selection);
 
-  const auto fallback = Settings::Instance().GetFallbackRegion();
+  const auto fallback = Config::Get(Config::MAIN_FALLBACK_REGION);
   if (fallback == DiscIO::Region::NTSC_J)
     SignalBlocking(m_ui->fallbackRegionComboBox)->setCurrentIndex(FALLBACK_REGION_NTSCJ_INDEX);
   else if (fallback == DiscIO::Region::NTSC_U)
@@ -240,14 +239,17 @@ void GeneralPane::OnSaveConfig()
   }
 
 #ifdef USE_DISCORD_PRESENCE
-  Discord::SetDiscordPresenceEnabled(m_ui->discordPresenceCheckBox->isChecked());
+  Config::SetBaseOrCurrent(Config::MAIN_USE_DISCORD_PRESENCE,
+                           m_ui->discordPresenceCheckBox->isChecked());
+  Discord::SetDiscordPresence();
 #endif
 
 #if defined(USE_ANALYTICS) && USE_ANALYTICS
   Settings::Instance().SetAnalyticsEnabled(m_ui->analyticsCheckBox->isChecked());
   DolphinAnalytics::Instance().ReloadConfig();
 #endif
-  Settings::Instance().SetFallbackRegion(
+  Config::SetBaseOrCurrent(
+      Config::MAIN_FALLBACK_REGION,
       UpdateFallbackRegionFromIndex(m_ui->fallbackRegionComboBox->currentIndex()));
 }
 

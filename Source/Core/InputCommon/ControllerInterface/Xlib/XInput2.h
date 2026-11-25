@@ -9,16 +9,17 @@
 #include <string>
 #include <vector>
 
-extern "C" {
-#include <X11/Xlib.h>
-#include <X11/extensions/XInput2.h>
-#include <X11/keysym.h>
-}
-
 #include "Common/CommonTypes.h"
 #include "Common/Matrix.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/ControllerInterface/InputBackend.h"
+
+extern "C" {
+#include <X11/Xlib.h>
+#include <X11/XKBlib.h>
+#include <X11/extensions/XInput2.h>
+#include <X11/keysym.h>
+}
 
 namespace ciface::XInput2
 {

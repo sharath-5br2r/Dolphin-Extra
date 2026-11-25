@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <X11/Xlib.h>
-
 #include "Common/GL/GLInterface/EGL.h"
 #include "Common/GL/GLX11Window.h"
 

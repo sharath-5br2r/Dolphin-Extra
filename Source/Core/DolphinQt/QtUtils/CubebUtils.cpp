@@ -14,11 +14,13 @@
 #ifdef HAVE_CUBEB
 #include "AudioCommon/CubebUtils.h"
 #endif
-#include "DolphinQt/Config/ConfigControls/ConfigChoice.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
+#include "DolphinQt/Settings.h"
 
 namespace
 {
-void UpdateMicrophoneComboBoxDeviceList(ConfigStringChoice* combobox)
+void UpdateMicrophoneComboBoxDeviceList(QComboBox* combobox,
+                                        const Config::Info<std::string>& cfg_microphone)
 {
   std::vector<std::pair<QString, QString>> input_devices;
 #ifndef HAVE_CUBEB
@@ -34,7 +36,7 @@ void UpdateMicrophoneComboBoxDeviceList(ConfigStringChoice* combobox)
     input_devices.emplace_back(QString::fromStdString(device_name), user_data);
   }
 #endif
-  combobox->SetOptions(input_devices);
+  ConfigWidget::BindStringChoice(combobox, cfg_microphone, input_devices);
 }
 }  // namespace
 
@@ -70,13 +72,13 @@ QGridLayout* QtUtils::CubebVolumeLayout(const Config::Info<s16>& cfg_volume, QWi
 QComboBox* QtUtils::CubebMicrophonesComboBox(const Config::Info<std::string>& cfg_microphone,
                                              QWidget* parent)
 {
-  const std::array<std::string, 0> empty_list;
-  auto* const combobox = new ConfigStringChoice{empty_list, cfg_microphone};
-  combobox->setParent(parent);
+  auto* const combobox = new QComboBox(parent);
 
   combobox->connect(&Settings::Instance(), &Settings::AudioBackendChanged, combobox,
-                    [combobox] { UpdateMicrophoneComboBoxDeviceList(combobox); });
-  UpdateMicrophoneComboBoxDeviceList(combobox);
+                    [combobox, cfg_microphone] {
+                      UpdateMicrophoneComboBoxDeviceList(combobox, cfg_microphone);
+                    });
+  UpdateMicrophoneComboBoxDeviceList(combobox, cfg_microphone);
 
   // TODO: It may make sense to update this list when physical devices are added/removed.
   // Maybe just update the combobox when it's clicked on ?
