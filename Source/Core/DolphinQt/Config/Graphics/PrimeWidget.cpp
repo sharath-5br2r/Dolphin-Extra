@@ -388,21 +388,21 @@ void PrimeWidget::AddDescriptions()
   static const char TR_GC_SHOW_CROSSHAIR[] =
       QT_TR_NOOP("Forces the lock-on crosshair as the persistent crosshair.");
 
-  m_motions_lock->SetDescription(tr(TR_MOTION_LOCK));
-  m_toggle_secondaryFX->SetDescription(tr(TR_GUNEFFECTS));
-  m_disable_bloom->SetDescription(tr(TR_DISABLE_BLOOM));
-  m_reduce_bloom->SetDescription(tr(TR_REDUCE_BLOOM));
-  m_bloom_intensity_val->SetDescription(tr(TR_BLOOM_INTENSITY));
-  m_toggle_culling->SetDescription(tr(TR_TOGGLE_CULL));
-  m_toggle_arm_position->SetDescription(tr(TR_TOGGLE_ARM_POSITION));
-  m_manual_arm_position->SetDescription(tr(TR_MANUAL_POSITION));
-  m_auto_arm_position->SetDescription(tr(TR_AUTO_POSITION));
-  m_x_axis->SetDescription(tr(TR_X_AXIS));
-  m_x_axis->SetDescription(tr(TR_Y_AXIS));
-  m_x_axis->SetDescription(tr(TR_Z_AXIS));
-  m_fov_toggle->SetDescription(tr(TR_FOV_TOGGLE));
-  m_fov_axis->SetDescription(tr(TR_FOV));
-  m_fov_counter->SetDescription(tr(TR_FOV));
-  m_autofogtoggle_mp3->SetDescription(tr(TR_AUTOFOG));
-  m_toggle_gc_show_crosshair->SetDescription(tr(TR_GC_SHOW_CROSSHAIR));
+  m_motions_lock->setToolTip(tr(TR_MOTION_LOCK));
+  m_toggle_secondaryFX->setToolTip(tr(TR_GUNEFFECTS));
+  m_disable_bloom->setToolTip(tr(TR_DISABLE_BLOOM));
+  m_reduce_bloom->setToolTip(tr(TR_REDUCE_BLOOM));
+  m_bloom_intensity_val->setToolTip(tr(TR_BLOOM_INTENSITY));
+  m_toggle_culling->setToolTip(tr(TR_TOGGLE_CULL));
+  m_toggle_arm_position->setToolTip(tr(TR_TOGGLE_ARM_POSITION));
+  m_manual_arm_position->setToolTip(tr(TR_MANUAL_POSITION));
+  m_auto_arm_position->setToolTip(tr(TR_AUTO_POSITION));
+  m_x_axis->setToolTip(tr(TR_X_AXIS));
+  m_x_axis->setToolTip(tr(TR_Y_AXIS));
+  m_x_axis->setToolTip(tr(TR_Z_AXIS));
+  m_fov_toggle->setToolTip(tr(TR_FOV_TOGGLE));
+  m_fov_axis->setToolTip(tr(TR_FOV));
+  m_fov_counter->setToolTip(tr(TR_FOV));
+  m_autofogtoggle_mp3->setToolTip(tr(TR_AUTOFOG));
+  m_toggle_gc_show_crosshair->setToolTip(tr(TR_GC_SHOW_CROSSHAIR));
 }
