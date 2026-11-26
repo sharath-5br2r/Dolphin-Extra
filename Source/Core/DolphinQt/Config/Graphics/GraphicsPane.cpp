@@ -12,6 +12,7 @@
 #include "DolphinQt/Config/Graphics/EnhancementsWidget.h"
 #include "DolphinQt/Config/Graphics/GeneralWidget.h"
 #include "DolphinQt/Config/Graphics/HacksWidget.h"
+#include "DolphinQt/Config/Graphics/PrimeWidget.h"
 #include "DolphinQt/MainWindow.h"
 #include "DolphinQt/QtUtils/QtUtils.h"
 #include "DolphinQt/QtUtils/WrapInScrollArea.h"
@@ -55,6 +56,7 @@ void GraphicsPane::CreatePages()
   m_ui->enhancementsLayout->addWidget(wrapped_enhancements);
   m_ui->hacksLayout->addWidget(wrapped_hacks);
   m_ui->advancedLayout->addWidget(wrapped_advanced);
+  m_ui->tabWidget->addTab(GetWrappedWidget(new PrimeWidget(this)), tr("PrimeHack"));
 }
 
 void GraphicsPane::OnBackendChanged(const QString& backend_name)
