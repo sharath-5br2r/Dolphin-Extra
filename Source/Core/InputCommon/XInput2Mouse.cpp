@@ -141,8 +141,9 @@ void XInput2Mouse::SelectEventsForDevice(Window root_window, XIEventMask* mask, 
 
 void XInput2Mouse::LockCursorToGameWindow()
 {
-  if (Host_RendererHasFocus() && cursor_locked)
+  if (Host_RendererHasFocus())
   {
+    cursor_locked = true;
     Host_RendererUpdateCursor(true);
   }
   else
