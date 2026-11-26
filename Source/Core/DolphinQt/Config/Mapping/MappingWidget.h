@@ -12,6 +12,7 @@ class MappingButton;
 class MappingNumeric;
 class MappingWindow;
 class QFormLayout;
+class QLabel;
 class QPushButton;
 
 namespace ControllerEmu
