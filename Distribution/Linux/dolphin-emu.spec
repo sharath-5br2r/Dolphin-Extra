@@ -1,10 +1,12 @@
 Name:           dolphin-emu
-Version:        2609.069808a8f2
+Version:        2609.%(git -C %{_sourcedir} rev-parse --short HEAD)
 Release:        1%{?dist}
 Summary:        GameCube / Wii / Triforce emulator
 
 License:        GPL-2.0-or-later
 URL:            https://dolphin-emu.org/
+
+Requires:       %{name}-data = %{version}-%{release}
 
 BuildRequires:  cmake
 BuildRequires:  ninja-build
@@ -46,6 +48,19 @@ BuildRequires:  libXi-devel
 Dolphin is an emulator for two recent Nintendo video game consoles:
 the GameCube and the Wii.
 
+%package data
+Summary:        Data files for %{name}
+BuildArch:      noarch
+
+%description data
+Data files for %{name}.
+
+%package tool
+Summary:        CLI tool for %{name}
+
+%description tool
+Command-line tool for %{name} (dolphin-tool).
+
 %prep
 cp -a %{_sourcedir}/COPYING %{_sourcedir}/LICENSES .
 
@@ -63,12 +78,23 @@ DESTDIR=%{buildroot} cmake --install %{_builddir}/build
 %files
 %license COPYING LICENSES/
 %{_bindir}/dolphin-emu
-%{_bindir}/dolphin-tool
-%{_datadir}/dolphin-emu/
 %{_datadir}/applications/dolphin-emu.desktop
 %{_datadir}/icons/hicolor/*/apps/dolphin-emu.*
+%{_datadir}/dolphin-emu/Sys/Resources/
+%{_datadir}/dolphin-emu/Sys/Themes/
 %{_datadir}/locale/*/LC_MESSAGES/dolphin-emu.mo
-%{_mandir}/man6/dolphin-emu*.6*
+%{_mandir}/man6/dolphin-emu.6*
+%exclude %{_mandir}/man6/dolphin-emu-nogui.*
+
+%files data
+%license COPYING LICENSES/
+%exclude %{_datadir}/dolphin-emu/Sys/Resources/
+%exclude %{_datadir}/dolphin-emu/Sys/Themes/
+%{_datadir}/dolphin-emu/
+
+%files tool
+%license COPYING LICENSES/
+%{_bindir}/dolphin-tool
 
 %changelog
 * Wed Nov 25 2026 Sharath <sharath@localhost> - 2603-1
