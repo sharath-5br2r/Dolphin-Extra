@@ -97,6 +97,7 @@
 #define NETPLAY_SAVE_DIR "NetplaySave"
 #define LAUNCHER_DIR "Launcher"
 #define SOUNDS_DIR "Sounds"
+#define MODLOADER_DIR "ModLoader"
 
 // This one is only used to remove it if it was present
 #define SHADERCACHE_LEGACY_DIR "ShaderCache"
