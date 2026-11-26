@@ -362,7 +362,8 @@ constexpr std::array<HotkeyGroupInfo, NUM_HOTKEY_GROUPS> s_groups_info = {
      {_trans("GBA Volume"), HK_GBA_VOLUME_DOWN, HK_GBA_TOGGLE_MUTE, true},
      {_trans("GBA Window Size"), HK_GBA_1X, HK_GBA_4X, true},
      {_trans("USB Emulation Devices"), HK_SKYLANDERS_PORTAL, HK_INFINITY_BASE},
-     {_trans("PrimeHack"), HK_NOCLIP_TOGGLE, HK_MOTION_LOCK}}};
+     {_trans("PrimeHack Cheats"), HK_NOCLIP_TOGGLE, HK_RESTORE_DASHING},
+     {_trans("PrimeHack Graphics"), HK_MOTION_LOCK, HK_MOTION_LOCK}}};
 
 HotkeyManager::HotkeyManager()
 {
