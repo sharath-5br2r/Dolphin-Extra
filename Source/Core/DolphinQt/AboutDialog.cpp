@@ -64,9 +64,10 @@ Built on Dolphin 2606a. %CHECK_FOR_UPDATES%: <a href='https://dolphin-emu.org'>d
 </p>
 
 <p>
-<a href='https://github.com/Project-Plus-Development-Team/Project-Plus-Dolphin/blob/master/COPYING'>License</a> |
+<a href='https://github.com/dolphin-emu/dolphin/blob/master/COPYING'>License</a> |
 <a href='https://github.com/dolphin-emu/dolphin/graphs/contributors'>Dolphin Authors</a> |
-<a href='https://discord.gg/vdssRDg'>Setup Support</a>
+<a href='https://dolphin-emu.org/docs/guides/'>Support</a> |
+<a href='https://github.com/shiiion/dolphin'>PrimeHack</a>
 )")
           .replace(QStringLiteral("%VERSION_STRING%"),
                    QString::fromUtf8(Common::GetScmDescStr().c_str()))
