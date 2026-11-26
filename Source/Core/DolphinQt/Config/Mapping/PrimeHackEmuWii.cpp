@@ -53,11 +53,10 @@ void PrimeHackEmuWii::CreateMainLayout()
 
   combo_hbox->addWidget(new QLabel(tr("Mouse")));
   combo_hbox->addWidget(m_radio_mouse = new QRadioButton());
-  combo_hbox->addSpacing(95);
+  combo_hbox->addSpacing(20);
   combo_hbox->addWidget(new QLabel(tr("Controller")));
   combo_hbox->addWidget(m_radio_controller = new QRadioButton());
 
-  modes->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   static_cast<QFormLayout*>(modes->layout())->insertRow(0, combo_hbox);
 
   groupbox1->addWidget(modes, 0);
