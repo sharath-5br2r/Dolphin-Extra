@@ -12,10 +12,10 @@ class QLabel;
 class QRadioButton;
 class QSlider;
 class QSpinBox;
-class ConfigBool;
-class ConfigSlider;
-class ConfigInteger;
-class ConfigRadioInt;
+class QCheckBox;
+class QSlider;
+class QSpinBox;
+class QRadioButton;
 class QPushButton;
 class QColorDialog;
 
@@ -29,38 +29,38 @@ private:
   void ArmPositionModeChanged(bool mode);
 
   // General
-  ConfigBool* m_disable_bloom;
-  ConfigBool* m_reduce_bloom;
-  ConfigSlider* m_bloom_intensity;
-  ConfigInteger* m_bloom_intensity_val;
-  ConfigBool* m_motions_lock;
-  ConfigBool* m_toggle_culling;
-  ConfigBool* m_toggle_secondaryFX;
-  ConfigBool* m_autofogtoggle_mp3;
+  QCheckBox* m_disable_bloom;
+  QCheckBox* m_reduce_bloom;
+  QSlider* m_bloom_intensity;
+  QSpinBox* m_bloom_intensity_val;
+  QCheckBox* m_motions_lock;
+  QCheckBox* m_toggle_culling;
+  QCheckBox* m_toggle_secondaryFX;
+  QCheckBox* m_autofogtoggle_mp3;
 
   //Crosshair
-  ConfigBool* m_toggle_gc_show_crosshair;
+  QCheckBox* m_toggle_gc_show_crosshair;
   QPushButton* m_select_colour;
   QPushButton* m_reset_colour;
   QColorDialog* colorpicker;
   
-  ConfigInteger* y_counter;
-  ConfigInteger* x_counter;
-  ConfigInteger* z_counter;
+  QSpinBox* y_counter;
+  QSpinBox* x_counter;
+  QSpinBox* z_counter;
   
-  ConfigSlider* m_y_axis;
-  ConfigSlider* m_x_axis;
-  ConfigSlider* m_z_axis;
+  QSlider* m_y_axis;
+  QSlider* m_x_axis;
+  QSlider* m_z_axis;
 
   // FOV
-  ConfigBool* m_fov_toggle;
-  ConfigInteger* m_fov_counter;
-  ConfigSlider* m_fov_axis;
+  QCheckBox* m_fov_toggle;
+  QSpinBox* m_fov_counter;
+  QSlider* m_fov_axis;
 
   // Viewmodel
-  ConfigBool* m_toggle_arm_position;
-  ConfigRadioInt* m_auto_arm_position;
-  ConfigRadioInt* m_manual_arm_position;
+  QCheckBox* m_toggle_arm_position;
+  QRadioButton* m_auto_arm_position;
+  QRadioButton* m_manual_arm_position;
 
   void CreateWidgets();
   void ConnectWidgets();

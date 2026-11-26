@@ -16,12 +16,60 @@
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/ConfigManager.h"
 
-#include "DolphinQt/Config/ConfigControls/ConfigBool.h"
-#include "DolphinQt/Config/ConfigControls/ConfigInteger.h"
-#include "DolphinQt/Config/ConfigControls/ConfigRadio.h"
-#include "DolphinQt/Config/ConfigControls/ConfigSlider.h"
-#include "DolphinQt/Config/ToolTipControls/ToolTipSlider.h"
+#include "DolphinQt/Config/Binder/ConfigWidgetBinder.h"
 #include "DolphinQt/Settings.h"
+
+#include <QCheckBox>
+#include <QRadioButton>
+#include <QSlider>
+#include <QSpinBox>
+
+namespace
+{
+class ConfigBool : public QCheckBox
+{
+public:
+  ConfigBool(const QString& label, const Config::Info<bool>& setting) : QCheckBox(label)
+  {
+    ConfigWidget::Bind(this, setting);
+  }
+};
+
+class ConfigSlider : public QSlider
+{
+public:
+  ConfigSlider(int min, int max, const Config::Info<int>& setting) : QSlider(Qt::Horizontal)
+  {
+    setRange(min, max);
+    ConfigWidget::Bind(this, setting);
+  }
+};
+
+class ConfigInteger : public QSpinBox
+{
+public:
+  ConfigInteger(int min, int max, const Config::Info<int>& setting)
+  {
+    setRange(min, max);
+    ConfigWidget::Bind(this, setting);
+  }
+};
+
+class ConfigRadio : public QRadioButton
+{
+public:
+  ConfigRadio(const QString& label, const Config::Info<bool>& setting, bool reverse = false)
+      : QRadioButton(label)
+  {
+    setChecked(reverse ? !Config::Get(setting) : Config::Get(setting));
+    connect(this, &QRadioButton::toggled, this,
+            [setting, reverse](bool checked) {
+              if (checked)
+                Config::SetBaseOrCurrent(setting, !reverse);
+            });
+  }
+};
+}  // namespace
 
 #include "Core/Core.h"
 #include "Core/PrimeHack/HackConfig.h"
