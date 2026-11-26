@@ -8,6 +8,7 @@
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QLabel>
 
@@ -18,6 +19,7 @@
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
+#include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/InputConfig.h"
 #include "InputCommon/ControllerEmu/ControlGroup/PrimeHackModes.h"
 #include "InputCommon/ControllerEmu/ControlGroup/PrimeHackAltProfile.h"
@@ -107,6 +109,14 @@ void PrimeHackEmuWii::CreateMainLayout()
   controller_box->setEnabled(ce_modes->GetSelectedDevice() == 1);
 
   groupbox2->addWidget(controller_box, 2, Qt::AlignTop);
+
+  auto* load_defaults_btn = new QPushButton(tr("Load PrimeHack Defaults"));
+  connect(load_defaults_btn, &QPushButton::clicked, this, [this] {
+    GetController()->LoadPrimeHackDefaults(g_controller_interface);
+    emit GetParent()->ConfigChanged();
+    emit GetParent()->Save();
+  });
+  groupbox2->addWidget(load_defaults_btn, 0, Qt::AlignTop);
 
   layout->addLayout(groupbox2, 0, 1, Qt::AlignTop);
 

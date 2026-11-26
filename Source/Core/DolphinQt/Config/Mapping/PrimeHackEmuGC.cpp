@@ -8,10 +8,12 @@
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QLabel>
 
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
+#include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/InputConfig.h"
 
 #include "Core/PrimeHack/HackConfig.h"
@@ -64,6 +66,14 @@ void PrimeHackEmuGC::CreateMainLayout()
   auto* springball = CreateGroupBox(tr("Miscellaneous"), Pad::GetGroup(
     GetPort(), PadGroup::Misc));
   groupbox1->addWidget(springball, 0, Qt::AlignTop);
+
+  auto* load_defaults_btn = new QPushButton(tr("Load PrimeHack Defaults"));
+  connect(load_defaults_btn, &QPushButton::clicked, this, [this] {
+    GetController()->LoadPrimeHackDefaults(g_controller_interface);
+    emit GetParent()->ConfigChanged();
+    emit GetParent()->Save();
+  });
+  groupbox1->addWidget(load_defaults_btn, 0, Qt::AlignTop);
 
   // May be used later.
   //auto* misc_box = CreateGroupBox(tr("Miscellaneous"),
