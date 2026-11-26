@@ -27,6 +27,7 @@ public:
   ~StackedSettingsWindow() override;
 
   void ActivatePane(int index);
+  QWidget* GetActivePane();
 
 protected:
   void AddPane(QWidget*, const QString& name);
@@ -43,7 +44,6 @@ protected:
   void changeEvent(QEvent* event) override;
   bool eventFilter(QObject* watched, QEvent* event) override;
 
-  QWidget* GetActivePane();
 
 private:
   QWidget* FindHelpWidget(QObject* object) const;

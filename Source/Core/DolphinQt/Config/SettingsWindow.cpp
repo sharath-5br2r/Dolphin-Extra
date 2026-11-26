@@ -196,6 +196,11 @@ void StackedSettingsWindow::ActivatePane(int index)
   m_ui->navigationList->setCurrentRow(index);
 }
 
+QWidget* StackedSettingsWindow::GetActivePane()
+{
+  return m_ui->stackedPanes->currentWidget();
+}
+
 void StackedSettingsWindow::SetPaneIcon(int index, const QIcon& icon)
 {
   if (QListWidgetItem* const item = m_ui->navigationList->item(index))

@@ -346,6 +346,11 @@ bool ElfReader::LoadSymbols(const Core::CPUThreadGuard& guard, PPCSymbolDB& ppc_
   return hasSymbols;
 }
 
+std::unordered_map<std::string_view, u8 const*> ElfReader::StaticSymMap() const
+{
+  return {};
+}
+
 bool ElfReader::IsWii() const
 {
   if (!m_is_valid)
