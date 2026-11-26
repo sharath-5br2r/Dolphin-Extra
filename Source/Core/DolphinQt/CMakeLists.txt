@@ -153,7 +153,6 @@ add_executable(dolphin-emu
   CVarDataModel.h
   ConfigureModWindow.cpp
   ConfigureModWindow.h
->>>>>>> primehack/primehack-master
   Achievements/AchievementBox.cpp
   Achievements/AchievementBox.h
   Achievements/AchievementBox.ui
