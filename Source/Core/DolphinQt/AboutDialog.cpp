@@ -66,8 +66,14 @@ Built on Dolphin 2606a. %CHECK_FOR_UPDATES%: <a href='https://dolphin-emu.org'>d
 <p>
 <a href='https://github.com/dolphin-emu/dolphin/blob/master/COPYING'>License</a> |
 <a href='https://github.com/dolphin-emu/dolphin/graphs/contributors'>Dolphin Authors</a> |
-<a href='https://dolphin-emu.org/docs/guides/'>Support</a> |
-<a href='https://github.com/shiiion/dolphin'>PrimeHack</a>
+<a href='https://dolphin-emu.org/docs/guides/'>Dolphin Support</a>
+</p>
+<p>
+Unofficial fork based on
+<a href='https://github.com/dolphin-emu/dolphin'>Dolphin</a>,
+<a href='https://github.com/shiiion/dolphin'>PrimeHack</a> (<a href='https://discord.gg/vdssRDg'>Discord</a>), and
+<a href='https://github.com/Project-Plus-Development-Team/Project-Plus-Dolphin'>Project+ / CloudSync</a>
+
 )")
           .replace(QStringLiteral("%VERSION_STRING%"),
                    QString::fromUtf8(Common::GetScmDescStr().c_str()))
