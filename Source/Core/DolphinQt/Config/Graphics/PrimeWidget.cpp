@@ -69,6 +69,16 @@ public:
             });
   }
 };
+
+class ConfigRadioInt : public QRadioButton
+{
+public:
+  ConfigRadioInt(const QString& label, const Config::Info<int>& setting, int value)
+      : QRadioButton(label)
+  {
+    ConfigWidget::Bind(this, setting, value);
+  }
+};
 }  // namespace
 
 #include "Core/Core.h"
@@ -315,9 +325,6 @@ void PrimeWidget::ConnectWidgets()
     m_auto_arm_position->setEnabled(checked);
     m_manual_arm_position->setEnabled(checked);
     PrimeWidget::ArmPositionModeChanged(m_manual_arm_position->isChecked());
-  });
-  connect(&Settings::Instance(), &Settings::PrimeGameChange, this, [this](prime::Game game, prime::Region) {
-    m_toggle_culling->setEnabled(!ShouldDisable(game, static_cast<int>(prime::GetFov(game))));
   });
 
   connect(m_select_colour, &QPushButton::clicked, this, [this]() {
