@@ -200,7 +200,13 @@ constexpr std::array<const char*, NUM_HOTKEYS> s_hotkey_labels{{
     _trans("4x"),
 
     _trans("Show Skylanders Portal"),
-    _trans("Show Infinity Base")
+    _trans("Show Infinity Base"),
+
+    _trans("Toggle Noclip"),
+    _trans("Toggle Invulnerability"),
+    _trans("Skip Cutscene"),
+    _trans("Restore Dashing"),
+    _trans("Toggle Motion Lock"),
 }};
 // clang-format on
 static_assert(NUM_HOTKEYS == s_hotkey_labels.size(), "Wrong count of hotkey_labels");
