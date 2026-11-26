@@ -77,6 +77,14 @@ void PrimeHackEmuWii::CreateMainLayout()
   QFormLayout* misc_box_layout = static_cast<QFormLayout*>(misc_box->layout());
   misc_box_layout->addRow(tr("Morph Ball & Map Profile"), m_morphball_combobox);
 
+  auto* load_defaults_btn = new QPushButton(tr("Load PrimeHack Defaults"));
+  connect(load_defaults_btn, &QPushButton::clicked, this, [this] {
+    GetController()->LoadPrimeHackDefaults(g_controller_interface);
+    emit GetParent()->ConfigChanged();
+    emit GetParent()->Save();
+  });
+  misc_box_layout->addRow(load_defaults_btn);
+
   PopulateMorphBallProfiles();
 
   auto* beam_box = CreateGroupBox(tr("Beams"),
@@ -109,14 +117,6 @@ void PrimeHackEmuWii::CreateMainLayout()
   controller_box->setEnabled(ce_modes->GetSelectedDevice() == 1);
 
   groupbox2->addWidget(controller_box, 2, Qt::AlignTop);
-
-  auto* load_defaults_btn = new QPushButton(tr("Load PrimeHack Defaults"));
-  connect(load_defaults_btn, &QPushButton::clicked, this, [this] {
-    GetController()->LoadPrimeHackDefaults(g_controller_interface);
-    emit GetParent()->ConfigChanged();
-    emit GetParent()->Save();
-  });
-  groupbox2->addWidget(load_defaults_btn, 0, Qt::AlignTop);
 
   layout->addLayout(groupbox2, 0, 1, Qt::AlignTop);
 

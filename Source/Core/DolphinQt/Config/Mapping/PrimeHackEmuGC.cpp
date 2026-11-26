@@ -65,15 +65,14 @@ void PrimeHackEmuGC::CreateMainLayout()
 
   auto* springball = CreateGroupBox(tr("Miscellaneous"), Pad::GetGroup(
     GetPort(), PadGroup::Misc));
-  groupbox1->addWidget(springball, 0, Qt::AlignTop);
-
   auto* load_defaults_btn = new QPushButton(tr("Load PrimeHack Defaults"));
   connect(load_defaults_btn, &QPushButton::clicked, this, [this] {
     GetController()->LoadPrimeHackDefaults(g_controller_interface);
     emit GetParent()->ConfigChanged();
     emit GetParent()->Save();
   });
-  groupbox1->addWidget(load_defaults_btn, 0, Qt::AlignTop);
+  static_cast<QFormLayout*>(springball->layout())->addRow(load_defaults_btn);
+  groupbox1->addWidget(springball, 0, Qt::AlignTop);
 
   // May be used later.
   //auto* misc_box = CreateGroupBox(tr("Miscellaneous"),
