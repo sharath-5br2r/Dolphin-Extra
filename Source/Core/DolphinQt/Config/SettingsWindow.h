@@ -43,6 +43,8 @@ protected:
   void changeEvent(QEvent* event) override;
   bool eventFilter(QObject* watched, QEvent* event) override;
 
+  QWidget* GetActivePane();
+
 private:
   QWidget* FindHelpWidget(QObject* object) const;
   void InstallHelpEventFilters(QWidget* root);

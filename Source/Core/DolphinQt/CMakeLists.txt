@@ -149,6 +149,11 @@ add_executable(dolphin-emu
   CheatsManager.cpp
   CheatsManager.h
   CheatsManager.ui
+  CVarDataModel.cpp
+  CVarDataModel.h
+  ConfigureModWindow.cpp
+  ConfigureModWindow.h
+>>>>>>> primehack/primehack-master
   Achievements/AchievementBox.cpp
   Achievements/AchievementBox.h
   Achievements/AchievementBox.ui
@@ -214,6 +219,8 @@ add_executable(dolphin-emu
   Config/GamecubeControllersWidget.cpp
   Config/GamecubeControllersWidget.h
   Config/GamecubeControllersWidget.ui
+  Config/PrimeCheatsWidget.cpp
+  Config/PrimeCheatsWidget.h
   Config/GeckoCodeWidget.cpp
   Config/GeckoCodeWidget.h
   Config/Graphics/AdvancedWidget.cpp
@@ -241,6 +248,8 @@ add_executable(dolphin-emu
   Config/GraphicsModWarningWidget.h
   Config/HardcoreWarningWidget.cpp
   Config/HardcoreWarningWidget.h
+  Config/Graphics/PrimeWidget.cpp
+  Config/Graphics/PrimeWidget.h
   Config/InfoWidget.cpp
   Config/InfoWidget.h
   Config/LogConfigWidget.cpp
@@ -263,6 +272,8 @@ add_executable(dolphin-emu
   Config/Mapping/GCMicrophone.h
   Config/Mapping/GCPadEmu.cpp
   Config/Mapping/GCPadEmu.h
+  Config/Mapping/GCPadEmuMetroid.cpp
+  Config/Mapping/GCPadEmuMetroid.h
   Config/Mapping/GCPadWiiUConfigDialog.cpp
   Config/Mapping/GCPadWiiUConfigDialog.h
   Config/Mapping/GCPadWiiUConfigDialog.ui
@@ -316,6 +327,14 @@ add_executable(dolphin-emu
   Config/Mapping/WiimoteEmuExtensionMotionSimulation.ui
   Config/Mapping/WiimoteEmuGeneral.cpp
   Config/Mapping/WiimoteEmuGeneral.h
+  Config/Mapping/WiimoteEmuMetroid.cpp
+  Config/Mapping/WiimoteEmuMetroid.h
+  Config/Mapping/PrimeHackEmuWii.cpp
+  Config/Mapping/PrimeHackEmuWii.h
+  Config/Mapping/PrimeHackEmuGC.cpp
+  Config/Mapping/PrimeHackEmuGC.h
+  Config/Mapping/HotkeyPrimeHack.cpp
+  Config/Mapping/HotkeyPrimeHack.h
   Config/Mapping/WiimoteEmuMotionControl.cpp
   Config/Mapping/WiimoteEmuMotionControl.h
   Config/Mapping/WiimoteEmuMotionControlIMU.cpp

@@ -11,6 +11,7 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/UISettings.h"
 #include "Core/Core.h"
+#include "Core/PrimeHack/PrimeUtils.h"
 #include "Core/TimePlayed.h"
 #include "Core/WiiForwarder.h"
 
@@ -26,6 +27,8 @@
 #include "UICommon/UICommon.h"
 
 const QSize GAMECUBE_BANNER_SIZE(96, 32);
+
+using namespace prime;
 
 GameListModel::GameListModel(QObject* parent) : QAbstractTableModel(parent)
 {
@@ -236,6 +239,28 @@ QVariant GameListModel::data(const QModelIndex& index, int role) const
       return tags.join(QStringLiteral(", "));
     }
     break;
+  case Column::PrimeHackSupport:
+    if (role == Qt::DecorationRole)
+    {
+      GameSupportLevel supp_level = GetGameSupportLevel(game);
+      if (supp_level != GameSupportLevel::NotApplicable)
+      {
+        return Resources::GetResourceIcon(GetIconNameForSupportLevel(supp_level));
+      }
+    }
+    if (role == SORT_ROLE)
+    {
+      return static_cast<int>(GetGameSupportLevel(game));
+    }
+    if (role == Qt::ToolTipRole)
+    {
+      GameSupportLevel supp_level = GetGameSupportLevel(game);
+      if (supp_level != GameSupportLevel::NotApplicable)
+      {
+        return QString::fromStdString(std::string(SupportLevelToolTip(supp_level)));
+      }
+    }
+    break;
   default:
     break;
   }
@@ -276,6 +301,8 @@ QVariant GameListModel::headerData(int section, Qt::Orientation orientation, int
     return tr("Time Played");
   case Column::Tags:
     return tr("Tags");
+  case Column::PrimeHackSupport:
+    return tr("PrimeHack Support");
   default:
     break;
   }

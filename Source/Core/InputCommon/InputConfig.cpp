@@ -17,6 +17,12 @@
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/InputProfile.h"
 
+#include "Core/PrimeHack/HackConfig.h"
+
+#if defined(CIFACE_USE_WIN32)
+#include "Core/HotkeyManager.h"
+#endif
+
 InputConfig::InputConfig(std::string ini_name, std::string gui_name,
                          std::string profile_directory_name, std::string profile_key)
     : m_ini_name(std::move(ini_name)), m_gui_name(std::move(gui_name)),

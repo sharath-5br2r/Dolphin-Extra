@@ -41,10 +41,12 @@ public:
     MAPPING_GC_GBA,
     MAPPING_GC_KEYBOARD,
     MAPPING_GCPAD,
+    MAPPING_GCPAD_METROID,
     MAPPING_GC_STEERINGWHEEL,
     MAPPING_GC_MICROPHONE,
     // Wii
     MAPPING_WIIMOTE_EMU,
+    MAPPING_WIIMOTE_METROID,
     // Hotkeys
     MAPPING_HOTKEYS,
     MAPPING_BIG_PICTURE,
@@ -68,7 +70,10 @@ public:
 signals:
   // Emitted when config has changed so widgets can update to reflect the change.
   void ConfigChanged();
-  // Emitted at INDICATOR_UPDATE_FREQ Hz for real-time indicators to be updated.
+  void ProfileSaved();
+  void ProfileLoaded();
+
+  // Emitted at 30hz for real-time indicators to be updated.
   void Update();
   void Save();
 
@@ -82,6 +87,7 @@ private:
   void ConnectWidgets();
 
   QWidget* AddWidget(const QString& name, QWidget* widget);
+  std::pair<QWidget*, int> AddWidgetGetIndex(const QString& name, QWidget* widget);
 
   void RefreshDevices();
 
@@ -97,6 +103,7 @@ private:
   void UpdateDeviceList();
 
   void OnDefaultFieldsPressed();
+  void OnDefaultFieldsPrimeHackPressed();
   void OnClearFieldsPressed();
   void OnSelectDevice(int index);
 
@@ -126,8 +133,10 @@ private:
   QTabWidget* m_tab_widget;
   QWidget* m_extension_motion_input_tab;
   QWidget* m_extension_motion_simulation_tab;
+  QWidget* m_primehack_tab;
   const QString EXTENSION_MOTION_INPUT_TAB_NAME = tr("Extension Motion Input");
   const QString EXTENSION_MOTION_SIMULATION_TAB_NAME = tr("Extension Motion Simulation");
+  const QString PRIMEHACK_TAB_NAME = tr("PrimeHack");
 
   Type m_mapping_type;
   const int m_port;

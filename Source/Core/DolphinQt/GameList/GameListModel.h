@@ -71,6 +71,7 @@ public:
     Compression,
     TimePlayed,
     Tags,
+    PrimeHackSupport,
     Count,
   };
 
