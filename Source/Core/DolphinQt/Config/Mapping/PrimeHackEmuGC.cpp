@@ -46,11 +46,10 @@ void PrimeHackEmuGC::CreateMainLayout()
 
   combo_hbox->addWidget(new QLabel(tr("Mouse")));
   combo_hbox->addWidget(m_radio_button = new QRadioButton());
-  combo_hbox->addSpacing(95);
+  combo_hbox->addSpacing(20);
   combo_hbox->addWidget(new QLabel(tr("Controller")));
   combo_hbox->addWidget(m_radio_controller = new QRadioButton());
 
-  modes->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   static_cast<QFormLayout*>(modes->layout())->insertRow(0, combo_hbox);
 
   groupbox1->addWidget(modes);
@@ -78,10 +77,9 @@ void PrimeHackEmuGC::CreateMainLayout()
   controller_box = CreateGroupBox(tr("Camera (Controller)"), Pad::GetGroup(
     GetPort(), PadGroup::ControlStick));
 
-  controller_box->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
   controller_box->setEnabled(ce_modes->GetSelectedDevice() == 1);
 
-  groupbox2->addWidget(controller_box, 2, Qt::AlignTop);
+  groupbox2->addWidget(controller_box, 0, Qt::AlignTop);
 
   layout->addLayout(groupbox2, 0, 1, Qt::AlignTop);
 
