@@ -74,15 +74,6 @@ void PrimeHackEmuGC::CreateMainLayout()
 
   layout->addLayout(groupbox1, 0, 0);
 
-  controller_box = CreateGroupBox(tr("Camera (Controller)"), Pad::GetGroup(
-    GetPort(), PadGroup::ControlStick));
-
-  controller_box->setEnabled(ce_modes->GetSelectedDevice() == 1);
-
-  groupbox2->addWidget(controller_box, 0, Qt::AlignTop);
-
-  layout->addLayout(groupbox2, 0, 1, Qt::AlignTop);
-
   setLayout(layout);
 }
 
@@ -102,7 +93,6 @@ void PrimeHackEmuGC::OnDeviceSelected()
     Pad::GetGroup(GetPort(), PadGroup::Modes));
 
   ce_modes->SetSelectedDevice(m_radio_button->isChecked() ? 0 : 1);
-  controller_box->setEnabled(!m_radio_button->isChecked());
 
   ConfigChanged();
   SaveSettings();
