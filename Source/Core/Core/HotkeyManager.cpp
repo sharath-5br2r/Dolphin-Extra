@@ -361,7 +361,8 @@ constexpr std::array<HotkeyGroupInfo, NUM_HOTKEY_GROUPS> s_groups_info = {
      {_trans("GBA Core"), HK_GBA_LOAD, HK_GBA_RESET, true},
      {_trans("GBA Volume"), HK_GBA_VOLUME_DOWN, HK_GBA_TOGGLE_MUTE, true},
      {_trans("GBA Window Size"), HK_GBA_1X, HK_GBA_4X, true},
-     {_trans("USB Emulation Devices"), HK_SKYLANDERS_PORTAL, HK_INFINITY_BASE}}};
+     {_trans("USB Emulation Devices"), HK_SKYLANDERS_PORTAL, HK_INFINITY_BASE},
+     {_trans("PrimeHack"), HK_NOCLIP_TOGGLE, HK_MOTION_LOCK}}};
 
 HotkeyManager::HotkeyManager()
 {
