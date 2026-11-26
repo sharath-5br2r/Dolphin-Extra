@@ -82,6 +82,11 @@ RenderWidget::RenderWidget(QWidget* parent) : QWidget(parent)
           Qt::DirectConnection);
   connect(this, &RenderWidget::FocusChanged, Host::GetInstance(), &Host::SetRenderFocus,
           Qt::DirectConnection);
+  connect(Host::GetInstance(), &Host::UpdateAndRecenterCursor, this, [this](bool locked) {
+    SetCursorLocked(locked);
+    if (locked)
+      QCursor::setPos(mapToGlobal(rect().center()));
+  });
 
   m_mouse_timer = new QTimer(this);
   connect(m_mouse_timer, &QTimer::timeout, this, &RenderWidget::HandleCursorTimer);
