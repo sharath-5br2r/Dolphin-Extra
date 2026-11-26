@@ -5,12 +5,12 @@
 #include "Core/PrimeHack/HackManager.h"
 #include "DolphinQt/CVarDataModel.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
-#include "DolphinQt/SearchBar.h"
 
 #include <QComboBox>
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QTableView>
 #include <QVBoxLayout>
@@ -43,12 +43,12 @@ public:
 
   void ShowSearchBar()
   {
-    m_search_bar->Show();
+    m_search_bar->show();
   }
 
   void HideSearchBar()
   {
-    m_search_bar->Hide();
+    m_search_bar->hide();
   }
 
   void FlushChanges()
@@ -118,9 +118,9 @@ private:
     cvar_box->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
 
     // Search Bar
-    m_search_bar = new SearchBar(this);
-    m_search_bar->SetPlaceholderText(tr("Search CVars..."));
-    connect(m_search_bar, &SearchBar::Search, this, &ModConfigWidget::UpdateFilter);
+    m_search_bar = new QLineEdit(this);
+    m_search_bar->setPlaceholderText(tr("Search CVars..."));
+    connect(m_search_bar, &QLineEdit::textChanged, this, &ModConfigWidget::UpdateFilter);
 
     main_layout->addWidget(preset_box);
     main_layout->addWidget(cvar_box);
@@ -223,7 +223,7 @@ private:
   DefaultSizedTableView* m_table;
   prime::ElfMod* m_mod;
   QComboBox* m_presets_dropdown;
-  SearchBar* m_search_bar;
+  QLineEdit* m_search_bar;
   QString m_var_filter;
 };
 
