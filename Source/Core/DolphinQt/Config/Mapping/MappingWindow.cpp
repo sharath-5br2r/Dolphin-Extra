@@ -51,6 +51,9 @@
 #include "DolphinQt/Config/Mapping/HotkeyUSBEmu.h"
 #include "DolphinQt/Config/Mapping/HotkeyWii.h"
 #include "DolphinQt/Config/Mapping/MappingCommon.h"
+#include "DolphinQt/Config/Mapping/HotkeyPrimeHack.h"
+#include "DolphinQt/Config/Mapping/PrimeHackEmuGC.h"
+#include "DolphinQt/Config/Mapping/PrimeHackEmuWii.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuExtension.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuExtensionMotionInput.h"
 #include "DolphinQt/Config/Mapping/WiimoteEmuExtensionMotionSimulation.h"
@@ -69,47 +72,6 @@
 #include "InputCommon/InputConfig.h"
 
 #include "ui_MappingWindow.h"
-
-namespace
-{
-class PrimeHackMappingWidget final : public MappingWidget
-{
-public:
-  PrimeHackMappingWidget(MappingWindow* window, bool is_wiimote)
-      : MappingWidget(window), m_is_wiimote(is_wiimote)
-  {
-    auto* layout = new QGridLayout();
-    if (m_is_wiimote)
-    {
-      layout->addWidget(CreateGroupBox(tr("Camera"), Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Camera)), 0, 0);
-      layout->addWidget(CreateGroupBox(tr("Modes"), Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Modes)), 0, 1);
-      layout->addWidget(CreateGroupBox(tr("Beams"), Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Beams)), 1, 0);
-      layout->addWidget(CreateGroupBox(tr("Visors"), Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Visors)), 1, 1);
-      layout->addWidget(CreateGroupBox(tr("Misc"), Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Misc)), 2, 0);
-    }
-    else
-    {
-      layout->addWidget(CreateGroupBox(tr("Camera"), Pad::GetGroup(GetPort(), PadGroup::Camera)), 0, 0);
-      layout->addWidget(CreateGroupBox(tr("Modes"), Pad::GetGroup(GetPort(), PadGroup::Modes)), 0, 1);
-      layout->addWidget(CreateGroupBox(tr("Beams"), Pad::GetGroup(GetPort(), PadGroup::Beams)), 1, 0);
-      layout->addWidget(CreateGroupBox(tr("Visors"), Pad::GetGroup(GetPort(), PadGroup::Visors)), 1, 1);
-      layout->addWidget(CreateGroupBox(tr("Misc"), Pad::GetGroup(GetPort(), PadGroup::Misc)), 2, 0);
-    }
-    setLayout(layout);
-  }
-
-  InputConfig* GetConfig() override
-  {
-    return m_is_wiimote ? Wiimote::GetConfig() : Pad::GetConfig();
-  }
-
-  void LoadSettings() override {}
-  void SaveSettings() override {}
-
-private:
-  bool m_is_wiimote;
-};
-}  // namespace
 
 MappingWindow::MappingWindow(QWidget* parent, Type type, int port_num)
     : QDialog(parent), m_ui(std::make_unique<Ui::MappingWindow>()), m_port(port_num)
@@ -444,7 +406,7 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
     widget = CreateStandardControllerMappingWidget(this);
     setWindowTitle(tr("GameCube Controller at Port %1").arg(GetPort() + 1));
     AddWidget(tr("GameCube Controller"), widget);
-    AddWidget(tr("PrimeHack"), new PrimeHackMappingWidget(this, false));
+    AddWidget(tr("PrimeHack"), new PrimeHackEmuGC(this));
     break;
   case Type::MAPPING_GC_MICROPHONE:
     widget = new GCMicrophone(this);
@@ -469,7 +431,7 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
         AddWidget(EXTENSION_MOTION_INPUT_TAB_NAME, extension_motion_input);
     // Hide tabs by default. "Nunchuk" selection triggers an event to show them.
     ShowExtensionMotionTabs(false);
-    AddWidget(tr("PrimeHack"), new PrimeHackMappingWidget(this, true));
+    AddWidget(tr("PrimeHack"), new PrimeHackEmuWii(this));
     break;
   }
   case Type::MAPPING_BIG_PICTURE:
@@ -496,6 +458,7 @@ void MappingWindow::SetMappingType(MappingWindow::Type type)
     AddWidget(tr("Save and Load State"), new HotkeyStates(this));
     AddWidget(tr("Other State Management"), new HotkeyStatesOther(this));
     AddWidget(tr("Game Boy Advance"), new HotkeyGBA(this));
+    AddWidget(tr("PrimeHack"), new HotkeyPrimeHack(this));
     setWindowTitle(tr("Hotkey Settings"));
     break;
   }
