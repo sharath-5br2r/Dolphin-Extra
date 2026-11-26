@@ -197,6 +197,13 @@ void MappingWindow::UpdateProfileButtonState()
   if (m_profiles_combo->findText(m_profiles_combo->currentText()) != -1)
   {
     const QString profile_path = m_profiles_combo->currentData().toString();
+  if (profile_path == QStringLiteral("__PRIMEHACK__"))
+  {
+    m_controller->LoadPrimeHackDefaults(g_controller_interface);
+    emit ConfigChanged();
+    emit Save();
+    return;
+  }
     std::string sys_dir = File::GetSysDirectory();
     sys_dir = ReplaceAll(sys_dir, "\\", DIR_SEP);
     builtin = profile_path.startsWith(QString::fromStdString(sys_dir));
@@ -222,6 +229,13 @@ void MappingWindow::OnDeleteProfilePressed()
 
   const QString profile_name = m_profiles_combo->currentText();
   const QString profile_path = m_profiles_combo->currentData().toString();
+  if (profile_path == QStringLiteral("__PRIMEHACK__"))
+  {
+    m_controller->LoadPrimeHackDefaults(g_controller_interface);
+    emit ConfigChanged();
+    emit Save();
+    return;
+  }
 
   if (m_profiles_combo->currentIndex() == -1 || !File::Exists(profile_path.toStdString()))
   {
@@ -273,6 +287,13 @@ void MappingWindow::OnLoadProfilePressed()
   }
 
   const QString profile_path = m_profiles_combo->currentData().toString();
+  if (profile_path == QStringLiteral("__PRIMEHACK__"))
+  {
+    m_controller->LoadPrimeHackDefaults(g_controller_interface);
+    emit ConfigChanged();
+    emit Save();
+    return;
+  }
 
   Common::IniFile ini;
   ini.Load(profile_path.toStdString());
@@ -516,6 +537,8 @@ void MappingWindow::PopulateProfileSelection()
   }
 
   m_profiles_combo->setCurrentIndex(-1);
+  if (m_mapping_type == Type::MAPPING_WIIMOTE_EMU || m_mapping_type == Type::MAPPING_GCPAD)
+    m_profiles_combo->addItem(tr("PrimeHack"), QStringLiteral("__PRIMEHACK__"));
 }
 
 QWidget* MappingWindow::AddWidget(const QString& name, QWidget* widget)
