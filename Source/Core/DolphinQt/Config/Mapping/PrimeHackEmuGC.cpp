@@ -68,7 +68,9 @@ void PrimeHackEmuGC::CreateMainLayout()
   auto* load_defaults_btn = new QPushButton(tr("Load PrimeHack Defaults"));
   connect(load_defaults_btn, &QPushButton::clicked, this, [this] {
     GetController()->LoadPrimeHackDefaults(g_controller_interface);
+    GetController()->UpdateReferences(g_controller_interface);
     emit GetParent()->ConfigChanged();
+    emit GetParent()->Update();
     emit GetParent()->Save();
   });
   static_cast<QFormLayout*>(springball->layout())->addRow(load_defaults_btn);
