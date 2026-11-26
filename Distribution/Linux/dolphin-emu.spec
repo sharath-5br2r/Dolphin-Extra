@@ -1,3 +1,5 @@
+%global debug_package %{nil}
+
 Name:           dolphin-emu
 Version:        2609.%(git -C %{_sourcedir} rev-parse --short HEAD)
 Release:        1%{?dist}
