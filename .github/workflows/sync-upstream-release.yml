@@ -6,6 +6,12 @@ on:
   schedule:
     - cron: '0 1/2 * * *'
   workflow_dispatch:
+    inputs:
+      skip_sync:
+        description: 'Skip upstream sync and build current master'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: sync-upstream-release
@@ -94,7 +100,12 @@ jobs:
       version: ${{ steps.version_info.outputs.version }}
       release_tag: ${{ steps.version_info.outputs.release_tag }}
     steps:
+      - name: Skip sync notice
+        if: ${{ github.event.inputs.skip_sync == 'true' }}
+        run: echo "Skipping upstream sync as requested."
+
       - name: Checkout feature branch
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
         uses: actions/checkout@v4
         with:
           ref: master
