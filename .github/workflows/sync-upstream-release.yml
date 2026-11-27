@@ -1121,13 +1121,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Trigger OBS build
-        if: ${{ secrets.OBS_TOKEN != '' }}
-        run: |
-          curl -sf -X POST \
-            -H "Authorization: Token ${{ secrets.OBS_TOKEN }}" \
-            "https://api.opensuse.org/trigger/runservice?project=home:sharath-5br2r&package=Dolphin-Extra"
-
       - name: Tag sync marker
         if: github.event_name != 'workflow_dispatch'
         run: |
@@ -1139,11 +1132,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger OBS build
-        if: ${{ secrets.OBS_TOKEN != '' }}
+        env:
+          OBS_TOKEN: ${{ secrets.OBS_TOKEN }}
         run: |
-          curl -sf -X POST \
-            -H "Authorization: Token ${{ secrets.OBS_TOKEN }}" \
-            "https://api.opensuse.org/trigger/runservice?project=home:sharath-5br2r&package=Dolphin-Extra"
+          if [ -n "$OBS_TOKEN" ]; then
+            curl -sf -X POST \
+              -H "Authorization: Token ${OBS_TOKEN}" \
+              "https://api.opensuse.org/trigger/runservice?project=home:sharath-5br2r&package=Dolphin-Extra"
+          fi
 
   trigger_cleanup:
     needs: [release]
