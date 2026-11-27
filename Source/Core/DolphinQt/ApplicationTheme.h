@@ -32,7 +32,17 @@ struct Definition
 {
   Type type;
   bool use_fusion;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
   Qt::ColorScheme color_scheme;
+#else
+  enum class ColorScheme
+  {
+    Unknown,
+    Light,
+    Dark,
+  };
+  ColorScheme color_scheme;
+#endif
   std::optional<QPalette> palette;
 };
 

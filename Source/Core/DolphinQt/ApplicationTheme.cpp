@@ -102,6 +102,12 @@ QPalette CreateDarkPalette()
 }
 }  // namespace
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+using ColorScheme = ApplicationTheme::Definition::ColorScheme;
+#else
+using ColorScheme = Qt::ColorScheme;
+#endif
+
 namespace ApplicationTheme
 {
 Definition GetDefinition(Type type, bool use_system_dark_fallback)
@@ -111,19 +117,19 @@ Definition GetDefinition(Type type, bool use_system_dark_fallback)
   switch (type)
   {
   case Type::Light:
-    return {type, true, Qt::ColorScheme::Light, CreateLightPalette()};
+    return {type, true, ColorScheme::Light, CreateLightPalette()};
   case Type::DarkGray:
-    return {type, true, Qt::ColorScheme::Dark, CreateDarkGrayPalette()};
+    return {type, true, ColorScheme::Dark, CreateDarkGrayPalette()};
   case Type::Dark:
-    return {type, true, Qt::ColorScheme::Dark, CreateDarkPalette()};
+    return {type, true, ColorScheme::Dark, CreateDarkPalette()};
   case Type::System:
     if (use_system_dark_fallback)
-      return {type, true, Qt::ColorScheme::Unknown, CreateDarkGrayPalette()};
-    return {type, false, Qt::ColorScheme::Unknown, std::nullopt};
+      return {type, true, ColorScheme::Unknown, CreateDarkGrayPalette()};
+    return {type, false, ColorScheme::Unknown, std::nullopt};
   case Type::User:
-    return {type, false, Qt::ColorScheme::Unknown, std::nullopt};
+    return {type, false, ColorScheme::Unknown, std::nullopt};
   default:
-    return {Type::System, false, Qt::ColorScheme::Unknown, std::nullopt};
+    return {Type::System, false, ColorScheme::Unknown, std::nullopt};
   }
 }
 
@@ -131,4 +137,10 @@ bool IsDark(const QPalette& palette)
 {
   return palette.color(QPalette::WindowText).value() > palette.color(QPalette::Window).value();
 }
-}  // namespace ApplicationTheme
+}  // #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+using ColorScheme = ApplicationTheme::Definition::ColorScheme;
+#else
+using ColorScheme = Qt::ColorScheme;
+#endif
+
+namespace ApplicationTheme
