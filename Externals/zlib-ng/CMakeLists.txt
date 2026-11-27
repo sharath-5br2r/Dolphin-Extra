@@ -12,5 +12,9 @@ set(ZLIB_LIBRARY ZLIB::ZLIB CACHE STRING "Path to zlib library")
 
 # Setup zlib alias project so FindZLIB doesn't recreate it
 if(NOT TARGET ZLIB::ZLIB)
-  add_library(ZLIB::ZLIB ALIAS zlib)
+  if(TARGET zlib)
+    add_library(ZLIB::ZLIB ALIAS zlib)
+  elseif(TARGET zlibstatic)
+    add_library(ZLIB::ZLIB ALIAS zlibstatic)
+  endif()
 endif()
