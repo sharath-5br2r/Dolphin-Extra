@@ -8,9 +8,6 @@
 
 namespace Memcard
 {
-// Returns the resolved path or command for rclone / librclone.
-std::string FindRclonePath();
-
 // Returns the effective path to rclone.conf.
 // Checks Config::MAIN_CLOUDSYNC_CONFIG_FILE first; if non-empty, returns it.
 // Next, checks for rclone.conf in Dolphin's User directory (e.g. sandbox safe).

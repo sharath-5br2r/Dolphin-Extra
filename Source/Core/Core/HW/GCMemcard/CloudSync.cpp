@@ -132,7 +132,7 @@ static std::vector<std::string> BuildEffectiveRcloneArgs(const std::vector<std::
 static bool RunRcloneSync(const std::vector<std::string>& args,
                           std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
 {
-  const std::string rclone_path = FindRclonePath();
+  const std::string rclone_path = "rclone";
   const std::vector<std::string> effective_args = BuildEffectiveRcloneArgs(args);
 #ifdef _WIN32
   std::vector<std::string> full_args{rclone_path.empty() ? "rclone" : rclone_path};
@@ -189,7 +189,7 @@ static std::optional<std::string> RunRcloneList(const std::vector<std::string>& 
                                                 std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
 {
   std::string listing;
-  const std::string rclone_path = FindRclonePath();
+  const std::string rclone_path = "rclone";
   const std::vector<std::string> effective_args = BuildEffectiveRcloneArgs(args);
 #ifdef _WIN32
   {

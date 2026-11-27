@@ -52,28 +52,11 @@ using RcloneRPCFn = RcloneRPCResult (*)(char* method, char* input);
 using RcloneFreeStringFn = void (*)(char* str);
 
 static std::mutex s_librclone_mutex;
-static Common::DynamicLibrary s_librclone;
 static bool s_librclone_initialized = false;
 static RcloneInitializeFn s_rclone_init = nullptr;
 static RcloneFinalizeFn s_rclone_finalize = nullptr;
 static RcloneRPCFn s_rclone_rpc = nullptr;
 static RcloneFreeStringFn s_rclone_free = nullptr;
-
-std::string FindRclonePath()
-{
-#if defined(ANDROID)
-  return "librclone.so";
-#elif defined(__APPLE__)
-  return File::GetBundleDirectory() + "/Contents/Frameworks/librclone.dylib";
-#elif defined(_WIN32)
-  const std::string exe_dir = File::GetExeDirectory();
-  if (!exe_dir.empty() && File::Exists(exe_dir + "\\librclone.dll"))
-    return exe_dir + "\\librclone.dll";
-  return "librclone.dll";
-#else
-  return "librclone.so";
-#endif
-}
 
 std::string GetRcloneConfigPath()
 {

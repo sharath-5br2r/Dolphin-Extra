@@ -640,14 +640,11 @@ void CloudSavesPane::RunCheck()
       m_remote_edit->text().isEmpty() ? QStringLiteral("Dropbox") : m_remote_edit->text();
   const QString remote_target = remote + QStringLiteral(":");
 
-  const std::string rclone_path = Memcard::FindRclonePath();
-  const QString rclone_lib = QString::fromStdString(rclone_path);
-
   m_status_label->setText(tr("Checking connection to <b>%1</b>...").arg(remote_target));
   m_check_button->setEnabled(false);
 
   // Run in background thread so network timeouts or librclone RPC don't hang the GUI thread
-  std::thread([this, remote_target, rclone_lib] {
+  std::thread([this, remote_target] {
     picojson::object about_in;
     about_in["fs"] = picojson::value(remote_target.toStdString());
     const std::string about_str = picojson::value(about_in).serialize();
@@ -655,29 +652,25 @@ void CloudSavesPane::RunCheck()
     const auto res = Memcard::RcloneRPC("operations/about", about_str);
     const auto ver_res = res ? std::nullopt : Memcard::RcloneRPC("core/version", "{}");
 
-    QMetaObject::invokeMethod(this, [this, res, ver_res, rclone_lib, remote_target] {
+    QMetaObject::invokeMethod(this, [this, res, ver_res, remote_target] {
       m_check_button->setEnabled(true);
       if (res)
       {
         m_status_label->setText(
             tr("<font color=\"green\"><b>Connected successfully!</b></font><br>"
-               "Library: %1<br>"
-               "Target: %2")
-                .arg(rclone_lib, remote_target));
+               "Target: %1")
+                .arg(remote_target));
       }
       else if (ver_res)
       {
         m_status_label->setText(
-            tr("librclone is loaded (%1), but remote <b>%2</b> could not be accessed or is not configured.<br><br>"
+            tr("Remote <b>%1</b> could not be accessed or is not configured.<br><br>"
                "Click <b>New Remote Wizard...</b> to configure it.")
-                .arg(rclone_lib, remote_target));
+                .arg(remote_target));
       }
       else
       {
-        m_status_label->setOpenExternalLinks(true);
-        m_status_label->setText(tr("<b>librclone</b> was not found on this machine.<br><br>"
-                                   "Ensure <b>%1</b> is installed in system library paths or Dolphin's directory.")
-                                    .arg(rclone_lib));
+        m_status_label->setText(tr("<b>rclone</b> is not available in this build."));
       }
     });
   }).detach();
@@ -688,9 +681,7 @@ void CloudSavesPane::MigrateRemoteFolder(const QString& old_folder, const QStrin
   const QString remote =
       m_remote_edit->text().isEmpty() ? QStringLiteral("Dropbox") : m_remote_edit->text();
 
-  const std::string rclone_path = Memcard::FindRclonePath();
-  const QString rclone_exe =
-      rclone_path.empty() ? QStringLiteral("rclone") : QString::fromStdString(rclone_path);
+  const QString rclone_exe = QStringLiteral("rclone");
   const std::string conf_path = Memcard::GetRcloneConfigPath();
 
   m_status_label->setText(tr("Moving saves from \"%1\" to \"%2\"...").arg(old_folder, new_folder));
