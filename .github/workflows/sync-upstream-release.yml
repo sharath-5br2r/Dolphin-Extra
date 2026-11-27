@@ -533,7 +533,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt install libcurl4-openssl-dev build-essential git cmake ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libevdev-dev libudev-dev libxrandr-dev libxi-dev libpulse-dev libqt6svg6-dev libasound2-dev libgudev-1.0-dev liblzma-dev libxi-dev libxrandr-dev libxinerama-dev libxcursor-dev libsoundtouch-dev libminiupnpc-dev libmbedtls-dev libao-dev libbluetooth-dev libreadline-dev libusb-1.0-0-dev qt6-base-dev qt6-base-private-dev qt6-tools-dev-tools libzstd-dev libzstd1 ninja-build ccache p7zip-full libarchive-dev -y
+          sudo apt install libcurl4-openssl-dev build-essential git cmake gettext ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libevdev-dev libudev-dev libxrandr-dev libxi-dev libpulse-dev libqt6svg6-dev libasound2-dev libgudev-1.0-dev liblzma-dev libxi-dev libxrandr-dev libxinerama-dev libxcursor-dev libsoundtouch-dev libminiupnpc-dev libmbedtls-dev libao-dev libbluetooth-dev libreadline-dev libusb-1.0-0-dev qt6-base-dev qt6-base-private-dev qt6-tools-dev-tools libzstd-dev libzstd1 ninja-build ccache p7zip-full libarchive-dev -y
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
             sudo apt install libc6-i386 gcc-multilib g++-multilib -y || true
           fi
@@ -901,7 +901,15 @@ jobs:
   rpm:
     needs: [check, sync]
     if: needs.check.outputs.should_build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
     container:
       image: fedora:latest
     steps:
@@ -935,7 +943,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rpm-x86_64-build
+          name: rpm-${{ matrix.arch }}-build
           path: "./artifact/*.rpm"
           retention-days: 1
 
