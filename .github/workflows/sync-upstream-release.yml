@@ -898,13 +898,54 @@ jobs:
           path: "./artifact/*.AppImage"
           retention-days: 1
 
+  rpm:
+    needs: [check, sync]
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install Dependencies
+        run: |
+          dnf install -y rpm-build cmake ninja-build gcc-c++ ccache golang git \
+            qt6-qtbase-devel qt6-qtbase-private-devel qt6-qtsvg-devel \
+            libX11-devel libXi-devel libXrandr-devel libXext-devel \
+            SDL3-devel libusb1-devel libevdev-devel systemd-devel \
+            bluez-libs-devel hidapi-devel curl-devel fmt-devel \
+            minizip-ng-devel pugixml-devel libspng-devel xxhash-devel \
+            lz4-devel zstd-devel lzo-devel bzip2-devel xz-devel \
+            glslang-devel spirv-tools-devel spirv-headers-devel \
+            vulkan-headers mesa-libEGL-devel mesa-libGL-devel \
+            ffmpeg-free-devel alsa-lib-devel pulseaudio-libs-devel
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync.outputs.build_ref || github.ref }}
+          submodules: recursive
+
+      - name: Build RPMs
+        run: |
+          rpmbuild -bb --nodeps --build-in-place --noclean \
+            --define "_sourcedir $GITHUB_WORKSPACE" \
+            Distribution/Linux/dolphin-emu.spec
+          mkdir -p artifact
+          cp ~/rpmbuild/RPMS/*/*.rpm artifact/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-x86_64-build
+          path: "./artifact/*.rpm"
+          retention-days: 1
+
 
   # ==========================================
   # 4. RELEASE JOB (Uses Upstream Tag & Title Naming)
   # ==========================================
   release:
-    needs: [check, sync, android, windows, linux, macos, appimage]
-    if: always() && (needs.android.result == 'success' || needs.windows.result == 'success' || needs.linux.result == 'success' || needs.macos.result == 'success' || needs.appimage.result == 'success')
+    needs: [check, sync, android, windows, linux, macos, appimage, rpm]
+    if: always() && (needs.android.result == 'success' || needs.windows.result == 'success' || needs.linux.result == 'success' || needs.macos.result == 'success' || needs.appimage.result == 'success' || needs.rpm.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
