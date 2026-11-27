@@ -11,4 +11,6 @@ set(ZLIB_INCLUDE_DIR ${CMAKE_BINARY_DIR}/zlib-ng CACHE STRING "Path to zlib incl
 set(ZLIB_LIBRARY ZLIB::ZLIB CACHE STRING "Path to zlib library")
 
 # Setup zlib alias project so FindZLIB doesn't recreate it
-add_library(ZLIB::ZLIB ALIAS zlib)
+if(NOT TARGET ZLIB::ZLIB)
+  add_library(ZLIB::ZLIB ALIAS zlib)
+endif()
