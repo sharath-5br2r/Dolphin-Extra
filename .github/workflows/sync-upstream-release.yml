@@ -146,10 +146,12 @@ jobs:
           fi
 
       - name: Create fresh master branch starting directly from upstream codebase at target commit
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
         run: |
           git checkout -B master "${{ steps.pr_sha.outputs.target_ref }}"
 
       - name: Merge custom patches onto master branch
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
         id: merge
         run: |
           set +e
@@ -196,12 +198,15 @@ jobs:
           exit 1
 
       - name: Update submodules
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
         run: git submodule update --init --recursive
 
       - name: Push master branch
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
         run: git push origin master --force
 
       - name: Compute release version metadata
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
         id: version_info
         run: |
           SHORT_HASH=$(git rev-parse --short=10 HEAD)
