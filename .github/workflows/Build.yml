@@ -61,4 +61,5 @@ jobs:
       release_name: ${{ inputs.release_name }}
       pr_number: ${{ inputs.pr_number }}
       release_tag: ${{ inputs.release_tag }}
+      version: ${{ inputs.version }}
     secrets: inherit
