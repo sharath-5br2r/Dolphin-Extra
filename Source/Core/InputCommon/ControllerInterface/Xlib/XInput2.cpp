@@ -466,7 +466,7 @@ const char* KeyboardMouse::Key::GetNameForKeyCode(Display* const display, KeyCod
 ControlState KeyboardMouse::Key::GetState() const
 {
   return ControlState(
-      std::ranges::any_of(m_keycodes, std::bind_front(&Key::IsKeyCodePressed, this)));
+      std::ranges::any_of(m_keycodes, [this](KeyCode kc) { return IsKeyCodePressed(kc); }));
 }
 
 void KeyboardMouse::Key::AddKeyCode(KeyCode keycode)

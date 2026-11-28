@@ -400,7 +400,7 @@ void ICCardReader::Update()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: {:02x}", fmt::join(card_uid, " "));
 
     const auto found_card = std::ranges::find_if(
-        m_ic_cards, std::bind_front(std::ranges::equal, card_uid), &ICCard::GetUID);
+        m_ic_cards, [&card_uid](const auto& card) { return std::ranges::equal(card->GetUID(), card_uid); });
 
     if (found_card != m_ic_cards.end())
     {
