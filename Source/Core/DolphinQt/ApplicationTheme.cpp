@@ -137,10 +137,4 @@ bool IsDark(const QPalette& palette)
 {
   return palette.color(QPalette::WindowText).value() > palette.color(QPalette::Window).value();
 }
-}  // #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
-using ColorScheme = ApplicationTheme::Definition::ColorScheme;
-#else
-using ColorScheme = Qt::ColorScheme;
-#endif
-
-namespace ApplicationTheme
+}  // namespace ApplicationTheme
