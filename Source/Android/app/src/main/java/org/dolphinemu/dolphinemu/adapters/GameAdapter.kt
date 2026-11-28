@@ -21,6 +21,7 @@ import org.dolphinemu.dolphinemu.databinding.CardGameBinding
 import org.dolphinemu.dolphinemu.dialogs.GameDiscSelectionDialog
 import org.dolphinemu.dolphinemu.dialogs.GamePropertiesDialog
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
+import org.dolphinemu.dolphinemu.services.GameFileCacheManager
 import org.dolphinemu.dolphinemu.utils.CoilUtils
 import java.util.ArrayList
 
