@@ -188,9 +188,8 @@ jobs:
           with open("build.json", "w") as f:
               json.dump(build_json, f, indent=2)
           '
-          cp build.json ./release-files/build.json
           python3 .github/workflows/scripts/generate_build_manifest.py
-          cp manifest.json ./release-files/manifest.json
+          cp build.json ./release-files/build.json
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

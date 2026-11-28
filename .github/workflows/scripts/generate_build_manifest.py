@@ -1,53 +1,51 @@
 #!/usr/bin/env python3
 import json
 import os
-import re
-import shutil
-import subprocess
-import glob
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 def main():
-    version = os.environ["RELEASE_VERSION"]
-    filename = os.environ["APK_FILE"]
-    apk = Path(filename)
-    tools = [shutil.which("aapt2"), shutil.which("aapt")]
-    android_home = os.environ.get("ANDROID_HOME", "")
-    if android_home:
-        tools += sorted(glob.glob(f"{android_home}/build-tools/*/aapt2"), reverse=True)
-        tools += sorted(glob.glob(f"{android_home}/build-tools/*/aapt"), reverse=True)
-    tool = next((candidate for candidate in tools if candidate), None)
-    data = {}
-    if tool:
-        output = subprocess.run([tool, "dump", "badging", str(apk)], capture_output=True,
-                                text=True, check=False).stdout
-        patterns = {"minSdk": r"(?:sdkVersion|minSdkVersion):'([^']+)'",
-                    "versionCode": r"versionCode='([^']+)'",
-                    "densities": r"densities: '([^']+)'",
-                    "nativeLibraries": r"native-code: '([^']+)'"}
-        for key, pattern in patterns.items():
-            match = re.search(pattern, output)
-            if match:
-                data[key] = match.group(1).split() if key.endswith("s") else match.group(1)
+    build_json_path = Path("build.json")
+    build_data = json.loads(build_json_path.read_text())
+
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    file_data = {
-        "name": "levilaunchroid-extra", "version": version,
-        "appKey": "levilaunchroid-extra", "appName": "LeviLaunchroid Extra",
-        "arch": "all", "fileType": "APK", "brandKey": None, "brandName": None,
-        "variant": None, "subVariant": None, "packageName": "org.levimc.launcher",
-        "patchSources": [], "changelogs": [],
-        "originBuild": version, "publishedAt": now,
+    entry = build_data.get("dolphin-extra", {})
+    version = os.environ.get("VERSION") or entry.get("version", "")
+    files_map = {}
+
+    for asset in entry.get("assets", []):
+        filename = asset["name"]
+        ext = asset.get("ext", "").lstrip(".").upper()
+        file_data = {
+            "name": "dolphin-extra",
+            "version": version,
+            "appKey": "dolphin-extra",
+            "appName": entry.get("display_name", "Dolphin Emulator"),
+            "arch": asset.get("arch", "universal"),
+            "fileType": ext,
+            "originBuild": version,
+            "publishedAt": now,
+        }
+        if asset.get("package_name"):
+            file_data["packageName"] = asset["package_name"]
+        for src_key, dst_key in (
+            ("min_sdk", "minSdk"),
+            ("version_code", "versionCode"),
+            ("densities", "densities"),
+            ("native_libraries", "nativeLibraries"),
+        ):
+            if asset.get(src_key):
+                file_data[dst_key] = asset[src_key]
+        files_map[filename] = file_data
+
+    manifest = {
+        "schema": 1,
+        "kind": "build",
+        "meta": {"build": version, "channel": "stable", "publishedAt": now},
+        "files": files_map,
     }
-    for key in ("minSdk", "versionCode", "densities", "nativeLibraries"):
-        if key in data and data[key]:
-            file_data[key] = data[key]
-    file_data = {key: value for key, value in file_data.items() if value is not None and value != []}
-    manifest = {"schema": 1, "kind": "build",
-                "meta": {"build": version, "channel": "stable", "publishedAt": now},
-                "files": {filename: file_data}}
-    Path("build.json").write_text(json.dumps(manifest, separators=(",", ":")) + "\n")
+    build_json_path.write_text(json.dumps(manifest, separators=(",", ":")) + "\n")
 
 
 if __name__ == "__main__":
