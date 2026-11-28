@@ -2,6 +2,8 @@
 
 package org.dolphinemu.dolphinemu.services
 
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asFlow
