@@ -73,12 +73,8 @@ jobs:
                   return "Linux"
               return "Android"
 
-          files = glob.glob("./release-files/*")
+          files = sorted(glob.glob("./release-files/*"))
           changelog = open("release_notes.md").read() if os.path.exists("release_notes.md") else ""
-          applied_patches = [
-              "Custom Storage Location (Scoped Storage / Internal Storage / SD Card)",
-              "Better Wii Menu (Games on Wii Menu Patch)"
-          ]
           release_version = os.environ.get("VERSION") or os.environ.get("RELEASE_NAME", "")
 
           for filepath in files:
@@ -89,14 +85,16 @@ jobs:
               file_os = detect_os(filename)
               is_apk = ext.lower() == "apk"
 
+              lower_name = filename.lower()
               arch = "universal"
-              if is_apk:
-                  if "arm64" in filename.lower():
-                      arch = "arm64-v8a"
-                  elif "x86_64" in filename.lower():
-                      arch = "x86_64"
-                  elif "v7a" in filename.lower() or "arm32" in filename.lower():
-                      arch = "armeabi-v7a"
+              if "arm64-v8a" in lower_name:
+                  arch = "arm64-v8a"
+              elif "aarch64" in lower_name or "arm64" in lower_name:
+                  arch = "arm64" if not is_apk else "arm64-v8a"
+              elif "x86_64" in lower_name or "x64" in lower_name:
+                  arch = "x86_64"
+              elif "v7a" in lower_name or "arm32" in lower_name:
+                  arch = "armeabi-v7a"
 
               min_sdk = ""
               version_code = ""
@@ -107,6 +105,11 @@ jobs:
                   # Inspect APK using aapt2/aapt if available, else zipfile
                   try:
                       aapt = subprocess.run(["which", "aapt2"], capture_output=True, text=True).stdout.strip() or subprocess.run(["which", "aapt"], capture_output=True, text=True).stdout.strip()
+                      if not aapt:
+                          android_home = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT") or "/usr/local/lib/android/sdk"
+                          candidates = sorted(glob.glob(f"{android_home}/build-tools/*/aapt2")) + sorted(glob.glob(f"{android_home}/build-tools/*/aapt"))
+                          if candidates:
+                              aapt = candidates[-1]
                       if aapt:
                           out = subprocess.run([aapt, "dump", "badging", filepath], capture_output=True, text=True).stdout
                           m_sdk = re.search(r"(?:sdkVersion|minSdkVersion):\x27([^\x27]+)\x27", out)
@@ -136,7 +139,6 @@ jobs:
                       except Exception as e:
                           print(f"zip inspection failed: {e}")
 
-              lower_name = filename.lower()
               variant = None
               sub_variant = None
               entry_key = "dolphin-extra"
@@ -146,7 +148,6 @@ jobs:
                   "arch": arch,
                   "ext": f".{ext}" if ext else "",
                   "os": file_os,
-                  "appliedPatches": applied_patches if is_apk else [],
                   "skippedPatches": [],
                   "failedPatches": []
               }
@@ -179,6 +180,8 @@ jobs:
               }
               if entry_key in build_json:
                   build_json[entry_key]["assets"].append(asset_obj)
+                  if is_apk and not build_json[entry_key]["package_name"]:
+                      build_json[entry_key]["package_name"] = package_name
               else:
                   build_json[entry_key] = meta_item
 
