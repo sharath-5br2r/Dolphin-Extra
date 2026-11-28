@@ -4,7 +4,7 @@ permissions: write-all
 
 on:
   schedule:
-    - cron: '0 1/2 * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
     inputs:
       skip_sync:
