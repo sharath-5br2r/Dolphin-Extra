@@ -641,24 +641,23 @@ jobs:
           path: ~/moltenvk
           key: macOS MoltenVK ${{ hashFiles('Externals/MoltenVK') }}
 
-      - name: Build MoltenVK
+      - name: Install Qt (macOS)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.9.*'
+          host: 'mac'
+          target: 'desktop'
+          arch: 'clang_64'
+
+      - name: Download Prebuilt MoltenVK
         if: steps.cache-moltenvk.outputs.cache-hit != 'true'
         run: |
-          MVK_VER="$(sed -nr 's/^.*set\(MOLTENVK_VERSION "([^"]+)".*$/\1/p' Externals/MoltenVK/CMakeLists.txt)"
-          if [ -z "$MVK_VER" ]; then
-            echo "::error::Failed to parse MoltenVK version from CMakeLists"
-            exit 1
-          fi
-          git clone --depth 1 --branch "$MVK_VER" https://github.com/KhronosGroup/MoltenVK.git mvk-build
-          pushd mvk-build
-          git apply ../Externals/MoltenVK/patches/*.patch
-          ./fetchDependencies --macos
-          make macos
-          chmod 755 Package/Release/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib
-          mkdir -p "$HOME/moltenvk/lib/"
-          mv Package/Release/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib "$HOME/moltenvk/lib/"
-          popd
-          rm -rf mvk-build
+          mkdir -p "$HOME/moltenvk/lib"
+          curl -sSfL "https://github.com/KhronosGroup/MoltenVK/releases/latest/download/MoltenVK-macos.tar" -o /tmp/MoltenVK-macos.tar
+          tar -xf /tmp/MoltenVK-macos.tar -C /tmp
+          cp /tmp/MoltenVK/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib "$HOME/moltenvk/lib/"
+          chmod 755 "$HOME/moltenvk/lib/libMoltenVK.dylib"
+          rm -rf /tmp/MoltenVK-macos.tar /tmp/MoltenVK
 
       - name: Prepare ccache timestamp
         id: ccache_cache_timestamp
@@ -674,7 +673,7 @@ jobs:
       - name: Generate CMake Files
         run: |
           COMMON_ARGS=(
-            -DCMAKE_PREFIX_PATH="$HOME/deps;$HOME/moltenvk"
+            -DCMAKE_PREFIX_PATH="$HOME/deps;$HOME/moltenvk;${{ env.Qt6_DIR }}"
             -DCMAKE_BUILD_TYPE=Release
             -DUSE_BUNDLED_MOLTENVK=OFF
             -DMACOS_CODE_SIGNING=OFF
