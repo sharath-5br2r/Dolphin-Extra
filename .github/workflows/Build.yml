@@ -17,7 +17,10 @@ on:
         required: false
         type: string
         default: ''
-  workflow_dispatch:
+      release_tag:
+        required: false
+        type: string
+        default: ''
 
 jobs:
   android:
@@ -57,4 +60,5 @@ jobs:
     with:
       release_name: ${{ inputs.release_name }}
       pr_number: ${{ inputs.pr_number }}
+      release_tag: ${{ inputs.release_tag }}
     secrets: inherit
