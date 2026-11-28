@@ -266,6 +266,15 @@ if(MSVC)
   # Treat all warnings as errors
   add_compile_options(/WX)
 
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(
+      -Wno-unused-command-line-argument
+      -Wno-microsoft-include
+      -Wno-missing-designated-field-initializers
+      -Wno-error
+    )
+  endif()
+
   # Disable some warnings
   add_compile_options(
     /wd4201 # nonstandard extension used : nameless struct/union
