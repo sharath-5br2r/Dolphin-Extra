@@ -98,6 +98,7 @@ cmake -S %{_sourcedir} -B %{_builddir}/build -G Ninja \
   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
   -DCMAKE_C_COMPILER=clang \
   -DCMAKE_CXX_COMPILER=clang \
+  -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache \
   -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 ninja -C %{_builddir}/build
