@@ -88,6 +88,7 @@ jobs:
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5
             -DUSE_SYSTEM_LIBS=OFF
             -DUSE_SYSTEM_SDL3=OFF
+            -DBUILD_RUST_LIBS=OFF
             -GNinja
           )
 
