@@ -23,6 +23,11 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 project(dolphin-emu)
 
+if(ANDROID AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+  add_compile_options(-O3 -flto=thin)
+  add_link_options(-flto=thin)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
 # Support functions
