@@ -23,7 +23,7 @@ jobs:
             qt_arch: win64_msvc2022_64
             bin_dir: x64
             vc_redist_arch: x64
-            configure_cmd: 'cmake --preset ninja-release-x64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DQt6_DIR="%Qt6_DIR%"'
+            configure_cmd: 'cmake --preset ninja-release-x64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_PREFIX_PATH="%Qt6_DIR%" -DQt6_DIR="%Qt6_DIR%\lib\cmake\Qt6"'
             build_cmd: 'cmake --build --preset ninja-build-release-x64 --target dolphin-emu'
           - arch: arm64
             runner: windows-11-arm
@@ -31,7 +31,7 @@ jobs:
             qt_arch: win64_msvc2022_arm64
             bin_dir: ARM64
             vc_redist_arch: arm64
-            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DQt6_DIR="%Qt6_DIR%"'
+            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_PREFIX_PATH="%Qt6_DIR%" -DQt6_DIR="%Qt6_DIR%\lib\cmake\Qt6"'
             build_cmd: 'cmake --build --preset ninja-build-release-arm64 --target dolphin-emu'
     env:
       CMAKE_C_COMPILER_LAUNCHER: "ccache"
