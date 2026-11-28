@@ -549,11 +549,17 @@ jobs:
           go-version: '>=1.22'
           check-latest: true
 
+      - name: Install Clang 22
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+
       - name: Configure CMake (${{ matrix.arch }})
         run: |
           mkdir build
           cd build
-          cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DLINUX_LOCAL_DEV=true -DUSE_SYSTEM_LIBS=OFF ${{ matrix.cmake_flags }} ..
+          cmake -G "Ninja" -DCMAKE_C_COMPILER=clang-22 -DCMAKE_CXX_COMPILER=clang++-22 -DCMAKE_BUILD_TYPE=Release -DLINUX_LOCAL_DEV=true -DUSE_SYSTEM_LIBS=OFF ${{ matrix.cmake_flags }} ..
 
       - name: Build (${{ matrix.arch }})
         run: |
@@ -801,14 +807,20 @@ jobs:
           go-version: '>=1.22'
           check-latest: true
 
+      - name: Install Clang 22
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+
       - name: Build Dolphin
         run: |
           mkdir -p "$HOME/.ccache"
           mkdir build
           cd build
           cmake .. -GNinja \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang \
+            -DCMAKE_C_COMPILER=clang-22 \
+            -DCMAKE_CXX_COMPILER=clang++-22 \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DBIN_INSTALL_DIR="install/usr/bin" \
