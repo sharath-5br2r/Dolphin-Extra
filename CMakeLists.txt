@@ -792,30 +792,51 @@ if(USE_RCLONE)
       set(LIBRCLONE_NAME "librclone.a")
     endif()
 
-    find_program(RCLONE_CLANG_COMPILER NAMES clang clang.exe HINTS
-      "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin"
-      "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin"
-      "C:/Program Files/LLVM/bin"
-    )
-    if(RCLONE_CLANG_COMPILER)
-      set(RCLONE_CC_VAR "${RCLONE_CLANG_COMPILER}")
-    elseif(CMAKE_C_COMPILER)
-      set(RCLONE_CC_VAR "${CMAKE_C_COMPILER}")
-    else()
-      set(RCLONE_CC_VAR "clang")
-    endif()
-
-    set(RCLONE_ENV_VARS ${CMAKE_COMMAND} -E env CGO_ENABLED=1 CC=${RCLONE_CC_VAR})
     if(ANDROID)
+      # For Android NDK, clang needs the target triple (or the target-prefixed wrapper e.g. aarch64-linux-android24-clang)
       if(ANDROID_ABI STREQUAL "arm64-v8a")
-        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=arm64)
+        set(RCLONE_ANDROID_TRIPLE "aarch64-linux-android${ANDROID_PLATFORM_LEVEL}")
+        set(RCLONE_TARGET_ARCH "arm64")
       elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
-        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=arm GOARM=7)
+        set(RCLONE_ANDROID_TRIPLE "armv7a-linux-androideabi${ANDROID_PLATFORM_LEVEL}")
+        set(RCLONE_TARGET_ARCH "arm")
       elseif(ANDROID_ABI STREQUAL "x86_64")
-        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=amd64)
+        set(RCLONE_ANDROID_TRIPLE "x86_64-linux-android${ANDROID_PLATFORM_LEVEL}")
+        set(RCLONE_TARGET_ARCH "amd64")
       elseif(ANDROID_ABI STREQUAL "x86")
-        list(APPEND RCLONE_ENV_VARS GOOS=android GOARCH=386)
+        set(RCLONE_ANDROID_TRIPLE "i686-linux-android${ANDROID_PLATFORM_LEVEL}")
+        set(RCLONE_TARGET_ARCH "386")
       endif()
+
+      get_filename_component(NDK_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
+      if(EXISTS "${NDK_BIN_DIR}/${RCLONE_ANDROID_TRIPLE}-clang")
+        set(RCLONE_CC_VAR "${NDK_BIN_DIR}/${RCLONE_ANDROID_TRIPLE}-clang")
+      else()
+        set(RCLONE_CC_VAR "${CMAKE_C_COMPILER} --target=${RCLONE_ANDROID_TRIPLE}")
+      endif()
+
+      set(RCLONE_ENV_VARS ${CMAKE_COMMAND} -E env CGO_ENABLED=1 CC=${RCLONE_CC_VAR} GOOS=android GOARCH=${RCLONE_TARGET_ARCH})
+      if(ANDROID_ABI STREQUAL "armeabi-v7a")
+        list(APPEND RCLONE_ENV_VARS GOARM=7)
+      endif()
+    else()
+      find_program(RCLONE_CLANG_COMPILER NAMES clang clang.exe HINTS
+        "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin"
+        "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin"
+        "C:/Program Files/LLVM/bin"
+      )
+      if(RCLONE_CLANG_COMPILER)
+        set(RCLONE_CC_VAR "${RCLONE_CLANG_COMPILER}")
+      elseif(CMAKE_C_COMPILER)
+        set(RCLONE_CC_VAR "${CMAKE_C_COMPILER}")
+      else()
+        set(RCLONE_CC_VAR "clang")
+      endif()
+
+      set(RCLONE_ENV_VARS ${CMAKE_COMMAND} -E env CGO_ENABLED=1 CC=${RCLONE_CC_VAR})
+    endif()
+    if(ANDROID)
+      # already configured above
     elseif(APPLE)
       if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
         list(APPEND RCLONE_ENV_VARS GOOS=darwin GOARCH=arm64)
