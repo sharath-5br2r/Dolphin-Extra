@@ -14,7 +14,7 @@ index 5c1482a..f939cb5 100644
      DOWNLOAD_COMMAND ""
      CONFIGURE_COMMAND ""
      BUILD_COMMAND cargo build --features=gecko-in-tree "$<IF:$<CONFIG:Release,RelWithDebInfo,MinSizeRel>,--release,>" "${FEATURE_NO_PRIVATE_APIS_TOGGLE}"
-+    BUILD_BYPRODUCTS "${PROJECT_SOURCE_DIR}/src/cubeb-pulse-rs/target/$<IF:$<CONFIG:Debug>,debug,release>/libcubeb_pulse.a"
++    BUILD_BYPRODUCTS "${PROJECT_SOURCE_DIR}/src/cubeb-coreaudio-rs/target/$<IF:$<CONFIG:Debug>,debug,release>/libcubeb_coreaudio.a"
      BUILD_ALWAYS ON
      BINARY_DIR "${PROJECT_SOURCE_DIR}/src/cubeb-coreaudio-rs"
      INSTALL_COMMAND ""
