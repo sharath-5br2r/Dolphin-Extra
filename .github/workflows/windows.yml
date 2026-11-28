@@ -141,9 +141,7 @@ jobs:
             Copy-Item -Recurse -Force "Data\Sys" "$BIN_PATH\Sys"
           }
 
-          if (Test-Path "librclone.dll") {
-            Copy-Item -Force "librclone.dll" "$BIN_PATH\librclone.dll"
-          }
+          # librclone is statically linked into Dolphin executable
 
           # Ensure SDL3.dll is copied into binary directory if generated during build
           $SDL3_DLL = Get-ChildItem -Path "${{ github.workspace }}\build" -Filter "SDL3.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
