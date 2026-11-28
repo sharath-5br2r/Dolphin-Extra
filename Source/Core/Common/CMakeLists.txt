@@ -186,11 +186,26 @@ add_library(common
 
 add_dependencies(common dolphin_scmrev)
 
-if(NOT MSVC AND _M_ARM_64)
-  set_source_files_properties(
-    Crypto/AES.cpp
-    Crypto/SHA1.cpp
-    PROPERTIES COMPILE_FLAGS "-march=armv8-a+crypto")
+if(_M_ARM_64)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # clang-cl and clang both support -march=armv8-a+crypto or -Xclang -target-feature
+    if(MSVC)
+      set_source_files_properties(
+        Crypto/AES.cpp
+        Crypto/SHA1.cpp
+        PROPERTIES COMPILE_FLAGS "-clang:-march=armv8-a+crypto")
+    else()
+      set_source_files_properties(
+        Crypto/AES.cpp
+        Crypto/SHA1.cpp
+        PROPERTIES COMPILE_FLAGS "-march=armv8-a+crypto")
+    endif()
+  elseif(NOT MSVC)
+    set_source_files_properties(
+      Crypto/AES.cpp
+      Crypto/SHA1.cpp
+      PROPERTIES COMPILE_FLAGS "-march=armv8-a+crypto")
+  endif()
 endif()
 
 target_link_libraries(common
