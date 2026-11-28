@@ -89,6 +89,12 @@ jobs:
           version: 2-latest
           version-sdl-image: 2-latest
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
       - name: "Build Windows Dolphin (${{ matrix.arch }})"
         shell: cmd
         working-directory: ${{ github.workspace }}
@@ -97,12 +103,6 @@ jobs:
           call "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.vcvars_arch }}
           ${{ matrix.configure_cmd }}
           ${{ matrix.build_cmd }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.22'
-          check-latest: true
 
       - name: "Prepare Windows Artifact Structure"
         shell: powershell
