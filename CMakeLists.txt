@@ -25,7 +25,7 @@ project(dolphin-emu)
 
 if(ANDROID AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_options(-O3 -flto=thin)
-  add_link_options(-flto=thin)
+  add_link_options(-flto=thin -fuse-ld=lld)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
