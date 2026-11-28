@@ -32,8 +32,10 @@ jobs:
     steps:
       - name: Determine latest upstream merged PR
         id: latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_PR=$(curl -s "https://api.github.com/repos/dolphin-emu/dolphin/pulls?state=closed&sort=updated&direction=desc&per_page=100" \
+          LATEST_PR=$(curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/dolphin-emu/dolphin/pulls?state=closed&sort=updated&direction=desc&per_page=100" \
             | jq -r '[.[] | select(.merged_at != null)] | sort_by(.merged_at) | last | .number')
 
           if [ -z "$LATEST_PR" ] || [ "$LATEST_PR" = "null" ]; then
