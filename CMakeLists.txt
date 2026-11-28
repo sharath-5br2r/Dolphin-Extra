@@ -786,6 +786,8 @@ if(USE_RCLONE)
     set(LIBRCLONE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Binaries")
     if(WIN32)
       set(LIBRCLONE_NAME "librclone.lib")
+    elseif(ANDROID)
+      set(LIBRCLONE_NAME "librclone.so")
     else()
       set(LIBRCLONE_NAME "librclone.a")
     endif()
@@ -829,15 +831,23 @@ if(USE_RCLONE)
       endif()
     endif()
 
+    if(ANDROID)
+      set(LIBRCLONE_BUILDMODE "c-shared")
+      set(LIBRCLONE_LIB_TYPE SHARED)
+    else()
+      set(LIBRCLONE_BUILDMODE "c-archive")
+      set(LIBRCLONE_LIB_TYPE STATIC)
+    endif()
+
     add_custom_target(rclone_build
       COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBRCLONE_OUTPUT_DIR}"
-      COMMAND ${RCLONE_ENV_VARS} ${CMAKE_COMMAND} -E chdir "${RCLONE_SOURCE_DIR}" ${GO_EXECUTABLE} build -trimpath -buildmode=c-archive -ldflags=-s -o "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" ./librclone
+      COMMAND ${RCLONE_ENV_VARS} ${CMAKE_COMMAND} -E chdir "${RCLONE_SOURCE_DIR}" ${GO_EXECUTABLE} build -trimpath -buildmode=${LIBRCLONE_BUILDMODE} -ldflags=-s -o "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" ./librclone
       BYPRODUCTS "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
-      COMMENT "Building static librclone (${LIBRCLONE_NAME}) with Go and CGo"
+      COMMENT "Building librclone (${LIBRCLONE_NAME}) with Go and CGo"
       VERBATIM
     )
 
-    add_library(rclone_static STATIC IMPORTED GLOBAL)
+    add_library(rclone_static ${LIBRCLONE_LIB_TYPE} IMPORTED GLOBAL)
     set_target_properties(rclone_static PROPERTIES
       IMPORTED_LOCATION "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
     )
