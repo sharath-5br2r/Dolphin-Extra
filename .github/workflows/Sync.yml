@@ -226,7 +226,7 @@ jobs:
     if: ${{ always() && needs.check.outputs.should_run == 'true' && (needs.sync.result == 'success' || github.event.inputs.skip_sync == 'true') }}
     uses: ./.github/workflows/Build.yml
     with:
-      version: ${ needs.sync.outputs.version }
-      release_name: ${ needs.check.outputs.release_name }
-      pr_number: ${ needs.check.outputs.pr_number }
+      version: ${{ needs.sync.outputs.version }}
+      release_name: ${{ needs.check.outputs.release_name }}
+      pr_number: ${{ needs.check.outputs.pr_number }}
     secrets: inherit

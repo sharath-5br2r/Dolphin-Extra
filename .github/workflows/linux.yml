@@ -62,16 +62,6 @@ jobs:
           sudo ./llvm.sh 23
           sudo ln -sf /usr/bin/ld.lld-23 /usr/bin/ld.lld
 
-      - name: Install latest LLVM
-        id: llvm
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: '22.0'
-
-      - name: Prepend LLVM 22 to PATH
-        shell: powershell
-        run: echo "${{ steps.llvm.outputs.directory }}\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
       - name: Configure CMake (${{ matrix.arch }})
         run: |
           mkdir build
