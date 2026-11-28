@@ -558,7 +558,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DLINUX_LOCAL_DEV=true ${{ matrix.cmake_flags }} ..
+          cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DLINUX_LOCAL_DEV=true -DUSE_SYSTEM_LIBS=OFF ${{ matrix.cmake_flags }} ..
 
       - name: Build (${{ matrix.arch }})
         run: |
