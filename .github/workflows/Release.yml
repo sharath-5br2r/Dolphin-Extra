@@ -226,7 +226,7 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "${{ needs.sync.outputs.release_tag }}"
+          tag_name: "${{ inputs.release_tag }}"
           name: "${{ inputs.release_name }}"
           target_commitish: master
           prerelease: false
