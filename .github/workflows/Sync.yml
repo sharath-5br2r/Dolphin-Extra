@@ -223,7 +223,7 @@ jobs:
 
   build:
     needs: [check, sync]
-    if: ${ always() && needs.check.outputs.should_run == 'true' && (needs.sync.result == 'success' || github.event.inputs.skip_sync == 'true') }
+    if: ${{ always() && needs.check.outputs.should_run == 'true' && (needs.sync.result == 'success' || github.event.inputs.skip_sync == 'true') }}
     uses: ./.github/workflows/Build.yml
     with:
       version: ${ needs.sync.outputs.version }
