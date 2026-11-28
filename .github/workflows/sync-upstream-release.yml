@@ -541,6 +541,12 @@ jobs:
         with:
           key: ccache-linux-${{ matrix.arch }}-${{ runner.os }}
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
       - name: Configure CMake (${{ matrix.arch }})
         run: |
           mkdir build
@@ -552,12 +558,6 @@ jobs:
           cd build
           ninja dolphin-emu
           touch Binaries/portable.txt
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.22'
-          check-latest: true
 
       - name: "Package Linux Dolphin (${{ matrix.arch }})"
         working-directory: ${{ github.workspace }}
@@ -691,6 +691,12 @@ jobs:
                 "${COMMON_ARGS[@]}" \
                 -B build-arm .
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
       - name: Build Dolphin (x86_64)
         working-directory: build
         run: |
@@ -704,12 +710,6 @@ jobs:
           ccache -z
           ninja dolphin-emu
           ccache -s
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.22'
-          check-latest: true
 
       - name: Prepare Build Artifacts
         id: create-artifact
@@ -793,6 +793,12 @@ jobs:
           sudo mv /tmp/patchelf /usr/bin
           patchelf --version
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
       - name: Build Dolphin
         run: |
           mkdir -p "$HOME/.ccache"
@@ -810,12 +816,6 @@ jobs:
             -DENABLE_NOGUI=OFF
           ninja
           ninja install
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.22'
-          check-latest: true
 
       - name: Package Dolphin-AppImage
         run: |
