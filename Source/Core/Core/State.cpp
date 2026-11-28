@@ -1105,7 +1105,7 @@ Common::EventHook AddResultCallback(std::function<void(const OperationResult&)> 
 void Init(Core::System& system)
 {
   s_compress_and_dump_thread.Reset("Savestate Worker",
-                                   std::bind_front(&CompressAndDumpState, std::ref(system)));
+                                   [&system](const CompressAndDumpStateArgs& save_args) { CompressAndDumpState(system, save_args); });
 
   s_flush_unsaved_data_hook = UICommon::AddFlushUnsavedDataCallback([] {
     // Holding the lock for any amount of time means there are no pending state save tasks.

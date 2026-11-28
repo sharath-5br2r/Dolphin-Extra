@@ -78,7 +78,7 @@ std::optional<IPCReply> BluetoothRealDevice::IOCtlV(const IOCtlVRequest& request
     if (!m_lib_usb_bt_adapter->IsWiiBTModule() && (opcode == 0xFC4C || opcode == 0xFC4F))
     {
       m_fake_replies.emplace(
-          std::bind_front(&BluetoothRealDevice::FakeVendorCommandReply, this, opcode));
+          [this, opcode](USB::V0IntrMessage& ctrl) { FakeVendorCommandReply(opcode, ctrl); });
     }
     else
     {

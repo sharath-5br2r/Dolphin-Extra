@@ -276,7 +276,7 @@ bool Core::Start(u64 gc_ticks)
   SetVideoBuffer();
 
   m_event_thread.Reset(fmt::format("GBA{}", m_device_number + 1),
-                       std::bind_front(&Core::HandleEvent, this));
+                       [this](SyncEvent event) { HandleEvent(event); });
   return true;
 }
 

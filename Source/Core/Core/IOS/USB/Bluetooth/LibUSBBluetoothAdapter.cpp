@@ -159,7 +159,7 @@ LibUSBBluetoothAdapter::LibUSBBluetoothAdapter()
   StartInputTransfers();
 
   m_output_worker.Reset("Bluetooth Output",
-                        std::bind_front(&LibUSBBluetoothAdapter::SubmitTimedTransfer, this));
+                        [this](TimedTransfer transfer) { SubmitTimedTransfer(std::move(transfer)); });
 
   if (IsRealtekVID(m_device_vid) || IsKnownRealtekBluetoothDevice(m_device_vid, m_device_pid))
   {

@@ -45,7 +45,7 @@ void DVDThread::Start()
   // much, because this will never get exposed to the emulated game.
   m_next_id = 0;
 
-  m_dvd_thread.Reset("DVD thread", std::bind_front(&DVDThread::ProcessReadRequest, this));
+  m_dvd_thread.Reset("DVD thread", [this](ReadRequest req) { ProcessReadRequest(std::move(req)); });
 }
 
 void DVDThread::Stop()

@@ -290,7 +290,7 @@ void WiimoteDevice::SetSource(WiimoteCommon::HIDWiimote* hid_source)
   if (m_hid_source)
   {
     m_hid_source->SetInterruptCallback(
-        std::bind_front(&WiimoteDevice::InterruptDataInputCallback, this));
+        [this](u8 hid_type, const u8* data, u32 size) { InterruptDataInputCallback(hid_type, data, size); });
     Activate(true);
   }
 }
