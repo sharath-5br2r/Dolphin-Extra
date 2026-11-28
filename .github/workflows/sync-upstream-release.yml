@@ -330,7 +330,7 @@ jobs:
             qt_arch: win64_msvc2022_64
             bin_dir: x64
             vc_redist_arch: x64
-            configure_cmd: 'cmake --preset ninja-release-x64 -DCMAKE_C_COMPILER="${{ steps.llvm.outputs.directory }}/bin/clang-cl.exe" -DCMAKE_CXX_COMPILER="${{ steps.llvm.outputs.directory }}/bin/clang-cl.exe" -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DQt6_DIR="%Qt6_DIR%"'
+            configure_cmd: 'cmake --preset ninja-release-x64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DQt6_DIR="%Qt6_DIR%"'
             build_cmd: 'cmake --build --preset ninja-build-release-x64 --target dolphin-emu'
           - arch: arm64-v8a
             runner: windows-2025-vs2026
@@ -338,7 +338,7 @@ jobs:
             qt_arch: win64_msvc2022_arm64_cross_compiled
             bin_dir: ARM64
             vc_redist_arch: arm64
-            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER="${{ steps.llvm.outputs.directory }}/bin/clang-cl.exe" -DCMAKE_CXX_COMPILER="${{ steps.llvm.outputs.directory }}/bin/clang-cl.exe" -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DQt6_DIR="%Qt6_DIR%"'
+            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DQt6_DIR="%Qt6_DIR%"'
             build_cmd: 'cmake --build --preset ninja-build-release-arm64 --target dolphin-emu'
     env:
       CMAKE_C_COMPILER_LAUNCHER: "ccache"
@@ -560,6 +560,10 @@ jobs:
         uses: KyleMayes/install-llvm-action@v2
         with:
           version: '22.0'
+
+      - name: Prepend LLVM 22 to PATH
+        shell: powershell
+        run: echo "${{ steps.llvm.outputs.directory }}\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Configure CMake (${{ matrix.arch }})
         run: |
