@@ -114,6 +114,11 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Install LLVM 22
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: '22.0'
+
       - name: Configure git identity
         if: ${{ github.event.inputs.skip_sync != 'true' }}
         run: |
@@ -338,7 +343,7 @@ jobs:
             qt_arch: win64_msvc2022_arm64_cross_compiled
             bin_dir: ARM64
             vc_redist_arch: arm64
-            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DQt6_DIR="%Qt6_DIR%"'
+            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DQt6_DIR="%Qt6_DIR%"'
             build_cmd: 'cmake --build --preset ninja-build-release-arm64 --target dolphin-emu'
     env:
       CMAKE_C_COMPILER_LAUNCHER: "ccache"
@@ -548,6 +553,11 @@ jobs:
         with:
           go-version: '>=1.22'
           check-latest: true
+
+      - name: Install LLVM 22
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: '22.0'
 
       - name: Configure CMake (${{ matrix.arch }})
         run: |
