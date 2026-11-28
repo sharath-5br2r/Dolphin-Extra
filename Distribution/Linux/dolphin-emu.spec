@@ -31,46 +31,70 @@ Provides:       bundled(xxhash)
 Provides:       bundled(cubeb)
 
 BuildRequires:  cmake
-BuildRequires:  ninja-build
 BuildRequires:  clang
 BuildRequires:  ccache
 BuildRequires:  golang
 BuildRequires:  gettext
-BuildRequires:  qt6-qtbase-devel
-BuildRequires:  qt6-qtbase-private-devel
-BuildRequires:  qt6-qtsvg-devel
-BuildRequires:  qt6-qtdeclarative-devel
-BuildRequires:  ffmpeg-devel
 BuildRequires:  glslang-devel
-BuildRequires:  spirv-headers-devel
 BuildRequires:  spirv-tools-devel
 BuildRequires:  SDL3-devel
-BuildRequires:  hidapi-devel
 BuildRequires:  libspng-devel
 BuildRequires:  libcurl-devel
 BuildRequires:  mbedtls-devel
 BuildRequires:  minizip-ng-devel
-BuildRequires:  lz4-devel >= 1.8
 BuildRequires:  lzo-devel
 BuildRequires:  libzstd-devel >= 1.4.0
-BuildRequires:  bzip2-devel
 BuildRequires:  xz-devel
 BuildRequires:  pugixml-devel
 BuildRequires:  fmt-devel >= 8
-BuildRequires:  bluez-libs-devel
 BuildRequires:  libevdev-devel
 BuildRequires:  systemd-devel
-BuildRequires:  libusb1-devel
-BuildRequires:  pulseaudio-libs-devel
 BuildRequires:  pipewire-devel
 BuildRequires:  alsa-lib-devel
-BuildRequires:  vulkan-loader-devel
 BuildRequires:  vulkan-headers
-BuildRequires:  mesa-libGL-devel
 BuildRequires:  libxkbcommon-devel
 BuildRequires:  libX11-devel
 BuildRequires:  libXrandr-devel
 BuildRequires:  libXi-devel
+
+%if 0%{?suse_version}
+BuildRequires:  ninja
+BuildRequires:  lld
+BuildRequires:  qt6-base-devel
+BuildRequires:  qt6-base-private-devel
+BuildRequires:  qt6-svg-devel
+BuildRequires:  qt6-declarative-devel
+BuildRequires:  ffmpeg-devel
+BuildRequires:  spirv-headers
+BuildRequires:  libhidapi-devel
+BuildRequires:  liblz4-devel >= 1.8
+BuildRequires:  libbz2-devel
+BuildRequires:  bluez-devel
+BuildRequires:  libusb-1_0-devel
+BuildRequires:  libpulse-devel
+BuildRequires:  vulkan-devel
+BuildRequires:  Mesa-libGL-devel
+%else
+BuildRequires:  ninja-build
+BuildRequires:  lld
+BuildRequires:  qt6-qtbase-devel
+BuildRequires:  qt6-qtbase-private-devel
+BuildRequires:  qt6-qtsvg-devel
+BuildRequires:  qt6-qtdeclarative-devel
+BuildRequires:  libavcodec-free-devel
+BuildRequires:  libavformat-free-devel
+BuildRequires:  libavutil-free-devel
+BuildRequires:  libswscale-free-devel
+BuildRequires:  spirv-headers-devel
+BuildRequires:  hidapi-devel
+BuildRequires:  lz4-devel >= 1.8
+BuildRequires:  bzip2-devel
+BuildRequires:  bluez-libs-devel
+BuildRequires:  libusb1-devel
+BuildRequires:  pulseaudio-libs-devel
+BuildRequires:  vulkan-loader-devel
+BuildRequires:  mesa-libGL-devel
+%endif
 
 %description
 Dolphin is an emulator for two recent Nintendo video game consoles:
@@ -97,7 +121,7 @@ cmake -S %{_sourcedir} -B %{_builddir}/build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
   -DCMAKE_C_COMPILER=clang \
-  -DCMAKE_CXX_COMPILER=clang \
+  -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
   -DCMAKE_C_COMPILER_LAUNCHER=ccache \
   -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
