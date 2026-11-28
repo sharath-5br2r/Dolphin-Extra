@@ -25,13 +25,13 @@ jobs:
             vc_redist_arch: x64
             configure_cmd: 'cmake --preset ninja-release-x64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DQt6_DIR="%Qt6_DIR%"'
             build_cmd: 'cmake --build --preset ninja-build-release-x64 --target dolphin-emu'
-          - arch: arm64-v8a
-            runner: windows-2025-vs2026
-            vcvars_arch: amd64_arm64
-            qt_arch: win64_msvc2022_arm64_cross_compiled
+          - arch: arm64
+            runner: windows-11-arm
+            vcvars_arch: arm64
+            qt_arch: win64_msvc2022_arm64
             bin_dir: ARM64
             vc_redist_arch: arm64
-            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DQt6_DIR="%Qt6_DIR%"'
+            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DQt6_DIR="%Qt6_DIR%"'
             build_cmd: 'cmake --build --preset ninja-build-release-arm64 --target dolphin-emu'
     env:
       CMAKE_C_COMPILER_LAUNCHER: "ccache"
@@ -45,6 +45,24 @@ jobs:
 
       - name: Install Dependencies
         run: choco install pkgconfiglite curl ninja nasm nsis -y
+
+      - name: Install LLVM 23
+        shell: powershell
+        run: |
+          # Remove pre-installed LLVM to avoid STL1000 version mismatch with VS 2026
+          if (Test-Path "C:\Program Files\LLVM") {
+            Remove-Item -Recurse -Force "C:\Program Files\LLVM"
+          }
+          $VERSION = "23.1.6"
+          # Pick the right MSI: woa64 for ARM64 host runner, win64 for x64 host runner
+          $ARCH = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'woa64' } else { 'win64' }
+          $URL = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$VERSION/LLVM-$VERSION-$ARCH.msi"
+          Write-Host "Downloading LLVM $VERSION ($ARCH) from $URL ..."
+          Invoke-WebRequest -Uri $URL -OutFile "$env:TEMP\LLVM-installer.msi" -UseBasicParsing
+          Write-Host "Installing LLVM $VERSION ..."
+          Start-Process -Wait msiexec -ArgumentList "/i","$env:TEMP\LLVM-installer.msi","/quiet","/norestart","INSTALLDIR=C:\Program Files\LLVM"
+          echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & "C:\Program Files\LLVM\bin\clang-cl.exe" --version
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -191,8 +209,3 @@ jobs:
           name: windows-${{ matrix.arch }}-build
           path: "./artifact/*"
           retention-days: 1
-
-
-  # ==========================================
-  # 3C. DOWNSTREAM BUILD JOB - LINUX
-  # ==========================================
