@@ -8,6 +8,9 @@ target_include_directories(use_pch INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Uncomment this return to disable PCH
 #return()
+if(CMAKE_DISABLE_PRECOMPILE_HEADERS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  return()
+endif()
 
 add_library(build_pch pch.h pch.cpp)
 
