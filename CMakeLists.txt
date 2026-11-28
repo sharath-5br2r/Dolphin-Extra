@@ -309,7 +309,9 @@ if(MSVC)
 
   # Request deterministic builds
   add_compile_options(/experimental:deterministic)
-  add_link_options(/experimental:deterministic)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_link_options(/experimental:deterministic)
+  endif()
 
   # Enable function-level linking
   add_compile_options(/Gy)
