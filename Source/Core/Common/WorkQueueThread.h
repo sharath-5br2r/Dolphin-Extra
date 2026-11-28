@@ -36,8 +36,9 @@ public:
   {
     auto lg = GetLockGuard();
     Shutdown();
-    m_thread = std::thread(std::bind_front(&WorkQueueThreadBase::ThreadLoop, this), std::move(name),
-                           std::move(function));
+    m_thread = std::thread(
+        [this](std::string thread_name, FunctionType fn) { ThreadLoop(thread_name, fn); },
+        std::move(name), std::move(function));
   }
 
   // Adds an item to the work queue
