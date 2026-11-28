@@ -23,8 +23,6 @@ jobs:
     outputs:
       pr_number: ${{ steps.latest.outputs.pr_number }}
       should_run: ${{ steps.check.outputs.should_run }}
-      release_tag: ${{ steps.check.outputs.release_tag }}
-      release_name: ${{ steps.check.outputs.release_name }}
 
     steps:
       - name: Determine latest upstream merged PR
@@ -63,30 +61,6 @@ jobs:
             echo "$TAG is new, running full sync!"
           fi
 
-          # Derive release tag & release name using upstream naming structure
-          EXISTING=$(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name' \
-            | grep -E "^dolphin-pr-$PR_NUM(-r[0-9]+)?$" || true)
-
-          PR_JSON=$(curl -s "https://api.github.com/repos/dolphin-emu/dolphin/pulls/$PR_NUM" || true)
-          PR_TITLE=$(echo "$PR_JSON" | jq -r '.title // empty')
-
-          TITLE_SUFFIX=""
-          if [ -n "$PR_TITLE" ]; then
-            TITLE_SUFFIX=": $PR_TITLE"
-          fi
-
-          if [ -z "$EXISTING" ]; then
-            echo "release_tag=dolphin-pr-$PR_NUM" >> "$GITHUB_OUTPUT"
-            echo "release_name=Dolphin PR #$PR_NUM${TITLE_SUFFIX} + Custom Storage Location" >> "$GITHUB_OUTPUT"
-          else
-            MAX_REV=$(echo "$EXISTING" \
-              | sed -E "s/^dolphin-pr-$PR_NUM-r([0-9]+)\$/\1/; s/^dolphin-pr-$PR_NUM\$/1/" \
-              | sort -n | tail -1)
-            NEXT_REV=$((MAX_REV + 1))
-            echo "release_tag=dolphin-pr-$PR_NUM-r$NEXT_REV" >> "$GITHUB_OUTPUT"
-            echo "release_name=Dolphin PR #$PR_NUM${TITLE_SUFFIX} + Custom Storage Location (Update $NEXT_REV)" >> "$GITHUB_OUTPUT"
-          fi
-
 
   # ==========================================
   # 2. SYNC JOB (Fetches & merges upstream PR)
@@ -99,10 +73,18 @@ jobs:
     outputs:
       version: ${{ steps.version_info.outputs.version }}
       release_tag: ${{ steps.version_info.outputs.release_tag }}
+      release_name: ${{ steps.version_info.outputs.release_name }}
     steps:
       - name: Skip sync notice
         if: ${{ github.event.inputs.skip_sync == 'true' }}
         run: echo "Skipping upstream sync as requested."
+
+      - name: Checkout master (skip_sync)
+        if: ${{ github.event.inputs.skip_sync == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
 
       - name: Checkout feature branch
         if: ${{ github.event.inputs.skip_sync != 'true' }}
@@ -206,15 +188,18 @@ jobs:
         run: git push origin master --force
 
       - name: Compute release version metadata
-        if: ${{ github.event.inputs.skip_sync != 'true' }}
         id: version_info
         run: |
-          SHORT_HASH=$(git rev-parse --short=10 HEAD)
-          VERSION="v2609-$SHORT_HASH"
+          LATEST_TAG=$(git tag --list '[0-9][0-9][0-9][0-9]' --sort=-v:refname | head -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="2609"
+          fi
+          COMMIT_COUNT=$(git rev-list --count "${LATEST_TAG}..HEAD")
+          VERSION="v${LATEST_TAG}-${COMMIT_COUNT}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "release_tag=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Computed version: $VERSION"
-          echo "Computed release tag: $VERSION"
+          echo "release_name=Dolphin Extra $VERSION" >> "$GITHUB_OUTPUT"
+          echo "Computed version: $VERSION (from tag $LATEST_TAG + $COMMIT_COUNT commits)"
 
 
   # ==========================================
@@ -227,6 +212,7 @@ jobs:
     uses: ./.github/workflows/Build.yml
     with:
       version: ${{ needs.sync.outputs.version }}
-      release_name: ${{ needs.check.outputs.release_name }}
+      release_tag: ${{ needs.sync.outputs.release_tag }}
+      release_name: ${{ needs.sync.outputs.release_name }}
       pr_number: ${{ needs.check.outputs.pr_number }}
     secrets: inherit

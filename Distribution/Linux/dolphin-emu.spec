@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 Name:           dolphin-emu
-Version:        2609.%(git -C %{_sourcedir} rev-parse --short HEAD)
+Version:        %(t=$(git -C %{_sourcedir} tag --list '[0-9][0-9][0-9][0-9]' --sort=-v:refname | head -n1); echo "${t:-2609}.$(git -C %{_sourcedir} rev-list --count ${t:-2609}..HEAD)")
 Release:        1%{?dist}
 Summary:        GameCube / Wii / Triforce emulator
 

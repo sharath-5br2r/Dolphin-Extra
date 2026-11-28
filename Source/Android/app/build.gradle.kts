@@ -190,6 +190,23 @@ dependencies {
 
 fun getGitVersion(): String {
     try {
+        val latestTag = ProcessBuilder("git", "tag", "--list", "[0-9][0-9][0-9][0-9]", "--sort=-v:refname")
+            .directory(project.rootDir)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start().inputStream.bufferedReader().use { it.readText() }
+            .lineSequence().firstOrNull()?.trim().orEmpty()
+        if (latestTag.isNotEmpty()) {
+            val count = ProcessBuilder("git", "rev-list", "--count", "$latestTag..HEAD")
+                .directory(project.rootDir)
+                .redirectOutput(ProcessBuilder.Redirect.PIPE)
+                .redirectError(ProcessBuilder.Redirect.PIPE)
+                .start().inputStream.bufferedReader().use { it.readText() }
+                .trim()
+            if (count.isNotEmpty()) {
+                return "$latestTag-$count"
+            }
+        }
         return ProcessBuilder("git", "describe", "--always", "--long")
             .directory(project.rootDir)
             .redirectOutput(ProcessBuilder.Redirect.PIPE)
