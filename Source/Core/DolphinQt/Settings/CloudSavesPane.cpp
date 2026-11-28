@@ -22,6 +22,8 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include <thread>
+
 #include <picojson.h>
 
 #include "Common/FileUtil.h"
