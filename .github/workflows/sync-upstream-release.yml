@@ -549,11 +549,6 @@ jobs:
           go-version: '>=1.22'
           check-latest: true
 
-      - name: Install LLVM 22
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: '22.0'
-
       - name: Configure CMake (${{ matrix.arch }})
         run: |
           mkdir build
