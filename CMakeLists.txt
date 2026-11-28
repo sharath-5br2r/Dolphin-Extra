@@ -783,18 +783,11 @@ if(USE_RCLONE)
   set(RCLONE_SOURCE_DIR "${PROJECT_SOURCE_DIR}/Externals/rclone/rclone")
   if(GO_EXECUTABLE AND EXISTS "${RCLONE_SOURCE_DIR}/librclone/librclone.go")
     set(RCLONE_FOUND ON)
-    if(ANDROID)
-      set(LIBRCLONE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Binaries")
-      set(LIBRCLONE_NAME "librclone.a")
+    set(LIBRCLONE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Binaries")
+    if(WIN32)
+      set(LIBRCLONE_NAME "librclone.lib")
     else()
-      set(LIBRCLONE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Binaries")
-      if(WIN32)
-        set(LIBRCLONE_NAME "librclone.dll")
-      elseif(APPLE)
-        set(LIBRCLONE_NAME "librclone.dylib")
-      else()
-        set(LIBRCLONE_NAME "librclone.a")
-      endif()
+      set(LIBRCLONE_NAME "librclone.a")
     endif()
 
     find_program(RCLONE_CLANG_COMPILER NAMES clang clang.exe HINTS
@@ -827,45 +820,29 @@ if(USE_RCLONE)
       else()
         list(APPEND RCLONE_ENV_VARS GOOS=darwin GOARCH=amd64)
       endif()
+    elseif(WIN32)
+      list(APPEND RCLONE_ENV_VARS GOOS=windows)
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
+        list(APPEND RCLONE_ENV_VARS GOARCH=arm64)
+      else()
+        list(APPEND RCLONE_ENV_VARS GOARCH=amd64)
+      endif()
     endif()
 
-    if(WIN32)
-      file(TO_NATIVE_PATH "$ENV{ProgramFiles}/Microsoft Visual Studio/18/Community/VC/Auxiliary/Build/vcvars64.bat" VCVARS_BAT)
-      if(NOT EXISTS "${VCVARS_BAT}")
-        file(TO_NATIVE_PATH "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat" VCVARS_BAT)
-      endif()
-      file(TO_NATIVE_PATH "${RCLONE_SOURCE_DIR}" RCLONE_SRC_NATIVE)
-      file(TO_NATIVE_PATH "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" LIBRCLONE_OUT_NATIVE)
-      file(TO_NATIVE_PATH "${GO_EXECUTABLE}" GO_EXE_NATIVE)
-      add_custom_target(rclone_build
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBRCLONE_OUTPUT_DIR}"
-        COMMAND cmd.exe /c call "${VCVARS_BAT}" && set "PATH=%VCINSTALLDIR%Tools\\Llvm\\x64\\bin;%PATH%" && set CC=clang && set CGO_ENABLED=1 && cd /d "${RCLONE_SRC_NATIVE}" && "${GO_EXE_NATIVE}" build -trimpath -buildmode=c-shared -ldflags=-s -o "${LIBRCLONE_OUT_NATIVE}" ./librclone
-        BYPRODUCTS "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
-        COMMENT "Building librclone shared library with Go and CGo (vcvars64)"
-        VERBATIM
-      )
-    else()
-      if(NOT ANDROID AND NOT APPLE)
-        set(LIBRCLONE_BUILDMODE "c-archive")
-      else()
-        set(LIBRCLONE_BUILDMODE "c-shared")
-      endif()
-      add_custom_target(rclone_build
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBRCLONE_OUTPUT_DIR}"
-        COMMAND ${RCLONE_ENV_VARS} ${CMAKE_COMMAND} -E chdir "${RCLONE_SOURCE_DIR}" ${GO_EXECUTABLE} build -trimpath -buildmode=${LIBRCLONE_BUILDMODE} -ldflags=-s -o "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" ./librclone
-        BYPRODUCTS "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
-        COMMENT "Building librclone (${LIBRCLONE_BUILDMODE}) with Go and CGo"
-        VERBATIM
-      )
-      if(NOT ANDROID AND NOT APPLE)
-        add_library(rclone_static STATIC IMPORTED GLOBAL)
-        set_target_properties(rclone_static PROPERTIES
-          IMPORTED_LOCATION "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
-        )
-        add_dependencies(rclone_static rclone_build)
-      endif()
-    endif()
-    message(STATUS "librclone: ENABLED (found Go at ${GO_EXECUTABLE}, CC=${RCLONE_CC_VAR})")
+    add_custom_target(rclone_build
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBRCLONE_OUTPUT_DIR}"
+      COMMAND ${RCLONE_ENV_VARS} ${CMAKE_COMMAND} -E chdir "${RCLONE_SOURCE_DIR}" ${GO_EXECUTABLE} build -trimpath -buildmode=c-archive -ldflags=-s -o "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}" ./librclone
+      BYPRODUCTS "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
+      COMMENT "Building static librclone (${LIBRCLONE_NAME}) with Go and CGo"
+      VERBATIM
+    )
+
+    add_library(rclone_static STATIC IMPORTED GLOBAL)
+    set_target_properties(rclone_static PROPERTIES
+      IMPORTED_LOCATION "${LIBRCLONE_OUTPUT_DIR}/${LIBRCLONE_NAME}"
+    )
+    add_dependencies(rclone_static rclone_build)
+        message(STATUS "librclone: ENABLED (found Go at ${GO_EXECUTABLE}, CC=${RCLONE_CC_VAR})")
   else()
     set(RCLONE_FOUND OFF)
     message(STATUS "librclone: Go not found or rclone submodule missing -> cloud saves will rely on system librclone")
