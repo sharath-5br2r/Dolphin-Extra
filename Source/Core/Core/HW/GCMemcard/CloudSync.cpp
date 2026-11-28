@@ -132,6 +132,9 @@ static std::vector<std::string> BuildEffectiveRcloneArgs(const std::vector<std::
 static bool RunRcloneSync(const std::vector<std::string>& args,
                           std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
 {
+#ifdef ANDROID
+  return false;
+#else
   const std::string rclone_path = "rclone";
   const std::vector<std::string> effective_args = BuildEffectiveRcloneArgs(args);
 #ifdef _WIN32
@@ -180,6 +183,7 @@ static bool RunRcloneSync(const std::vector<std::string>& args,
   int exit_code = -1;
   return WaitForChildWithTimeout(pid, &exit_code, timeout) && exit_code == 0;
 #endif
+#endif
 }
 
 // Runs an rclone list command against a cloud path and returns its stdout. Returns nullopt if
@@ -188,6 +192,9 @@ static bool RunRcloneSync(const std::vector<std::string>& args,
 static std::optional<std::string> RunRcloneList(const std::vector<std::string>& args,
                                                 std::chrono::milliseconds timeout = RCLONE_TIMEOUT)
 {
+#ifdef ANDROID
+  return std::nullopt;
+#else
   std::string listing;
   const std::string rclone_path = "rclone";
   const std::vector<std::string> effective_args = BuildEffectiveRcloneArgs(args);
@@ -307,6 +314,7 @@ static std::optional<std::string> RunRcloneList(const std::vector<std::string>& 
   }
 #endif
   return listing;
+#endif
 }
 
 static std::string BuildRcloneRemoteDir(u32 game_id,

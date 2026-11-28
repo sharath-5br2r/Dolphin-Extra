@@ -89,56 +89,6 @@ static bool EnsureLibrcloneLoaded()
   s_librclone_initialized = true;
   return true;
 #else
-  const std::string path = FindRclonePath();
-  if (s_librclone.Open(path.c_str()) || s_librclone.Open("librclone") ||
-      s_librclone.Open("librclone.dll") || s_librclone.Open("librclone.so"))
-  {
-#ifdef _WIN32
-    // When Go builds a -buildmode=c-shared DLL on Windows, its initialization bootstrap
-    // (_rt0_amd64_windows_lib) is placed into the .ctors PE section. The standard Windows
-    // PE loader / MSVC CRT does not automatically call .ctors constructors on DLL load,
-    // leaving Go's runtime_init_done as 0 and causing _cgo_wait_runtime_init_done()
-    // to deadlock indefinitely inside WaitForSingleObject().
-    // We execute the .ctors initializer function table manually here.
-    auto* h = reinterpret_cast<HMODULE>(s_librclone.GetHandle());
-    if (h)
-    {
-      auto* dos = reinterpret_cast<PIMAGE_DOS_HEADER>(h);
-      if (dos->e_magic == IMAGE_DOS_SIGNATURE)
-      {
-        auto* nt = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<BYTE*>(h) + dos->e_lfanew);
-        auto* sect = IMAGE_FIRST_SECTION(nt);
-        for (WORD i = 0; i < nt->FileHeader.NumberOfSections; ++i)
-        {
-          if (std::strncmp(reinterpret_cast<const char*>(sect[i].Name), ".ctors", 8) == 0)
-          {
-            using CtorFn = void (*)();
-            auto** ctor_table =
-                reinterpret_cast<CtorFn*>(reinterpret_cast<BYTE*>(h) + sect[i].VirtualAddress);
-            if (ctor_table && *ctor_table)
-            {
-              (*ctor_table)();
-            }
-            break;
-          }
-        }
-      }
-    }
-#endif
-
-    s_librclone.GetSymbol("RcloneInitialize", &s_rclone_init);
-    s_librclone.GetSymbol("RcloneFinalize", &s_rclone_finalize);
-    s_librclone.GetSymbol("RcloneRPC", &s_rclone_rpc);
-    s_librclone.GetSymbol("RcloneFreeString", &s_rclone_free);
-
-    if (s_rclone_rpc)
-    {
-      if (s_rclone_init)
-        s_rclone_init();
-      s_librclone_initialized = true;
-      return true;
-    }
-  }
   return false;
 #endif
 }
