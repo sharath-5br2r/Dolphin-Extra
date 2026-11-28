@@ -32,8 +32,7 @@ jobs:
           HOMEBREW_NO_INSTALL_CLEANUP: 1
           HOMEBREW_NO_ANALYTICS: 1
         run: |
-          brew install ccache ninja gnu-sed libspng llvm@23 || (brew update && brew install ccache ninja gnu-sed libspng llvm@23)
-          echo "$(brew --prefix llvm@23)/bin" >> $GITHUB_PATH
+          brew install ccache ninja gnu-sed libspng || (brew update && brew install ccache ninja gnu-sed libspng)
 
       - name: Install Qt (macOS)
         uses: jurplel/install-qt-action@v4
@@ -76,10 +75,7 @@ jobs:
 
       - name: Generate CMake Files
         run: |
-          LLVM_PATH="$(brew --prefix llvm@23)"
           COMMON_ARGS=(
-            -DCMAKE_C_COMPILER="$LLVM_PATH/bin/clang"
-            -DCMAKE_CXX_COMPILER="$LLVM_PATH/bin/clang++"
             -DCMAKE_PREFIX_PATH="$HOME/moltenvk;${{ env.Qt6_DIR }}"
             -DCMAKE_BUILD_TYPE=Release
             -DUSE_BUNDLED_MOLTENVK=OFF
