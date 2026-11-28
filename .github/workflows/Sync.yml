@@ -21,44 +21,38 @@ jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
-      pr_number: ${{ steps.latest.outputs.pr_number }}
+      upstream_sha: ${{ steps.latest.outputs.upstream_sha }}
       should_run: ${{ steps.check.outputs.should_run }}
 
     steps:
-      - name: Determine latest upstream merged PR
+      - name: Determine latest upstream master commit
         id: latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_PR=$(curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/dolphin-emu/dolphin/pulls?state=closed&sort=updated&direction=desc&per_page=100" \
-            | jq -r '[.[] | select(.merged_at != null)] | sort_by(.merged_at) | last | .number')
+          UPSTREAM_SHA=$(git ls-remote https://github.com/dolphin-emu/dolphin.git refs/heads/master | awk '{print $1}')
 
-          if [ -z "$LATEST_PR" ] || [ "$LATEST_PR" = "null" ]; then
-            echo "Error: No valid upstream PR found!"
+          if [ -z "$UPSTREAM_SHA" ]; then
+            echo "Error: Could not resolve upstream master SHA!"
             exit 1
           fi
-          echo "pr_number=$LATEST_PR" >> "$GITHUB_OUTPUT"
-          echo "Latest upstream merged PR number: $LATEST_PR"
+          echo "upstream_sha=$UPSTREAM_SHA" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream master SHA: $UPSTREAM_SHA"
 
-      - name: Check if already synced & compute release metadata
+      - name: Check if already synced
         id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUM="${{ steps.latest.outputs.pr_number }}"
-          TAG="pr-$PR_NUM"
+          UPSTREAM_SHA="${{ steps.latest.outputs.upstream_sha }}"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Triggered via workflow_dispatch; forcing run for $TAG"
+            echo "Triggered via workflow_dispatch; forcing run for $UPSTREAM_SHA"
           elif git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" \
-              "refs/tags/sync/$TAG" >/dev/null 2>&1; then
+              "refs/tags/sync/$UPSTREAM_SHA" >/dev/null 2>&1; then
             echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "$TAG already synced, nothing to do"
+            echo "$UPSTREAM_SHA already synced, nothing to do"
             exit 0
           else
             echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "$TAG is new, running full sync!"
+            echo "$UPSTREAM_SHA is new, running full sync!"
           fi
 
 
@@ -106,38 +100,21 @@ jobs:
           git branch -D release-sync 2>/dev/null || true
           git push origin --delete release-sync 2>/dev/null || true
 
-      - name: Fetch upstream base commit & PR merge commit
+      - name: Fetch upstream master & checkout
         if: ${{ github.event.inputs.skip_sync != 'true' }}
-        id: pr_sha
         run: |
           # Rename initial local master branch to custom-patches to preserve custom changes
           git branch -m master custom-patches
           git remote add upstream https://github.com/dolphin-emu/dolphin.git || true
-          git fetch upstream master:master --quiet
-          PR_JSON=$(curl -s "https://api.github.com/repos/dolphin-emu/dolphin/pulls/${{ needs.check.outputs.pr_number }}")
-          MERGE_SHA=$(echo "$PR_JSON" | jq -r '.merge_commit_sha // empty')
-
-          if [ -n "$MERGE_SHA" ] && [ "$MERGE_SHA" != "null" ]; then
-            echo "Fetching upstream merge commit $MERGE_SHA..."
-            git fetch upstream "$MERGE_SHA" --quiet
-            echo "target_ref=$MERGE_SHA" >> "$GITHUB_OUTPUT"
-          else
-            echo "Fetching upstream PR head branch..."
-            git fetch upstream "pull/${{ needs.check.outputs.pr_number }}/head:upstream-pr-${{ needs.check.outputs.pr_number }}" --quiet
-            echo "target_ref=upstream-pr-${{ needs.check.outputs.pr_number }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create fresh master branch starting directly from upstream codebase at target commit
-        if: ${{ github.event.inputs.skip_sync != 'true' }}
-        run: |
-          git checkout -B master "${{ steps.pr_sha.outputs.target_ref }}"
+          git fetch upstream master --tags --quiet
+          git checkout -B master "${{ needs.check.outputs.upstream_sha }}"
 
       - name: Merge custom patches onto master branch
         if: ${{ github.event.inputs.skip_sync != 'true' }}
         id: merge
         run: |
           set +e
-          git merge custom-patches --no-edit -m "Merge custom patches into upstream PR #${{ needs.check.outputs.pr_number }}"
+          git merge custom-patches --no-edit -m "Merge custom patches into upstream master (${{ needs.check.outputs.upstream_sha }})"
           status=$?
           set -e
           if [ $status -eq 0 ]; then
@@ -146,9 +123,8 @@ jobs:
           fi
 
           # Files the fork deliberately owns. Upstream editing them is expected and should never
-          # block a release: we always keep our side (our README, and the upstream policy docs we
-          # removed stay removed). Conflicts anywhere else are real and still fail the run.
-          FORK_OWNED=".github/workflows/sync-upstream-release.yml"
+          # block a release: we always keep our side. Conflicts anywhere else are real and still fail the run.
+          FORK_OWNED=".github/workflows/Sync.yml .github/workflows/Build.yml .github/workflows/Release.yml"
           unresolved=""
           for f in $(git diff --name-only --diff-filter=U); do
             case " $FORK_OWNED " in
@@ -176,7 +152,7 @@ jobs:
       - name: Report merge conflict
         if: steps.merge.outputs.conflict == 'true'
         run: |
-          echo "Automatic merge of upstream PR #${{ needs.check.outputs.pr_number }} produced conflicts."
+          echo "Automatic merge of upstream master (${{ needs.check.outputs.upstream_sha }}) produced conflicts."
           exit 1
 
       - name: Update submodules
@@ -214,5 +190,5 @@ jobs:
       version: ${{ needs.sync.outputs.version }}
       release_tag: ${{ needs.sync.outputs.release_tag }}
       release_name: ${{ needs.sync.outputs.release_name }}
-      pr_number: ${{ needs.check.outputs.pr_number }}
+      upstream_sha: ${{ needs.check.outputs.upstream_sha }}
     secrets: inherit

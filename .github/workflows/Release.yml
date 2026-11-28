@@ -9,7 +9,7 @@ on:
         required: false
         type: string
         default: ''
-      pr_number:
+      upstream_sha:
         required: false
         type: string
         default: ''
@@ -40,33 +40,14 @@ jobs:
         id: notes
         run: |
           set -euo pipefail
-          PR_NUM="${{ inputs.pr_number }}"
+          UPSTREAM_SHA="${{ inputs.upstream_sha }}"
 
           echo "Built from custom master branch, merged with the custom user data storage location feature (Scoped Storage / Internal Storage / SD Card) and Games on Wii Menu Patch." > release_notes.md
           echo "" >> release_notes.md
 
-          if [ -n "$PR_NUM" ] && [ "$PR_NUM" != "null" ]; then
-              echo "Built from upstream Dolphin PR \`#${PR_NUM}\`." >> release_notes.md
+          if [ -n "$UPSTREAM_SHA" ] && [ "$UPSTREAM_SHA" != "null" ]; then
+              echo "Synced with upstream Dolphin \`master\` at commit [\`${UPSTREAM_SHA:0:10}\`](https://github.com/dolphin-emu/dolphin/commit/${UPSTREAM_SHA})." >> release_notes.md
               echo "" >> release_notes.md
-              PR_JSON=$(curl -s "https://api.github.com/repos/dolphin-emu/dolphin/pulls/$PR_NUM" || true)
-              PR_TITLE=$(echo "$PR_JSON" | jq -r '.title // empty')
-              PR_AUTHOR=$(echo "$PR_JSON" | jq -r '.user.login // empty')
-              PR_URL=$(echo "$PR_JSON" | jq -r '.html_url // empty')
-              PR_BODY=$(echo "$PR_JSON" | jq -r '.body // empty')
-
-              if [ -n "$PR_TITLE" ]; then
-                  echo "### Upstream Dolphin PR [#${PR_NUM}](${PR_URL})" >> release_notes.md
-                  echo "**Title:** ${PR_TITLE}" >> release_notes.md
-                  if [ -n "$PR_AUTHOR" ]; then
-                      echo "**Author:** [@${PR_AUTHOR}](https://github.com/${PR_AUTHOR})" >> release_notes.md
-                  fi
-                  echo "" >> release_notes.md
-                  if [ -n "$PR_BODY" ]; then
-                      echo "#### PR Description" >> release_notes.md
-                      echo "${PR_BODY}" >> release_notes.md
-                      echo "" >> release_notes.md
-                  fi
-              fi
           fi
 
           echo "This is an unofficial community build, not affiliated with the Dolphin team." >> release_notes.md
@@ -224,8 +205,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "sync/pr-${{ inputs.pr_number }}"
-          git push origin "sync/pr-${{ inputs.pr_number }}"
+          git tag "sync/${{ inputs.upstream_sha }}"
+          git push origin "sync/${{ inputs.upstream_sha }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
