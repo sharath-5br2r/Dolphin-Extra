@@ -114,6 +114,12 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      - name: Install latest LLVM
+        id: llvm
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: '22.0'
+
       - name: Configure git identity
         if: ${{ github.event.inputs.skip_sync != 'true' }}
         run: |
@@ -549,11 +555,17 @@ jobs:
           go-version: '>=1.22'
           check-latest: true
 
-      - name: Install Clang 22
+      - name: Install latest Clang
         run: |
           wget -q https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 23
+
+      - name: Install latest LLVM
+        id: llvm
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: '22.0'
 
       - name: Configure CMake (${{ matrix.arch }})
         run: |
@@ -807,7 +819,7 @@ jobs:
           go-version: '>=1.22'
           check-latest: true
 
-      - name: Install Clang 22
+      - name: Install latest Clang
         run: |
           wget -q https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
