@@ -114,12 +114,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Install latest LLVM
-        id: llvm
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: '22.0'
-
       - name: Configure git identity
         if: ${{ github.event.inputs.skip_sync != 'true' }}
         run: |
