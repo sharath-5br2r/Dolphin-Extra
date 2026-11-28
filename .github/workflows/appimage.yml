@@ -1,0 +1,150 @@
+name: Build appimage
+
+permissions: write-all
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  appimage:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            patchelf_arch: x86_64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            patchelf_arch: aarch64
+    steps:
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Get Date
+        id: get-date
+        run: echo "date=$(/bin/date -u "+%Y%m%d")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: build-ccache-appimage-${{ matrix.arch }}-${{ steps.get-date.outputs.date }}
+          restore-keys: build-ccache-appimage-${{ matrix.arch }}-
+        env:
+          CCACHE_MAXSIZE: 200M
+
+
+      - name: Install Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential dialog dpkg libbluetooth-dev liblz4-dev liblzma-dev libssl-dev libopus-dev libpng-dev libsystemd-dev \
+          libzip-dev libzstd-dev zlib1g-dev libasound2-dev libpulse-dev pulseaudio p7zip p7zip-full libsfml-dev libminiupnpc-dev libmbedtls-dev libpugixml-dev \
+          libbz2-dev liblzo2-dev libxi-dev libavcodec-dev libudev-dev libusb-1.0-0-dev libevdev-dev libc6-dev libhidapi-dev libavformat-dev libavdevice-dev \
+          libfmt-dev libwayland-dev libxrandr-dev libglu1-mesa-dev libcurl4-openssl-dev x11-utils zenity wget curl git gettext ccache make cmake ninja-build \
+          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-icccm4 libxcb-image0-dev libxcb-cursor-dev libspng-dev \
+          qt6-base-dev qt6-base-private-dev qt6-tools-dev qt6-tools-dev-tools libqt6svg6-dev qt6-l10n-tools
+
+      - name: Update Patchelf
+        run: |
+          PATCHELFVER=0.14.5
+          curl -sL https://github.com/NixOS/patchelf/releases/download/${PATCHELFVER}/patchelf-${PATCHELFVER}-${{ matrix.patchelf_arch }}.tar.gz -o /tmp/patchelf.tar.gz
+          tar -xvf /tmp/patchelf.tar.gz --directory /tmp/ ./bin/patchelf --strip-components=2
+          sudo mv /tmp/patchelf /usr/bin
+          patchelf --version
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: Install latest Clang
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 23
+          sudo ln -sf /usr/bin/ld.lld-23 /usr/bin/ld.lld
+
+      - name: Build Dolphin
+        run: |
+          mkdir -p "$HOME/.ccache"
+          mkdir build
+          cd build
+          cmake .. -GNinja \
+            -DCMAKE_C_COMPILER=clang-23 \
+            -DCMAKE_CXX_COMPILER=clang++-23 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" \
+            -DCMAKE_EXE_LINKER_FLAGS="-flto=thin -fuse-ld=lld" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DBIN_INSTALL_DIR="install/usr/bin" \
+            -DCMAKE_INSTALL_PREFIX="install/usr" \
+            -DINC_INSTALL_DIR="install/usr/include" \
+            -DLIB_INSTALL_DIR="install/usr/lib" \
+            -DPKGCONFIG_INSTALL_DIR="install/usr/lib/pkgconfig" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DENABLE_NOGUI=OFF
+          ninja
+          ninja install
+
+      - name: Package Dolphin-AppImage
+        run: |
+          ARCH="${{ matrix.arch }}"
+          VERSION="${{ inputs.version }}"
+          FILE_NAME="dolphin-extra-linux-${VERSION}-${ARCH}.AppImage"
+
+          cd /tmp
+          curl -sSfLO "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${ARCH}.AppImage"
+          chmod a+x linuxdeploy-${ARCH}.AppImage
+          ./linuxdeploy-${ARCH}.AppImage --appimage-extract
+          curl -sSfL "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-${ARCH}.AppImage" \
+            -o /tmp/squashfs-root/usr/bin/linuxdeploy-plugin-qt.AppImage
+          chmod a+x /tmp/squashfs-root/usr/bin/linuxdeploy-plugin-qt.AppImage
+
+          cd $GITHUB_WORKSPACE
+          mkdir -p squashfs-root
+          cp -a build/install/usr $GITHUB_WORKSPACE/squashfs-root/
+          if [ -f Data/dolphin-emu.svg ]; then
+            cp Data/dolphin-emu.svg ./squashfs-root/dolphin-emu.svg
+          fi
+          if [ -f Data/dolphin-emu.desktop ]; then
+            cp Data/dolphin-emu.desktop ./squashfs-root/dolphin-emu.desktop
+          fi
+
+          curl -sSfL https://github.com/AppImage/AppImageKit/releases/download/continuous/runtime-${ARCH} -o ./squashfs-root/runtime
+          chmod a+x ./squashfs-root/runtime
+
+          mkdir -p artifact
+          ARCH=${ARCH} /tmp/squashfs-root/AppRun --appdir="$GITHUB_WORKSPACE"/squashfs-root/ --plugin qt --output appimage || true
+
+          BUILT_APPIMAGE=$(ls *.AppImage 2>/dev/null | head -n 1)
+          if [ -n "$BUILT_APPIMAGE" ]; then
+            mv "$BUILT_APPIMAGE" "artifact/${FILE_NAME}"
+          fi
+        continue-on-error: true
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-${{ matrix.arch }}-build
+          path: "./artifact/*.AppImage"
+          retention-days: 1
+
+
+  # ==========================================
+  # 4. RELEASE JOB (Uses Upstream Tag & Title Naming)
+  # ==========================================

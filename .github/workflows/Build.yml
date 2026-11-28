@@ -1,0 +1,60 @@
+name: Build
+
+permissions: write-all
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+        default: ''
+      release_name:
+        required: false
+        type: string
+        default: ''
+      pr_number:
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
+
+jobs:
+  android:
+    uses: ./.github/workflows/android.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  windows:
+    uses: ./.github/workflows/windows.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  linux:
+    uses: ./.github/workflows/linux.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  macos:
+    uses: ./.github/workflows/macos.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  appimage:
+    uses: ./.github/workflows/appimage.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  release:
+    needs: [android, windows, linux, macos, appimage]
+    if: always() && (needs.android.result == 'success' || needs.windows.result == 'success' || needs.linux.result == 'success' || needs.macos.result == 'success' || needs.appimage.result == 'success')
+    uses: ./.github/workflows/Release.yml
+    with:
+      release_name: ${{ inputs.release_name }}
+      pr_number: ${{ inputs.pr_number }}
+    secrets: inherit

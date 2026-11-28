@@ -1,0 +1,232 @@
+name: Sync And Build
+
+permissions: write-all
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      skip_sync:
+        description: 'Skip upstream sync and build current master'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: sync-upstream-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.latest.outputs.pr_number }}
+      should_run: ${{ steps.check.outputs.should_run }}
+      release_tag: ${{ steps.check.outputs.release_tag }}
+      release_name: ${{ steps.check.outputs.release_name }}
+
+    steps:
+      - name: Determine latest upstream merged PR
+        id: latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_PR=$(curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" "https://api.github.com/repos/dolphin-emu/dolphin/pulls?state=closed&sort=updated&direction=desc&per_page=100" \
+            | jq -r '[.[] | select(.merged_at != null)] | sort_by(.merged_at) | last | .number')
+
+          if [ -z "$LATEST_PR" ] || [ "$LATEST_PR" = "null" ]; then
+            echo "Error: No valid upstream PR found!"
+            exit 1
+          fi
+          echo "pr_number=$LATEST_PR" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream merged PR number: $LATEST_PR"
+
+      - name: Check if already synced & compute release metadata
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ steps.latest.outputs.pr_number }}"
+          TAG="pr-$PR_NUM"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Triggered via workflow_dispatch; forcing run for $TAG"
+          elif git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" \
+              "refs/tags/sync/$TAG" >/dev/null 2>&1; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG already synced, nothing to do"
+            exit 0
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "$TAG is new, running full sync!"
+          fi
+
+          # Derive release tag & release name using upstream naming structure
+          EXISTING=$(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name' \
+            | grep -E "^dolphin-pr-$PR_NUM(-r[0-9]+)?$" || true)
+
+          PR_JSON=$(curl -s "https://api.github.com/repos/dolphin-emu/dolphin/pulls/$PR_NUM" || true)
+          PR_TITLE=$(echo "$PR_JSON" | jq -r '.title // empty')
+
+          TITLE_SUFFIX=""
+          if [ -n "$PR_TITLE" ]; then
+            TITLE_SUFFIX=": $PR_TITLE"
+          fi
+
+          if [ -z "$EXISTING" ]; then
+            echo "release_tag=dolphin-pr-$PR_NUM" >> "$GITHUB_OUTPUT"
+            echo "release_name=Dolphin PR #$PR_NUM${TITLE_SUFFIX} + Custom Storage Location" >> "$GITHUB_OUTPUT"
+          else
+            MAX_REV=$(echo "$EXISTING" \
+              | sed -E "s/^dolphin-pr-$PR_NUM-r([0-9]+)\$/\1/; s/^dolphin-pr-$PR_NUM\$/1/" \
+              | sort -n | tail -1)
+            NEXT_REV=$((MAX_REV + 1))
+            echo "release_tag=dolphin-pr-$PR_NUM-r$NEXT_REV" >> "$GITHUB_OUTPUT"
+            echo "release_name=Dolphin PR #$PR_NUM${TITLE_SUFFIX} + Custom Storage Location (Update $NEXT_REV)" >> "$GITHUB_OUTPUT"
+          fi
+
+
+  # ==========================================
+  # 2. SYNC JOB (Fetches & merges upstream PR)
+  # ==========================================
+
+  sync:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version_info.outputs.version }}
+      release_tag: ${{ steps.version_info.outputs.release_tag }}
+    steps:
+      - name: Skip sync notice
+        if: ${{ github.event.inputs.skip_sync == 'true' }}
+        run: echo "Skipping upstream sync as requested."
+
+      - name: Checkout feature branch
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Configure git identity
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clean existing release-sync branch
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        run: |
+          git branch -D release-sync 2>/dev/null || true
+          git push origin --delete release-sync 2>/dev/null || true
+
+      - name: Fetch upstream base commit & PR merge commit
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        id: pr_sha
+        run: |
+          # Rename initial local master branch to custom-patches to preserve custom changes
+          git branch -m master custom-patches
+          git remote add upstream https://github.com/dolphin-emu/dolphin.git || true
+          git fetch upstream master:master --quiet
+          PR_JSON=$(curl -s "https://api.github.com/repos/dolphin-emu/dolphin/pulls/${{ needs.check.outputs.pr_number }}")
+          MERGE_SHA=$(echo "$PR_JSON" | jq -r '.merge_commit_sha // empty')
+
+          if [ -n "$MERGE_SHA" ] && [ "$MERGE_SHA" != "null" ]; then
+            echo "Fetching upstream merge commit $MERGE_SHA..."
+            git fetch upstream "$MERGE_SHA" --quiet
+            echo "target_ref=$MERGE_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "Fetching upstream PR head branch..."
+            git fetch upstream "pull/${{ needs.check.outputs.pr_number }}/head:upstream-pr-${{ needs.check.outputs.pr_number }}" --quiet
+            echo "target_ref=upstream-pr-${{ needs.check.outputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create fresh master branch starting directly from upstream codebase at target commit
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        run: |
+          git checkout -B master "${{ steps.pr_sha.outputs.target_ref }}"
+
+      - name: Merge custom patches onto master branch
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        id: merge
+        run: |
+          set +e
+          git merge custom-patches --no-edit -m "Merge custom patches into upstream PR #${{ needs.check.outputs.pr_number }}"
+          status=$?
+          set -e
+          if [ $status -eq 0 ]; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Files the fork deliberately owns. Upstream editing them is expected and should never
+          # block a release: we always keep our side (our README, and the upstream policy docs we
+          # removed stay removed). Conflicts anywhere else are real and still fail the run.
+          FORK_OWNED=".github/workflows/sync-upstream-release.yml"
+          unresolved=""
+          for f in $(git diff --name-only --diff-filter=U); do
+            case " $FORK_OWNED " in
+              *" $f "*)
+                if git cat-file -e "HEAD:$f" 2>/dev/null; then
+                  git checkout --ours -- "$f" && git add -- "$f"
+                else
+                  git rm --quiet -- "$f"
+                fi
+                echo "Auto-resolved fork-owned file (kept ours): $f"
+                ;;
+              *) unresolved="$unresolved $f" ;;
+            esac
+          done
+
+          if [ -n "$unresolved" ]; then
+            echo "Unresolvable conflicts:$unresolved"
+            git merge --abort || true
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          else
+            git commit --no-edit
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report merge conflict
+        if: steps.merge.outputs.conflict == 'true'
+        run: |
+          echo "Automatic merge of upstream PR #${{ needs.check.outputs.pr_number }} produced conflicts."
+          exit 1
+
+      - name: Update submodules
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        run: git submodule update --init --recursive
+
+      - name: Push master branch
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        run: git push origin master --force
+
+      - name: Compute release version metadata
+        if: ${{ github.event.inputs.skip_sync != 'true' }}
+        id: version_info
+        run: |
+          SHORT_HASH=$(git rev-parse --short=10 HEAD)
+          VERSION="v2609-$SHORT_HASH"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Computed version: $VERSION"
+          echo "Computed release tag: $VERSION"
+
+
+  # ==========================================
+  # 3A. DOWNSTREAM BUILD JOB - ANDROID
+  # ==========================================
+
+  build:
+    needs: [check, sync]
+    if: ${ always() && needs.check.outputs.should_run == 'true' && (needs.sync.result == 'success' || github.event.inputs.skip_sync == 'true') }
+    uses: ./.github/workflows/Build.yml
+    with:
+      version: ${ needs.sync.outputs.version }
+      release_name: ${ needs.check.outputs.release_name }
+      pr_number: ${ needs.check.outputs.pr_number }
+    secrets: inherit

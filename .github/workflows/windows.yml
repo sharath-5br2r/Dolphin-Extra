@@ -1,0 +1,198 @@
+name: Build windows
+
+permissions: write-all
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  windows:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: windows-2025-vs2026
+            vcvars_arch: x64
+            qt_arch: win64_msvc2022_64
+            bin_dir: x64
+            vc_redist_arch: x64
+            configure_cmd: 'cmake --preset ninja-release-x64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DQt6_DIR="%Qt6_DIR%"'
+            build_cmd: 'cmake --build --preset ninja-build-release-x64 --target dolphin-emu'
+          - arch: arm64-v8a
+            runner: windows-2025-vs2026
+            vcvars_arch: amd64_arm64
+            qt_arch: win64_msvc2022_arm64_cross_compiled
+            bin_dir: ARM64
+            vc_redist_arch: arm64
+            configure_cmd: 'cmake --preset ninja-release-arm64 -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_C_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=aarch64-pc-windows-msvc -DCMAKE_C_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_CXX_FLAGS_RELEASE="-O3 -g -flto=thin -DNDEBUG" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DQt6_DIR="%Qt6_DIR%"'
+            build_cmd: 'cmake --build --preset ninja-build-release-arm64 --target dolphin-emu'
+    env:
+      CMAKE_C_COMPILER_LAUNCHER: "ccache"
+      CMAKE_CXX_COMPILER_LAUNCHER: "ccache"
+    steps:
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          submodules: recursive
+
+      - name: Install Dependencies
+        run: choco install pkgconfiglite curl ninja nasm nsis -y
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ccache-windows-${{ matrix.arch }}-${{ runner.os }}
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.9.*'
+          target: 'desktop'
+          arch: ${{ matrix.qt_arch }}
+          extra: '--autodesktop'
+          set-env: true
+
+      - uses: libsdl-org/setup-sdl@main
+        id: sdl
+        with:
+          version: 2-latest
+          version-sdl-image: 2-latest
+
+      - name: "Build Windows Dolphin (${{ matrix.arch }})"
+        shell: cmd
+        working-directory: ${{ github.workspace }}
+        run: |
+          for /f "usebackq delims=" %%i in (`vswhere -latest -property installationPath`) do set VS_PATH=%%i
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.vcvars_arch }}
+          ${{ matrix.configure_cmd }}
+          ${{ matrix.build_cmd }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: "Prepare Windows Artifact Structure"
+        shell: powershell
+        working-directory: ${{ github.workspace }}
+        run: |
+          # Locate built binary directory
+          $BIN_PATH = ""
+          $CANDIDATES = @(
+            "${{ github.workspace }}\build\release\${{ matrix.bin_dir }}\Binaries",
+            "${{ github.workspace }}\build\release\${{ matrix.bin_dir }}",
+            "${{ github.workspace }}\Binary\${{ matrix.bin_dir }}",
+            "${{ github.workspace }}\Binary"
+          )
+          foreach ($cand in $CANDIDATES) {
+            if (Test-Path "$cand\Dolphin.exe") {
+              $BIN_PATH = $cand
+              break
+            }
+          }
+          if (-not $BIN_PATH) {
+            foreach ($cand in $CANDIDATES) {
+              if (Test-Path $cand) {
+                $BIN_PATH = $cand
+                break
+              }
+            }
+          }
+          if (-not $BIN_PATH) {
+            Write-Error "Could not locate built binary directory!"
+            exit 1
+          }
+          Write-Host "Found binary directory at: $BIN_PATH"
+
+          # Ensure Sys directory is copied into the binary directory if not already present
+          if (-not (Test-Path "$BIN_PATH\Sys")) {
+            Copy-Item -Recurse -Force "Data\Sys" "$BIN_PATH\Sys"
+          }
+
+          if (Test-Path "librclone.dll") {
+            Copy-Item -Force "librclone.dll" "$BIN_PATH\librclone.dll"
+          }
+
+          # Ensure SDL3.dll is copied into binary directory if generated during build
+          $SDL3_DLL = Get-ChildItem -Path "${{ github.workspace }}\build" -Filter "SDL3.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($SDL3_DLL -and -not (Test-Path "$BIN_PATH\SDL3.dll")) {
+            Copy-Item -Force $SDL3_DLL.FullName "$BIN_PATH\SDL3.dll"
+          }
+
+          # Create FIX-VCRUNTIME140-ERROR.txt
+          $FIX_FILE = "$BIN_PATH\FIX-VCRUNTIME140-ERROR.txt"
+          "Download and install this: https://aka.ms/vs/17/release/vc_redist.${{ matrix.vc_redist_arch }}.exe" | Out-File -Encoding ascii $FIX_FILE
+
+          # Save detected path for subsequent packaging step
+          echo "BIN_PATH=$BIN_PATH" >> $env:GITHUB_ENV
+
+      - name: "Package Windows Dolphin (${{ matrix.arch }})"
+        shell: powershell
+        working-directory: ${{ github.workspace }}
+        run: |
+          $VERSION = "${{ inputs.version }}"
+          $ZIP_NAME = "dolphin-extra-windows-${VERSION}-${{ matrix.arch }}.zip"
+          $EXE_NAME = "dolphin-extra-windows-installer-${VERSION}-${{ matrix.arch }}.exe"
+
+          $ARTIFACT_DIR = "${{ github.workspace }}\artifact"
+          New-Item -ItemType Directory -Force -Path $ARTIFACT_DIR | Out-Null
+
+          $BIN_PATH = $env:BIN_PATH
+          if (-not $BIN_PATH -or -not (Test-Path $BIN_PATH)) {
+            Write-Error "Binary directory $BIN_PATH not found!"
+            exit 1
+          }
+
+          # Prepare Zip Portable Package
+          Push-Location $BIN_PATH
+          attrib +r Sys\*.* /s 2>$null
+          fsutil file createnew portable.txt 0
+          7z a "$ARTIFACT_DIR\$ZIP_NAME" .\*
+          Pop-Location
+
+          # Refresh PATH so makensis (installed by choco) is discovered
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") + ";$env:Path"
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) {
+            if (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe") {
+              $env:Path = "C:\Program Files (x86)\NSIS;$env:Path"
+            } elseif (Test-Path "C:\Program Files\NSIS\makensis.exe") {
+              $env:Path = "C:\Program Files\NSIS;$env:Path"
+            }
+          }
+
+          # Prepare NSIS Setup Installer Package
+          if (Get-Command makensis -ErrorAction SilentlyContinue) {
+            $ABS_BIN_PATH = (Resolve-Path $BIN_PATH -ErrorAction SilentlyContinue).Path
+            $NSIS_ARCH = "${{ matrix.bin_dir }}".ToLower()
+            Push-Location "Distribution\Windows"
+            makensis /DDOLPHIN_ARCH=$NSIS_ARCH /DPRODUCT_VERSION=${VERSION} /DBINARY_SOURCE_DIR="$ABS_BIN_PATH" Installer.nsi
+            if (Test-Path "dolphin-${NSIS_ARCH}-${VERSION}.exe") {
+              Move-Item -Path "dolphin-${NSIS_ARCH}-${VERSION}.exe" -Destination "$ARTIFACT_DIR\$EXE_NAME" -Force
+            } elseif (Test-Path "dolphin-${{ matrix.bin_dir }}-${VERSION}.exe") {
+              Move-Item -Path "dolphin-${{ matrix.bin_dir }}-${VERSION}.exe" -Destination "$ARTIFACT_DIR\$EXE_NAME" -Force
+            }
+            Pop-Location
+          } else {
+            Write-Host "makensis not found! Skipping NSIS build..."
+          }
+
+      - name: "Upload Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}-build
+          path: "./artifact/*"
+          retention-days: 1
+
+
+  # ==========================================
+  # 3C. DOWNSTREAM BUILD JOB - LINUX
+  # ==========================================

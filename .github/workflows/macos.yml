@@ -1,0 +1,168 @@
+name: Build macos
+
+permissions: write-all
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  macos:
+    runs-on: macos-15-intel
+    env:
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_COMPRESS: true
+      CCACHE_COMPRESSLEVEL: 9
+      CCACHE_MAXSIZE: 200M
+    steps:
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install Packages
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+          HOMEBREW_NO_ANALYTICS: 1
+        run: |
+          brew install gnu-sed
+          if ! brew install ccache ninja libspng; then
+            brew update
+            brew install ccache ninja libspng
+          fi
+
+      - name: Cache Dependencies
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: ~/deps
+          key: macOS deps ${{ hashFiles('.github/workflows/scripts/macos/build-dependencies.sh') }}
+
+      - name: Build Dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: .github/workflows/scripts/macos/build-dependencies.sh
+
+      - name: Cache MoltenVK
+        id: cache-moltenvk
+        uses: actions/cache@v4
+        with:
+          path: ~/moltenvk
+          key: macOS MoltenVK ${{ hashFiles('Externals/MoltenVK') }}
+
+      - name: Install Qt (macOS)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.9.*'
+          host: 'mac'
+          target: 'desktop'
+          arch: 'clang_64'
+
+      - name: Download Prebuilt MoltenVK
+        if: steps.cache-moltenvk.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$HOME/moltenvk/lib"
+          curl -sSfL "https://github.com/KhronosGroup/MoltenVK/releases/latest/download/MoltenVK-macos.tar" -o /tmp/MoltenVK-macos.tar
+          tar -xf /tmp/MoltenVK-macos.tar -C /tmp
+          cp /tmp/MoltenVK/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib "$HOME/moltenvk/lib/"
+          chmod 755 "$HOME/moltenvk/lib/libMoltenVK.dylib"
+          rm -rf /tmp/MoltenVK-macos.tar /tmp/MoltenVK
+
+      - name: Prepare ccache timestamp
+        id: ccache_cache_timestamp
+        run: echo "timestamp=$(date -u "+%Y-%m-%d-%H;%M;%S")" >> $GITHUB_OUTPUT
+
+      - name: Cache ccache cache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: macOS ccache ${{ steps.ccache_cache_timestamp.outputs.timestamp }}
+          restore-keys: macOS ccache
+
+      - name: Generate CMake Files
+        run: |
+          COMMON_ARGS=(
+            -DCMAKE_PREFIX_PATH="$HOME/deps;$HOME/moltenvk;${{ env.Qt6_DIR }}"
+            -DCMAKE_BUILD_TYPE=Release
+            -DUSE_BUNDLED_MOLTENVK=OFF
+            -DMACOS_CODE_SIGNING=OFF
+            -DPOSTPROCESS_BUNDLE=ON
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            -DUSE_SYSTEM_LIBS=OFF
+            -DUSE_SYSTEM_BZIP2=ON
+            -DUSE_SYSTEM_CURL=ON
+            -DUSE_SYSTEM_ICONV=ON
+            -DUSE_SYSTEM_SDL3=OFF
+            -GNinja
+          )
+
+          cmake -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+                -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+                -DCMAKE_SYSTEM_NAME=Darwin \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=11.00 \
+                "${COMMON_ARGS[@]}" \
+                -B build .
+          cmake -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                -DCMAKE_SYSTEM_PROCESSOR=arm64 \
+                -DCMAKE_SYSTEM_NAME=Darwin \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+                "${COMMON_ARGS[@]}" \
+                -B build-arm .
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.22'
+          check-latest: true
+
+      - name: Build Dolphin (x86_64)
+        working-directory: build
+        run: |
+          ccache -z
+          ninja dolphin-emu
+          ccache -s
+
+      - name: Build Dolphin (arm64)
+        working-directory: build-arm
+        run: |
+          ccache -z
+          ninja dolphin-emu
+          ccache -s
+
+      - name: Prepare Build Artifacts
+        id: create-artifact
+        run: |
+          VERSION="${{ inputs.version }}"
+          lipo -create build/Binaries/DolphinQt.app/Contents/MacOS/DolphinQt \
+                       build-arm/Binaries/DolphinQt.app/Contents/MacOS/DolphinQt \
+                       -o dolphin-universal
+          mv dolphin-universal build/Binaries/DolphinQt.app/Contents/MacOS/DolphinQt
+          APPNAME="dolphin-extra-macos-${VERSION}-universal"
+          mv build/Binaries/DolphinQt.app "${APPNAME}.app"
+          tar --options xz:compression-level=9 -cvJf "${APPNAME}.tar.xz" "${APPNAME}.app"
+          mkdir -p artifact
+          mv "${APPNAME}.tar.xz" artifact/
+          echo "name=$APPNAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal-build
+          path: "./artifact/*.tar.xz"
+          retention-days: 1
+
+
+
+  # ==========================================
+  # 3F. DOWNSTREAM BUILD JOB - APPIMAGE
+  # ==========================================
